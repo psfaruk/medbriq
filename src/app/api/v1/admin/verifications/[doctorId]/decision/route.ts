@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { getStore } from "@/lib/data";
 import { ok, fail, handleRouteError } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { ROLES } from "@/lib/constants";
@@ -71,55 +71,46 @@ export async function POST(
     }
     const { decision, note } = parsed.data;
 
-    const existing = await db.doctorProfile.findUnique({
-      where: { id: doctorId },
-      select: { id: true, verifiedAt: true },
-    });
+    const store = getStore();
+    const existing = await store.getDoctorById(doctorId);
     if (!existing) {
       return fail("Doctor profile not found.", 404, "NOT_FOUND");
     }
 
-    const updated = await db.doctorProfile.update({
-      where: { id: doctorId },
-      data: {
-        verificationStatus: decision,
-        verificationNote: note ?? null,
-        verifiedAt:
-          decision === "VERIFIED" ? (existing.verifiedAt ?? new Date()) : null,
-      },
-      include: {
-        user: { select: { id: true, name: true, email: true, phone: true } },
-        specialties: { include: { specialty: { select: { name: true } } } },
-      },
+    const updated = await store.updateDoctorProfile(doctorId, {
+      verificationStatus: decision,
+      verificationNote: note ?? null,
+      verifiedAt:
+        decision === "VERIFIED"
+          ? (existing.verifiedAt ?? new Date().toISOString())
+          : null,
     });
 
-    await db.auditLog.create({
-      data: {
-        actorId: admin.id,
-        action: AUDIT_ACTIONS[decision],
-        entity: "DoctorProfile",
-        entityId: doctorId,
-        meta: JSON.stringify({ note: note ?? null }),
-      },
+    await store.createAuditLog({
+      actorId: admin.id,
+      action: AUDIT_ACTIONS[decision],
+      entity: "DoctorProfile",
+      entityId: doctorId,
+      meta: JSON.stringify({ note: note ?? null }),
     });
 
     const item: VerificationItem = {
-      userId: updated.user.id,
+      userId: updated.userId,
       doctorId: updated.id,
       slug: updated.slug,
-      name: updated.user.name,
-      email: updated.user.email,
-      phone: updated.user.phone,
+      name: updated.name,
+      email: updated.email,
+      phone: updated.phone,
       city: updated.city,
       regNumber: updated.regNumber,
       experienceYears: updated.experienceYears,
       consultationFee: updated.consultationFee,
       bio: updated.bio,
-      specialties: updated.specialties.map((ds) => ds.specialty.name),
+      specialties: updated.specialties.map((s) => s.name),
       verificationStatus:
         updated.verificationStatus as VerificationItem["verificationStatus"],
       verificationNote: updated.verificationNote,
-      submittedAt: updated.createdAt.toISOString(),
+      submittedAt: updated.createdAt,
     };
 
     return ok({ item });

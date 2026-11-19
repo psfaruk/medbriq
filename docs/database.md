@@ -335,3 +335,71 @@ short: store UTC, schedule in Dhaka minutes-from-midnight, display via
 `Intl.DateTimeFormat("…", { timeZone: "Asia/Dhaka" })`, fixed +6 offset (no DST in
 Bangladesh since 2009). DST-observing countries will require a timezone-library rewrite
 of `src/lib/time.ts` — a documented, accepted MVP limitation.
+
+## 8. Firestore Production Store
+
+The API never talks to Prisma directly. Every route under `/api/v1/**` (plus
+`src/lib/auth.ts` and `src/lib/slots.ts`) uses the store-agnostic `DataStore` interface
+(`src/lib/data/types.ts`) with two implementations:
+
+- **PrismaStore** (`src/lib/data/prisma-store.ts`) — local dev, SQLite via Prisma. All query
+  logic moved verbatim out of the routes during the dual-store refactor.
+- **FirestoreStore** (`src/lib/data/firestore-store.ts`) — production, Firebase Firestore
+  via **firebase-admin v14** (modular API: `initializeApp`/`cert`/`getFirestore`; the admin
+  namespace default does not exist in v14).
+
+`getStore()` (`src/lib/data/index.ts`) picks the implementation at runtime: when
+`FIREBASE_SERVICE_ACCOUNT` parses as JSON → FirestoreStore, otherwise → PrismaStore. The
+Firestore database id comes from `FIREBASE_DATABASE_ID` (fallback `"default"`). Firestore is
+accessed **server-side only** through the admin SDK — no client credentials exist.
+
+### 8.1 Collection modeling
+
+| Collection | Doc id | Doc contents |
+| --- | --- | --- |
+| `users` | uuid | `email, passwordHash, name, phone, role, status, createdAt, updatedAt` |
+| `sessions` | **token** | `userId, expiresAt, createdAt` — token IS the doc id, so uniqueness holds by construction |
+| `specialties` | uuid | `name, nameBn, slug, icon` |
+| `hospitals` | uuid | `name, slug, city, address, phone, about` |
+| `doctors` | uuid | profile scalars + `userId`, `hospitalId`, `specialtyIds: string[]` |
+| `availability_rules` | `{doctorId}_{dayOfWeek}_{startMinute}` | mirrors `@@unique([doctorId, dayOfWeek, startMinute])` |
+| `appointments` | **`{doctorId}_{slotStartISO}`** | all appointment fields + a stable logical `id` inside the doc (survives reschedule) |
+| `reviews` | `{doctorId}_{patientId}` | mirrors `@@unique([doctorId, patientId])` |
+| `audit_logs` | uuid | `actorId, action, entity, entityId, meta, createdAt` |
+
+All timestamps are stored as ISO-8601 UTC strings — consistent, lexicographically sortable,
+and identical to the JSON the API returns.
+
+### 8.2 Unique constraints via doc ids
+
+Firestore has no unique fields or composite indexes in this deployment, so uniqueness is
+encoded in the doc id (create-semantics make a duplicate id fail atomically):
+
+- **`appointments/{doctorId}_{slotStartISO}` — the double-booking guard.** A slot stays
+  taken even when the appointment is cancelled, exactly like the SQLite
+  `@@unique([doctorId, slotStart])` index. `createAppointment` and `rescheduleAppointment`
+  run Firestore transactions that fail with `SlotConflictError` → `409 SLOT_TAKEN` when the
+  doc id already exists.
+- `reviews/{doctorId}_{patientId}` — one review per patient per doctor.
+- `availability_rules/{doctorId}_{dayOfWeek}_{startMinute}` — no duplicate weekly windows.
+- `sessions/{token}` — token as id; logout deletes the doc.
+
+### 8.3 One-indexed-filter strategy (demo-scale tradeoff)
+
+Composite indexes cannot be created with the current service account, so every list/search
+query uses **at most ONE indexed equality (or `array-contains`) filter** — e.g.
+`where('doctorId', '==', x)` — and performs the remaining filtering, sorting and pagination
+in JavaScript. Joins (doctor → user/specialty/hospital, review → patient name) are resolved
+in memory from the small collections. With the demo dataset (12 doctors, 17 users, a handful
+of appointments/reviews) this costs a few dozen document reads per request. **At real scale
+this must move to composite indexes + denormalized counters** — the API responses would stay
+identical because all post-filtering already lives behind the `DataStore` interface.
+
+### 8.4 Seeding
+
+`scripts/firestore-seed.ts` writes the same fictional demo data (shared definitions in
+`src/lib/data/seed-data.ts`) into the production Firestore, including the demo accounts with
+identical emails/passwords (hashed via the shared `src/lib/password.ts`). It is idempotent:
+when the `doctors` collection already has documents it prints the counts and skips unless
+`--force` is passed (wipe + re-seed). The local SQLite seeder (`prisma/seed.ts`) uses the
+same shared definitions, so both stores always contain the same demo content.

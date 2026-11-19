@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { getStore } from "@/lib/data";
 import { ok, fail, handleRouteError } from "@/lib/api";
-import { hashPassword, createSession } from "@/lib/auth";
+import { hashPassword } from "@/lib/password";
+import { createSession } from "@/lib/auth";
 import { LANGUAGES, ROLES } from "@/lib/constants";
 import type { SessionUser } from "@/lib/types";
 
@@ -107,15 +108,12 @@ function slugifyName(name: string): string {
 
 /** Appends "-2", "-3", ... until the slug is free. */
 async function uniqueDoctorSlug(base: string): Promise<string> {
+  const store = getStore();
   let candidate = base;
   let counter = 2;
   // Bounded loop; a timestamp suffix is the (practically unreachable) escape hatch.
   while (counter < 300) {
-    const existing = await db.doctorProfile.findUnique({
-      where: { slug: candidate },
-      select: { id: true },
-    });
-    if (!existing) return candidate;
+    if (!(await store.doctorSlugExists(candidate))) return candidate;
     candidate = `${base}-${counter}`;
     counter += 1;
   }
@@ -134,12 +132,10 @@ export async function POST(req: NextRequest) {
       );
     }
     const input = parsed.data;
+    const store = getStore();
 
-    // Email uniqueness (application-level; the DB column is also unique).
-    const existing = await db.user.findUnique({
-      where: { email: input.email },
-      select: { id: true },
-    });
+    // Email uniqueness (application-level; the local DB column is also unique).
+    const existing = await store.findUserByEmail(input.email);
     if (existing) {
       return fail(
         "An account with this email already exists.",
@@ -152,10 +148,7 @@ export async function POST(req: NextRequest) {
 
     if (input.role === ROLES.DOCTOR) {
       // Validate the specialty before creating any rows.
-      const specialty = await db.specialty.findUnique({
-        where: { slug: input.specialtySlug },
-        select: { id: true },
-      });
+      const specialty = await store.findSpecialtyBySlug(input.specialtySlug);
       if (!specialty) {
         return fail(
           "Selected specialty was not found.",
@@ -165,54 +158,41 @@ export async function POST(req: NextRequest) {
       }
 
       const slug = await uniqueDoctorSlug(slugifyName(input.name));
-      const user = await db.user.create({
-        data: {
-          email: input.email,
-          passwordHash,
-          name: input.name,
-          phone: input.phone ?? null,
-          role: ROLES.DOCTOR,
-          doctorProfile: {
-            create: {
-              slug,
-              verificationStatus: "PENDING",
-              bio: input.bio ?? null,
-              experienceYears: input.experienceYears,
-              consultationFee: input.consultationFee,
-              followUpFee: input.followUpFee,
-              regNumber: input.regNumber,
-              city: input.city,
-              chamberAddress: input.chamberAddress ?? null,
-              languages: normalizeLanguages(input.languages),
-              supportsVideo: input.supportsVideo,
-              requiresApproval: input.requiresApproval,
-              hospitalId: null,
-              specialties: {
-                create: { specialtyId: specialty.id },
-              },
-            },
-          },
-        },
-        include: {
-          doctorProfile: {
-            select: { slug: true, verificationStatus: true },
-          },
+      const user = await store.createDoctorAccount({
+        email: input.email,
+        passwordHash,
+        name: input.name,
+        phone: input.phone ?? null,
+        specialtyId: specialty.id,
+        profile: {
+          slug,
+          verificationStatus: "PENDING",
+          bio: input.bio ?? null,
+          experienceYears: input.experienceYears,
+          consultationFee: input.consultationFee,
+          followUpFee: input.followUpFee,
+          videoConsultFee: null,
+          regNumber: input.regNumber,
+          city: input.city,
+          chamberAddress: input.chamberAddress ?? null,
+          languages: normalizeLanguages(input.languages),
+          supportsVideo: input.supportsVideo,
+          requiresApproval: input.requiresApproval,
+          hospitalId: null,
         },
       });
 
-      await db.auditLog.create({
-        data: {
-          actorId: user.id,
-          action: "DOCTOR_REGISTERED",
-          entity: "User",
-          entityId: user.id,
-          meta: JSON.stringify({
-            email: user.email,
-            role: user.role,
-            doctorSlug: user.doctorProfile?.slug ?? null,
-            specialtySlug: input.specialtySlug,
-          }),
-        },
+      await store.createAuditLog({
+        actorId: user.id,
+        action: "DOCTOR_REGISTERED",
+        entity: "User",
+        entityId: user.id,
+        meta: JSON.stringify({
+          email: user.email,
+          role: user.role,
+          doctorSlug: user.doctorSlug ?? null,
+          specialtySlug: input.specialtySlug,
+        }),
       });
 
       await createSession(user.id);
@@ -221,31 +201,26 @@ export async function POST(req: NextRequest) {
         name: user.name,
         email: user.email,
         role: user.role as SessionUser["role"],
-        doctorSlug: user.doctorProfile?.slug ?? null,
-        verificationStatus: user.doctorProfile?.verificationStatus ?? null,
+        doctorSlug: user.doctorSlug ?? null,
+        verificationStatus: user.verificationStatus ?? null,
       };
       return ok({ user: sessionUser }, 201);
     }
 
     // PATIENT
-    const user = await db.user.create({
-      data: {
-        email: input.email,
-        passwordHash,
-        name: input.name,
-        phone: input.phone ?? null,
-        role: ROLES.PATIENT,
-      },
+    const user = await store.createPatientUser({
+      email: input.email,
+      passwordHash,
+      name: input.name,
+      phone: input.phone ?? null,
     });
 
-    await db.auditLog.create({
-      data: {
-        actorId: user.id,
-        action: "USER_REGISTERED",
-        entity: "User",
-        entityId: user.id,
-        meta: JSON.stringify({ email: user.email, role: user.role }),
-      },
+    await store.createAuditLog({
+      actorId: user.id,
+      action: "USER_REGISTERED",
+      entity: "User",
+      entityId: user.id,
+      meta: JSON.stringify({ email: user.email, role: user.role }),
     });
 
     await createSession(user.id);

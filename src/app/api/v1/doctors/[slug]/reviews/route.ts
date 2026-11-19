@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { getStore } from "@/lib/data";
 import { fail, handleRouteError, ok } from "@/lib/api";
 import type { ReviewItem } from "@/lib/types";
 
@@ -25,44 +25,37 @@ export async function GET(
       return fail("Doctor not found", 404, "NOT_FOUND");
     }
 
-    const doctor = await db.doctorProfile.findUnique({
-      where: { slug: parsedSlug.data },
-      select: { id: true, verificationStatus: true },
-    });
+    const store = getStore();
+    const doctor = await store.getDoctorIdAndStatusBySlug(parsedSlug.data);
     if (!doctor || HIDDEN_STATUSES.includes(doctor.verificationStatus)) {
       return fail("Doctor not found", 404, "NOT_FOUND");
     }
 
-    const [reviews, aggregate] = await Promise.all([
-      db.review.findMany({
-        where: { doctorId: doctor.id },
-        orderBy: { createdAt: "desc" },
-        take: 50,
-        include: { patient: { select: { name: true } } },
-      }),
-      db.review.aggregate({
-        where: { doctorId: doctor.id },
-        _avg: { rating: true },
-        _count: true,
-      }),
-    ]);
+    const reviews = await store.listReviewsByDoctor(doctor.id);
 
-    const items: ReviewItem[] = reviews.map((review) => ({
+    const items: ReviewItem[] = reviews.slice(0, 50).map((review) => ({
       id: review.id,
       rating: review.rating,
       comment: review.comment,
-      createdAt: review.createdAt.toISOString(),
-      patientName: review.patient.name,
+      createdAt: review.createdAt,
+      patientName: review.patientName,
     }));
+
+    const ratingCount = reviews.length;
+    const ratingAvg =
+      ratingCount > 0
+        ? Math.round(
+            (reviews.reduce((sum, review) => sum + review.rating, 0) /
+              ratingCount) *
+              10
+          ) / 10
+        : null;
 
     return ok(
       {
         items,
-        ratingAvg:
-          aggregate._avg.rating != null
-            ? Math.round(aggregate._avg.rating * 10) / 10
-            : null,
-        ratingCount: aggregate._count,
+        ratingAvg,
+        ratingCount,
       },
       { headers: { "Cache-Control": "no-store" } }
     );

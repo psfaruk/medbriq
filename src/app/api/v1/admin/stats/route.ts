@@ -1,8 +1,7 @@
-import { db } from "@/lib/db";
+import { getStore } from "@/lib/data";
 import { ok, fail, handleRouteError } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { ROLES } from "@/lib/constants";
-import type { AdminStats } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -20,40 +19,7 @@ export async function GET() {
       return fail("Admin access required.", 403, "FORBIDDEN");
     }
 
-    const [
-      totalUsers,
-      totalPatients,
-      totalDoctors,
-      verifiedDoctors,
-      pendingDoctors,
-      totalAppointments,
-      confirmedAppointments,
-      pendingApprovals,
-    ] = await Promise.all([
-      db.user.count(),
-      db.user.count({ where: { role: ROLES.PATIENT } }),
-      db.doctorProfile.count(),
-      db.doctorProfile.count({ where: { verificationStatus: "VERIFIED" } }),
-      db.doctorProfile.count({
-        where: {
-          verificationStatus: { in: ["PENDING", "UNDER_REVIEW", "MORE_INFO"] },
-        },
-      }),
-      db.appointment.count(),
-      db.appointment.count({ where: { status: "CONFIRMED" } }),
-      db.appointment.count({ where: { status: "PENDING_APPROVAL" } }),
-    ]);
-
-    const stats: AdminStats = {
-      totalUsers,
-      totalPatients,
-      totalDoctors,
-      verifiedDoctors,
-      pendingDoctors,
-      totalAppointments,
-      confirmedAppointments,
-      pendingApprovals,
-    };
+    const stats = await getStore().getAdminStats();
     return ok(stats);
   } catch (err) {
     return handleRouteError(err);

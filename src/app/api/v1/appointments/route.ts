@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { getStore, SlotConflictError, ReferenceCodeCollisionError } from "@/lib/data";
+import type { AppointmentRecord } from "@/lib/data/types";
 import { fail, handleRouteError, ok } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import {
@@ -13,14 +14,9 @@ import {
   validateBookableSlot,
 } from "@/lib/slots";
 import {
-  appointmentInclude,
   dateStrSchema,
-  isP2002,
-  isSlotTakenError,
   logAppointmentAction,
-  normalizePhone,
   toAppointmentDto,
-  type AppointmentWithDoctor,
 } from "@/app/api/v1/_lib/booking";
 
 export const dynamic = "force-dynamic";
@@ -62,15 +58,11 @@ const createSchema = z.object({
  */
 export async function GET(req: NextRequest) {
   try {
+    const store = getStore();
     const user = await getCurrentUser();
 
     if (user) {
-      const rows = await db.appointment.findMany({
-        where: { patientId: user.id },
-        orderBy: { slotStart: "desc" },
-        take: 100,
-        include: appointmentInclude,
-      });
+      const rows = await store.listAppointmentsByPatient(user.id);
       return ok({ items: rows.map(toAppointmentDto) });
     }
 
@@ -87,32 +79,9 @@ export async function GET(req: NextRequest) {
     }
 
     // Guest lookup. referenceCode is unique, so at most one appointment can
-    // match; the lightweight scan lets us compare the phone normalized and the
-    // code case-insensitively (SQLite has no case-insensitive equality and
-    // phones are stored as given). Bounded for safety.
-    const normalizedPhone = normalizePhone(phone);
-    const codeUpper = code.toUpperCase();
-    const candidates = await db.appointment.findMany({
-      select: { id: true, referenceCode: true, patientPhone: true },
-      orderBy: { createdAt: "desc" },
-      take: 1000,
-    });
-    const matchedIds = candidates
-      .filter(
-        (a) =>
-          a.referenceCode.toUpperCase() === codeUpper &&
-          normalizePhone(a.patientPhone) === normalizedPhone
-      )
-      .map((a) => a.id);
-
-    if (matchedIds.length === 0) return ok({ items: [] });
-
-    const rows = await db.appointment.findMany({
-      where: { id: { in: matchedIds } },
-      orderBy: { slotStart: "desc" },
-      take: 100,
-      include: appointmentInclude,
-    });
+    // match; the store compares the phone normalized on both sides and the
+    // code case-insensitively.
+    const rows = await store.findAppointmentsByReferenceCode(code, phone);
     return ok({ items: rows.map(toAppointmentDto) });
   } catch (err) {
     return handleRouteError(err);
@@ -125,8 +94,10 @@ export async function GET(req: NextRequest) {
  * Correctness notes:
  * - The slot is re-validated server-side (validateBookableSlot) immediately
  *   before the write, but the authoritative double-booking guard is the
- *   Appointment @@unique([doctorId, slotStart]) constraint. If two requests
- *   race, exactly one wins and the loser gets a 409 SLOT_TAKEN.
+ *   (doctorId, slotStart) uniqueness constraint (SQLite unique index in
+ *   Prisma mode, the appointments/{doctorId}_{slotStart} doc id in Firestore
+ *   mode). If two requests race, exactly one wins and the loser gets a
+ *   409 SLOT_TAKEN.
  * - referenceCode collisions (32^6 space) are retried with fresh codes.
  */
 export async function POST(req: NextRequest) {
@@ -146,9 +117,8 @@ export async function POST(req: NextRequest) {
     }
     const input = parsed.data;
 
-    const doctor = await db.doctorProfile.findUnique({
-      where: { slug: input.doctorSlug },
-    });
+    const store = getStore();
+    const doctor = await store.getDoctorBySlug(input.doctorSlug);
     if (!doctor || doctor.verificationStatus !== "VERIFIED") {
       return fail("Doctor not available for booking.", 404, "NOT_FOUND");
     }
@@ -188,41 +158,38 @@ export async function POST(req: NextRequest) {
         : doctor.consultationFee;
     const slotEnd = new Date(
       new Date(slot.startIso).getTime() + DEFAULT_SLOT_MINUTES * 60_000
-    );
+    ).toISOString();
 
-    let created: AppointmentWithDoctor | null = null;
+    let created: AppointmentRecord | null = null;
     for (let attempt = 0; attempt < 5 && !created; attempt++) {
       try {
-        created = await db.appointment.create({
-          data: {
-            referenceCode: generateReferenceCode(),
-            doctorId: doctor.id,
-            patientId: user?.id ?? null,
-            patientName: input.patientName,
-            patientPhone: input.patientPhone,
-            patientAge: input.patientAge ?? null,
-            patientGender: input.patientGender ?? null,
-            notes: input.notes && input.notes.length > 0 ? input.notes : null,
-            slotStart: new Date(slot.startIso),
-            slotEnd,
-            type: input.type,
-            status,
-            bookingMode,
-            fee,
-            currency: "BDT",
-          },
-          include: appointmentInclude,
+        created = await store.createAppointment({
+          referenceCode: generateReferenceCode(),
+          doctorId: doctor.id,
+          patientId: user?.id ?? null,
+          patientName: input.patientName,
+          patientPhone: input.patientPhone,
+          patientAge: input.patientAge ?? null,
+          patientGender: input.patientGender ?? null,
+          notes: input.notes && input.notes.length > 0 ? input.notes : null,
+          slotStart: slot.startIso,
+          slotEnd,
+          type: input.type,
+          status,
+          bookingMode,
+          fee,
+          currency: "BDT",
         });
       } catch (err) {
-        if (isSlotTakenError(err)) {
+        if (err instanceof SlotConflictError) {
           return fail(
             "This slot was just booked by someone else. Please choose another slot.",
             409,
             "SLOT_TAKEN"
           );
         }
-        if (!isP2002(err)) throw err;
-        // P2002 on referenceCode — astronomically unlikely (32^6 space);
+        if (!(err instanceof ReferenceCodeCollisionError)) throw err;
+        // referenceCode collision — astronomically unlikely (32^6 space);
         // retry with a freshly generated code.
       }
     }

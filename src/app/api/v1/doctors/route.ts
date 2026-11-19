@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { getStore } from "@/lib/data";
 import { fail, handleRouteError, ok } from "@/lib/api";
 import { CURRENCY, type VerificationStatus } from "@/lib/constants";
 import { getSlotsForDate } from "@/lib/slots";
@@ -14,9 +14,10 @@ export const dynamic = "force-dynamic";
  *
  * PERF NOTES (deliberate MVP tradeoffs, documented for the scale-up path):
  * - The directory is small (dozens of doctors), so matching profiles are
- *   fetched with their relations in one query and the remaining filtering,
+ *   fetched with their relations in one call and the remaining filtering,
  *   rating aggregation, sorting and pagination are computed in memory.
- *   At scale this endpoint needs indexed SQL queries per filter.
+ *   At scale this endpoint needs indexed queries per filter (SQL) or
+ *   composite indexes + denormalized counters (Firestore).
  * - nextAvailableLabel is an N+1 pattern per page item (see helper below).
  */
 
@@ -41,7 +42,7 @@ const querySchema = z.object({
  * First Dhaka-local date (today..+13) on which the doctor has a slot that is
  * neither taken nor in the past, labeled "Today" / "Tomorrow" / "Sat, 14 Feb".
  *
- * N+1 cost tradeoff: up to 14 getSlotsForDate calls (2 queries each) per
+ * N+1 cost tradeoff: up to 14 getSlotsForDate calls (2 store calls each) per
  * doctor, computed only for the current page of results. Acceptable for a
  * directory of dozens of doctors; at scale this must move to a precomputed
  * "next available" cache refreshed on booking/cancellation events.
@@ -91,30 +92,14 @@ export async function GET(request: NextRequest) {
     const wantsVerified = verified === "true";
     const wantsAvailableToday = availableToday === "true";
 
-    // DB-level filters. Relation/case-insensitive text matching (q, city,
+    // Store-level filters. Relation/case-insensitive text matching (q, city,
     // language) is applied in memory below so behavior does not depend on the
     // database engine's collation rules.
-    const rows = await db.doctorProfile.findMany({
-      where: {
-        verificationStatus: wantsVerified
-          ? "VERIFIED"
-          : { in: PUBLIC_STATUSES },
-        ...(wantsVideo ? { supportsVideo: true } : {}),
-        ...(maxFee !== undefined ? { consultationFee: { lte: maxFee } } : {}),
-        ...(specialty
-          ? { specialties: { some: { specialty: { slug: specialty } } } }
-          : {}),
-      },
-      include: {
-        user: { select: { name: true } },
-        specialties: {
-          include: { specialty: { select: { name: true, slug: true } } },
-        },
-        hospital: { select: { name: true } },
-        // Ratings are averaged in memory — simplest correct approach for the
-        // MVP dataset size (avoids groupBy + join gymnastics in SQLite).
-        reviews: { select: { rating: true } },
-      },
+    const rows = await getStore().searchDoctors({
+      statuses: wantsVerified ? ["VERIFIED"] : PUBLIC_STATUSES,
+      ...(wantsVideo ? { supportsVideo: true } : {}),
+      ...(maxFee !== undefined ? { maxFee } : {}),
+      ...(specialty ? { specialtySlug: specialty } : {}),
     });
 
     const qLower = q?.toLowerCase();
@@ -124,9 +109,9 @@ export async function GET(request: NextRequest) {
     const matched = rows.filter((row) => {
       if (qLower) {
         const haystack = [
-          row.user.name,
+          row.name,
           row.hospital?.name ?? "",
-          ...row.specialties.map((ds) => ds.specialty.name),
+          ...row.specialties.map((s) => s.name),
         ];
         if (!haystack.some((value) => value.toLowerCase().includes(qLower))) {
           return false;
@@ -146,10 +131,10 @@ export async function GET(request: NextRequest) {
 
     // In-memory rating aggregation (null when there are no reviews).
     const rated = matched.map((row) => {
-      const count = row.reviews.length;
+      const count = row.reviewRatings.length;
       const average =
         count > 0
-          ? row.reviews.reduce((sum, review) => sum + review.rating, 0) / count
+          ? row.reviewRatings.reduce((sum, rating) => sum + rating, 0) / count
           : null;
       return {
         row,
@@ -201,7 +186,7 @@ export async function GET(request: NextRequest) {
       pageEntries.map(async (entry) => ({
         id: entry.row.id,
         slug: entry.row.slug,
-        name: entry.row.user.name,
+        name: entry.row.name,
         photoUrl: entry.row.photoUrl,
         city: entry.row.city,
         verificationStatus: entry.row.verificationStatus as VerificationStatus,
@@ -210,9 +195,9 @@ export async function GET(request: NextRequest) {
         currency: CURRENCY.BDT,
         supportsVideo: entry.row.supportsVideo,
         requiresApproval: entry.row.requiresApproval,
-        specialties: entry.row.specialties.map((ds) => ({
-          name: ds.specialty.name,
-          slug: ds.specialty.slug,
+        specialties: entry.row.specialties.map((s) => ({
+          name: s.name,
+          slug: s.slug,
         })),
         hospitalName: entry.row.hospital?.name ?? null,
         languages: (entry.row.languages ?? "")

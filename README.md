@@ -6,10 +6,11 @@
 - **Architecture:** country-extensible by design (see [docs/architecture.md](docs/architecture.md))
 - **Status:** Demo MVP — see the honest phase report in [docs/phases/phase-1-report.md](docs/phases/phase-1-report.md)
 
-> **Live demo:** there is **no public deployment yet**. The current environment is a local/dev
-> demo with **fictional seed data** (12 demo doctors, 4 demo hospitals, 10 specialties). The UI
-> is clearly labeled **“Demo MVP”** — no real doctors, patients, licenses, or medical claims are
-> represented. Run it locally with the Quick Start below.
+> **Live demo:** a **Vercel deployment with Firestore** is being set up. Until the link is
+> published here, the current environment is a local/dev demo with **fictional seed data**
+> (12 demo doctors, 4 demo hospitals, 10 specialties). The UI is clearly labeled
+> **“Demo MVP”** — no real doctors, patients, licenses, or medical claims are represented.
+> Run it locally with the Quick Start below, or see [Deployment (Vercel + Firestore)](#deployment-vercel--firestore).
 
 ---
 
@@ -98,6 +99,45 @@ marked `(demo)`.
 
 ---
 
+## Deployment (Vercel + Firestore)
+
+The app ships with a **dual data-store layer** (`src/lib/data/`) and switches stores
+automatically at runtime — no code changes between local dev and production:
+
+- **`FIREBASE_SERVICE_ACCOUNT` not set** → **PrismaStore** + local SQLite (`DATABASE_URL`).
+  This is the local development default; nothing Firebase-related is needed or initialized.
+- **`FIREBASE_SERVICE_ACCOUNT` set** (compact JSON of a Firebase service-account key) →
+  **FirestoreStore** via the firebase-admin SDK (server-side only). The database id comes
+  from `FIREBASE_DATABASE_ID` (fallback `default`).
+
+Deploying to Vercel:
+
+1. Create a Firebase project (Spark/free tier is fine at demo scale), enable **Firestore**, and
+   create a service-account key (compact the JSON to one line, e.g. with `jq -c .`).
+2. Set the environment variables in Vercel:
+
+   | Variable | Value |
+   | --- | --- |
+   | `FIREBASE_SERVICE_ACCOUNT` | compact one-line JSON of the service-account key |
+   | `FIREBASE_DATABASE_ID` | `default` (or your Firestore database id) |
+   | `DATABASE_URL` | any dummy file path, e.g. `file:./dev.db` — Prisma is only used locally, but `prisma generate` in the build still expects it |
+
+3. Seed the demo data into Firestore (idempotent — skips when already seeded;
+   `--force` wipes and re-seeds):
+
+   ```bash
+   FIREBASE_SERVICE_ACCOUNT="$(jq -c . service-account.json)" bun scripts/firestore-seed.ts
+   ```
+
+4. Deploy (`vercel` CLI or Git integration). The API now reads/writes Firestore with the
+   same behavior as the local SQLite build, including the database-level double-booking guard
+   (Firestore doc-id uniqueness — see [docs/database.md](docs/database.md)).
+
+The demo logins from the table above work in both environments (the seeders share the same
+account definitions and password hashing).
+
+---
+
 ## Tech Stack
 
 | Layer | Choice | Notes |
@@ -105,7 +145,7 @@ marked `(demo)`.
 | Framework | Next.js 16 (App Router) + React 19 | One deployable app: public site + patient area + doctor dashboard + admin console as a single-route SPA at `/` |
 | Language | TypeScript 5 (strict mode) | Shared DTO types in `src/lib/types.ts` |
 | API | Next.js Route Handlers under `/api/v1/*` | Modular monolith (see [docs/architecture.md](docs/architecture.md) for the NestJS tradeoff discussion) |
-| ORM / DB | Prisma + SQLite (dev) | Schema designed PostgreSQL-portable; production path = Supabase Postgres free tier |
+| ORM / DB | Prisma + SQLite (dev) · Firestore (production) | Dual data-store layer (`src/lib/data/`) — auto-selected at runtime, see [Deployment](#deployment-vercel--firestore) and [docs/database.md](docs/database.md) |
 | Auth | Custom credentials auth | scrypt password hashing (Node `crypto`), opaque session tokens in DB, httpOnly cookies, RBAC |
 | UI | Tailwind CSS 4 + shadcn/ui + lucide-react | Sky-blue primary / soft-green accent, mobile-first responsive |
 | Fonts | Geist + Noto Sans Bengali | Bengali script support for the initial market |
@@ -125,12 +165,14 @@ medbriq/
 │   ├── api.md                    # REST v1 reference
 │   ├── architecture.md           # System design, decisions, brand evaluation
 │   ├── costs.md                  # Free-first cost policy (COSTS.md format)
-│   ├── database.md               # ERD, models, constraints, state machines
+│   ├── database.md               # ERD, models, constraints, state machines, Firestore store
 │   ├── security.md               # Auth, RBAC, concurrency, limitations
 │   └── phases/phase-1-report.md  # Phase report & acceptance-criteria checklist
 ├── prisma/
 │   ├── schema.prisma             # Data model (SQLite now, Postgres-portable)
-│   └── seed.ts                   # Fictional demo data seeder
+│   └── seed.ts                   # Fictional demo data seeder (local SQLite)
+├── scripts/
+│   └── firestore-seed.ts         # Fictional demo data seeder (production Firestore)
 ├── src/
 │   ├── app/
 │   │   ├── api/v1/               # REST route handlers (versioned under /api/v1)

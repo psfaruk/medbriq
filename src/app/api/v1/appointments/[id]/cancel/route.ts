@@ -1,11 +1,10 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
 import { fail, handleRouteError, ok } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
+import { getStore } from "@/lib/data";
 import { APPOINTMENT_STATUS, ROLES } from "@/lib/constants";
 import {
-  appointmentInclude,
   logAppointmentAction,
   normalizePhone,
   toAppointmentDto,
@@ -49,10 +48,7 @@ export async function POST(
     }
     const input = parsed.data;
 
-    const appointment = await db.appointment.findUnique({
-      where: { id },
-      include: appointmentInclude,
-    });
+    const appointment = await getStore().getAppointmentById(id);
     if (!appointment) {
       return fail("Appointment not found.", 404, "NOT_FOUND");
     }
@@ -64,8 +60,8 @@ export async function POST(
       if (appointment.patientId === user.id) {
         actor = "PATIENT";
       } else if (user.role === ROLES.DOCTOR) {
-        // doctor.userId is resolved via the appointmentInclude join — the
-        // signed-in doctor owns the appointment only if it is their profile.
+        // doctor.userId is resolved via the appointment record's doctor join —
+        // the signed-in doctor owns the appointment only if it is their profile.
         if (appointment.doctor.userId === user.id) actor = "DOCTOR";
       }
     } else if (input.phone && input.referenceCode) {
@@ -99,7 +95,7 @@ export async function POST(
       !activeStatuses.includes(
         appointment.status as (typeof activeStatuses)[number]
       ) ||
-      appointment.slotStart.getTime() <= Date.now()
+      new Date(appointment.slotStart).getTime() <= Date.now()
     ) {
       return fail(
         "This appointment can no longer be cancelled.",
@@ -109,15 +105,11 @@ export async function POST(
     }
 
     const cancelledByDoctor = actor === "DOCTOR";
-    const updated = await db.appointment.update({
-      where: { id: appointment.id },
-      data: {
-        status: cancelledByDoctor
-          ? APPOINTMENT_STATUS.CANCELLED_BY_DOCTOR
-          : APPOINTMENT_STATUS.CANCELLED_BY_PATIENT,
-        ...(cancelledByDoctor && input.reason ? { doctorNote: input.reason } : {}),
-      },
-      include: appointmentInclude,
+    const updated = await getStore().updateAppointment(id, {
+      status: cancelledByDoctor
+        ? APPOINTMENT_STATUS.CANCELLED_BY_DOCTOR
+        : APPOINTMENT_STATUS.CANCELLED_BY_PATIENT,
+      ...(cancelledByDoctor && input.reason ? { doctorNote: input.reason } : {}),
     });
 
     await logAppointmentAction(

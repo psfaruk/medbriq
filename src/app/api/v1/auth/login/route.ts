@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { getStore } from "@/lib/data";
 import { ok, fail, handleRouteError } from "@/lib/api";
-import { verifyPassword, createSession } from "@/lib/auth";
+import { verifyPassword } from "@/lib/password";
+import { createSession } from "@/lib/auth";
 import type { SessionUser } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -73,12 +74,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const user = await db.user.findUnique({
-      where: { email: parsed.data.email },
-      include: {
-        doctorProfile: { select: { slug: true, verificationStatus: true } },
-      },
-    });
+    const user = await getStore().findUserByEmail(parsed.data.email);
 
     const passwordOk =
       user !== null && verifyPassword(parsed.data.password, user.passwordHash);
@@ -97,8 +93,8 @@ export async function POST(req: NextRequest) {
       name: user.name,
       email: user.email,
       role: user.role as SessionUser["role"],
-      doctorSlug: user.doctorProfile?.slug ?? null,
-      verificationStatus: user.doctorProfile?.verificationStatus ?? null,
+      doctorSlug: user.doctorSlug,
+      verificationStatus: user.verificationStatus,
     };
     return ok({ user: sessionUser });
   } catch (err) {

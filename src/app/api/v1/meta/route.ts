@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { getStore, storeKind } from "@/lib/data";
 import { handleRouteError, ok } from "@/lib/api";
 import { LANGUAGES } from "@/lib/constants";
 
@@ -7,28 +7,16 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/v1/meta — filter option data and platform stats for the UI.
  * cities only includes cities of publicly visible doctors (VERIFIED/PENDING).
+ * `dataStore` reports the active backend ("prisma" | "firestore").
  */
 
 const PUBLIC_STATUSES = ["VERIFIED", "PENDING"];
 
 export async function GET() {
   try {
-    const [cityRows, verifiedDoctors, pendingDoctors, specialties, hospitals] =
-      await Promise.all([
-        db.doctorProfile.findMany({
-          where: { verificationStatus: { in: PUBLIC_STATUSES } },
-          select: { city: true },
-          distinct: ["city"],
-        }),
-        db.doctorProfile.count({ where: { verificationStatus: "VERIFIED" } }),
-        db.doctorProfile.count({ where: { verificationStatus: "PENDING" } }),
-        db.specialty.count(),
-        db.hospital.count(),
-      ]);
+    const meta = await getStore().getReferenceMeta(PUBLIC_STATUSES);
 
-    const cities = cityRows
-      .map((row) => row.city)
-      .sort((a, b) => a.localeCompare(b));
+    const cities = meta.cities.sort((a, b) => a.localeCompare(b));
 
     const languages = Object.entries(LANGUAGES).map(([code, label]) => ({
       code,
@@ -40,11 +28,12 @@ export async function GET() {
         cities,
         languages,
         platformStats: {
-          verifiedDoctors,
-          pendingDoctors,
-          specialties,
-          hospitals,
+          verifiedDoctors: meta.verifiedDoctors,
+          pendingDoctors: meta.pendingDoctors,
+          specialties: meta.specialtyCount,
+          hospitals: meta.hospitalCount,
         },
+        dataStore: storeKind(),
       },
       { headers: { "Cache-Control": "no-store" } }
     );

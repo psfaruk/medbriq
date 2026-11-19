@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { getStore } from "@/lib/data";
 import { ok, fail, handleRouteError } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { ROLES } from "@/lib/constants";
@@ -22,26 +22,20 @@ export async function GET() {
       return fail("Admin access required.", 403, "FORBIDDEN");
     }
 
-    const profiles = await db.doctorProfile.findMany({
-      include: {
-        user: { select: { name: true, email: true } },
-        specialties: { include: { specialty: { select: { name: true } } } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const profiles = await getStore().listDoctors({ order: "createdAtDesc" });
 
     return ok({
       items: profiles.map((profile) => ({
         id: profile.id,
         slug: profile.slug,
-        name: profile.user.name,
-        email: profile.user.email,
+        name: profile.name,
+        email: profile.email,
         city: profile.city,
         verificationStatus: profile.verificationStatus as VerificationStatus,
         consultationFee: profile.consultationFee,
         experienceYears: profile.experienceYears,
-        createdAt: profile.createdAt.toISOString(),
-        specialties: profile.specialties.map((ds) => ds.specialty.name),
+        createdAt: profile.createdAt,
+        specialties: profile.specialties.map((s) => s.name),
       })),
     });
   } catch (err) {

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { getStore } from "@/lib/data";
 import { ok, fail, handleRouteError } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { LANGUAGES, ROLES } from "@/lib/constants";
@@ -68,9 +68,8 @@ export async function PATCH(req: NextRequest) {
         "FORBIDDEN"
       );
     }
-    const profile = await db.doctorProfile.findUnique({
-      where: { userId: user.id },
-    });
+    const store = getStore();
+    const profile = await store.getDoctorByUserId(user.id);
     if (!profile) {
       return fail("Doctor profile not found.", 404, "PROFILE_NOT_FOUND");
     }
@@ -107,77 +106,82 @@ export async function PATCH(req: NextRequest) {
       languages = codes.join(",");
     }
 
-    const data: {
-      bio?: string | null;
-      experienceYears?: number;
-      consultationFee?: number;
-      followUpFee?: number;
-      videoConsultFee?: number | null;
-      city?: string;
-      chamberAddress?: string | null;
-      languages?: string;
-      supportsVideo?: boolean;
-      requiresApproval?: boolean;
-    } = {};
     const updatedFields: string[] = [];
 
     if (input.bio !== undefined) {
-      data.bio = input.bio !== null && input.bio.length > 0 ? input.bio : null;
       updatedFields.push("bio");
     }
     if (input.experienceYears !== undefined) {
-      data.experienceYears = input.experienceYears;
       updatedFields.push("experienceYears");
     }
     if (input.consultationFee !== undefined) {
-      data.consultationFee = input.consultationFee;
       updatedFields.push("consultationFee");
     }
     if (input.followUpFee !== undefined) {
-      data.followUpFee = input.followUpFee;
       updatedFields.push("followUpFee");
     }
     if (input.videoConsultFee !== undefined) {
-      data.videoConsultFee = input.videoConsultFee;
       updatedFields.push("videoConsultFee");
     }
     if (input.city !== undefined) {
-      data.city = input.city;
       updatedFields.push("city");
     }
     if (input.chamberAddress !== undefined) {
-      data.chamberAddress =
-        input.chamberAddress !== null && input.chamberAddress.length > 0
-          ? input.chamberAddress
-          : null;
       updatedFields.push("chamberAddress");
     }
     if (languages !== undefined) {
-      data.languages = languages;
       updatedFields.push("languages");
     }
     if (input.supportsVideo !== undefined) {
-      data.supportsVideo = input.supportsVideo;
       updatedFields.push("supportsVideo");
     }
     if (input.requiresApproval !== undefined) {
-      data.requiresApproval = input.requiresApproval;
       updatedFields.push("requiresApproval");
     }
 
-    const updated = await db.doctorProfile.update({
-      where: { id: profile.id },
-      data,
+    const updated = await store.updateDoctorProfile(profile.id, {
+      ...(input.bio !== undefined
+        ? {
+            bio:
+              input.bio !== null && input.bio.length > 0 ? input.bio : null,
+          }
+        : {}),
+      ...(input.experienceYears !== undefined
+        ? { experienceYears: input.experienceYears }
+        : {}),
+      ...(input.consultationFee !== undefined
+        ? { consultationFee: input.consultationFee }
+        : {}),
+      ...(input.followUpFee !== undefined
+        ? { followUpFee: input.followUpFee }
+        : {}),
+      ...(input.videoConsultFee !== undefined
+        ? { videoConsultFee: input.videoConsultFee }
+        : {}),
+      ...(input.city !== undefined ? { city: input.city } : {}),
+      ...(input.chamberAddress !== undefined
+        ? {
+            chamberAddress:
+              input.chamberAddress !== null && input.chamberAddress.length > 0
+                ? input.chamberAddress
+                : null,
+          }
+        : {}),
+      ...(languages !== undefined ? { languages } : {}),
+      ...(input.supportsVideo !== undefined
+        ? { supportsVideo: input.supportsVideo }
+        : {}),
+      ...(input.requiresApproval !== undefined
+        ? { requiresApproval: input.requiresApproval }
+        : {}),
     });
 
-    await db.auditLog.create({
-      data: {
-        actorId: user.id,
-        action: "DOCTOR_PROFILE_UPDATED",
-        entity: "DoctorProfile",
-        entityId: profile.id,
-        meta: JSON.stringify({ updatedFields }),
-      },
+    await store.createAuditLog({
+      actorId: user.id,
+      action: "DOCTOR_PROFILE_UPDATED",
+      entity: "DoctorProfile",
+      entityId: profile.id,
+      meta: JSON.stringify({ updatedFields }),
     });
 
     return ok({

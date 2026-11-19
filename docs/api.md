@@ -190,7 +190,7 @@ Response `200`:
 #### `GET /appointments` — list own / guest lookup
 - **Logged-in PATIENT:** returns the patient’s appointments (own history).
 - **Logged-in DOCTOR:** returns appointments for the doctor’s own profile.
-- **Guest lookup:** query `?phone=<booking phone>&referenceCode=MB-XXXXXX` returns the
+- **Guest lookup:** query `?phone=<booking phone>&code=MB-XXXXXX` returns the
   matching appointments without a session.
 
 Response `200`: `{ "appointments": [ AppointmentDto … ] }` ·
@@ -223,7 +223,7 @@ Body:
 {
   "doctorSlug": "dr-ayesha-rahman",
   "date": "2026-11-21",             // Asia/Dhaka calendar date
-  "slotStart": "2026-11-21T11:00:00.000Z",  // exact startIso from the slots endpoint
+  "slotStartIso": "2026-11-21T11:00:00.000Z",  // exact startIso from the slots endpoint
   "type": "IN_PERSON",              // IN_PERSON | VIDEO (VIDEO only if supportsVideo)
   "patientName": "Nasreen Sultana", // required (guest-compatible snapshot)
   "patientPhone": "+880…",
@@ -417,11 +417,11 @@ curl -s "$BASE/doctors/dr-ayesha-rahman/slots?date=2026-11-21"
 # 5) Book an appointment (guests omit the cookie; keep referenceCode from the response!)
 curl -s -b cookies.txt -X POST $BASE/appointments \
   -H "Content-Type: application/json" \
-  -d '{"doctorSlug":"dr-ayesha-rahman","date":"2026-11-21","slotStart":"2026-11-21T11:00:00.000Z","type":"IN_PERSON","patientName":"Test Patient","patientPhone":"+8801700000000","notes":"Fever for two days"}'
+  -d '{"doctorSlug":"dr-ayesha-rahman","date":"2026-11-21","slotStartIso":"2026-11-21T11:00:00.000Z","type":"IN_PERSON","patientName":"Test Patient","patientPhone":"+8801700000000","notes":"Fever for two days"}'
 # → 201 { ok: true, data: { appointment: { "referenceCode": "MB-7K2P9Q", "status": "PENDING_APPROVAL" … } } }
 
 # 6) List my appointments (session) — or, as a guest:
-curl -s "$BASE/appointments?phone=%2B8801700000000&referenceCode=MB-7K2P9Q"
+curl -s "$BASE/appointments?phone=%2B8801700000000&code=MB-7K2P9Q"
 
 # 7) Cancel the appointment (id from step 5)
 curl -s -b cookies.txt -X POST $BASE/appointments/<APPOINTMENT_ID>/cancel \

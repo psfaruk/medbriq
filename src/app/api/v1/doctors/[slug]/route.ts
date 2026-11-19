@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { getStore } from "@/lib/data";
 import { fail, handleRouteError, ok } from "@/lib/api";
 import { CURRENCY, type VerificationStatus } from "@/lib/constants";
 import { getSlotsForDate } from "@/lib/slots";
@@ -49,32 +49,21 @@ export async function GET(
       return fail("Doctor not found", 404, "NOT_FOUND");
     }
 
-    const row = await db.doctorProfile.findUnique({
-      where: { slug: parsedSlug.data },
-      include: {
-        user: { select: { name: true } },
-        specialties: {
-          include: { specialty: { select: { name: true, slug: true } } },
-        },
-        hospital: { select: { name: true, slug: true, city: true, address: true } },
-        reviews: { select: { rating: true } },
-        // Active weekly rules, sorted by day then start time (contract order).
-        availabilityRules: {
-          where: { isActive: true },
-          orderBy: [{ dayOfWeek: "asc" }, { startMinute: "asc" }],
-        },
-      },
-    });
+    const store = getStore();
+    const row = await store.getDoctorBySlug(parsedSlug.data);
 
     if (!row || HIDDEN_STATUSES.includes(row.verificationStatus)) {
       return fail("Doctor not found", 404, "NOT_FOUND");
     }
 
-    const ratingCount = row.reviews.length;
+    // Active weekly rules, sorted by day then start time (contract order).
+    const rules = await store.listAvailabilityRules(row.id);
+
+    const ratingCount = row.reviewRatings.length;
     const ratingAvg =
       ratingCount > 0
         ? Math.round(
-            (row.reviews.reduce((sum, review) => sum + review.rating, 0) /
+            (row.reviewRatings.reduce((sum, rating) => sum + rating, 0) /
               ratingCount) *
               10
           ) / 10
@@ -83,7 +72,7 @@ export async function GET(
     const detail: DoctorDetail = {
       id: row.id,
       slug: row.slug,
-      name: row.user.name,
+      name: row.name,
       photoUrl: row.photoUrl,
       city: row.city,
       verificationStatus: row.verificationStatus as VerificationStatus,
@@ -92,9 +81,9 @@ export async function GET(
       currency: CURRENCY.BDT,
       supportsVideo: row.supportsVideo,
       requiresApproval: row.requiresApproval,
-      specialties: row.specialties.map((ds) => ({
-        name: ds.specialty.name,
-        slug: ds.specialty.slug,
+      specialties: row.specialties.map((s) => ({
+        name: s.name,
+        slug: s.slug,
       })),
       hospitalName: row.hospital?.name ?? null,
       languages: (row.languages ?? "")
@@ -109,7 +98,7 @@ export async function GET(
       videoConsultFee: row.videoConsultFee,
       regNumber: row.regNumber,
       chamberAddress: row.chamberAddress,
-      verifiedAt: row.verifiedAt ? row.verifiedAt.toISOString() : null,
+      verifiedAt: row.verifiedAt,
       country: row.country,
       hospital: row.hospital
         ? {
@@ -119,11 +108,13 @@ export async function GET(
             address: row.hospital.address,
           }
         : null,
-      weeklySchedule: row.availabilityRules.map((rule) => ({
-        dayOfWeek: rule.dayOfWeek,
-        startMinute: rule.startMinute,
-        endMinute: rule.endMinute,
-      })),
+      weeklySchedule: rules
+        .filter((rule) => rule.isActive)
+        .map((rule) => ({
+          dayOfWeek: rule.dayOfWeek,
+          startMinute: rule.startMinute,
+          endMinute: rule.endMinute,
+        })),
     };
 
     return ok(detail, { headers: { "Cache-Control": "no-store" } });

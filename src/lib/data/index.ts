@@ -1,0 +1,48 @@
+import type { DataStore, StoreKind } from "./types";
+import { PrismaStore } from "./prisma-store";
+import { FirestoreStore, parseServiceAccountEnv } from "./firestore-store";
+
+/**
+ * Medbriq dual data-store selection.
+ *
+ * - FIREBASE_SERVICE_ACCOUNT set (and valid JSON) → FirestoreStore, backed by
+ *   the Firebase project named in the service account, database id from
+ *   FIREBASE_DATABASE_ID (fallback "default"). This is the production path on
+ *   Vercel.
+ * - Otherwise → PrismaStore + local SQLite (DATABASE_URL). This is the local
+ *   development default; no Firebase configuration is needed.
+ *
+ * The resolved instance is cached (on globalThis, so Next.js dev hot-reloads
+ * reuse it) — construct-once semantics like src/lib/db.ts.
+ */
+
+const globalForStore = globalThis as unknown as {
+  __medbriqDataStore: DataStore | undefined;
+  __medbriqStoreKind: StoreKind | undefined;
+};
+
+/** Which backing store is active for this process. */
+export function storeKind(): StoreKind {
+  if (!globalForStore.__medbriqStoreKind) {
+    globalForStore.__medbriqStoreKind = parseServiceAccountEnv()
+      ? "firestore"
+      : "prisma";
+  }
+  return globalForStore.__medbriqStoreKind;
+}
+
+/** The process-wide DataStore instance (Firestore in production, Prisma locally). */
+export function getStore(): DataStore {
+  if (!globalForStore.__medbriqDataStore) {
+    globalForStore.__medbriqDataStore =
+      storeKind() === "firestore" ? new FirestoreStore() : new PrismaStore();
+  }
+  return globalForStore.__medbriqDataStore;
+}
+
+export type { DataStore, StoreKind } from "./types";
+export {
+  SlotConflictError,
+  ReferenceCodeCollisionError,
+} from "./types";
+export { parseServiceAccountEnv, getFirestoreFromEnv } from "./firestore-store";

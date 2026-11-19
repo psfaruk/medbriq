@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { getStore } from "@/lib/data";
 import { DEFAULT_SLOT_MINUTES } from "@/lib/constants";
 import {
   dhakaToUtc,
@@ -9,10 +9,12 @@ import {
 /**
  * Medbriq slot engine.
  *
- * Slots are derived from the doctor's weekly AvailabilityRule rows for a
+ * Slots are derived from the doctor's weekly availability rules for a
  * given Dhaka-local date, minus slots already taken by blocking appointment
  * statuses. Computation is pure; concurrency safety is enforced by the
- * Appointment @@unique([doctorId, slotStart]) constraint at write time.
+ * (doctorId, slotStart) uniqueness guard at write time — the SQLite unique
+ * index in Prisma mode, the appointments/{doctorId}_{slotStart} doc id in
+ * Firestore mode.
  */
 
 export type SlotInfo = {
@@ -39,24 +41,23 @@ export async function getSlotsForDate(
   doctorId: string,
   dateStr: string
 ): Promise<SlotInfo[]> {
-  const rules = await db.availabilityRule.findMany({
-    where: { doctorId, isActive: true, dayOfWeek: dhakaDayOfWeek(dateStr) },
-    orderBy: { startMinute: "asc" },
-  });
+  const store = getStore();
+  const rules = await store.findActiveRulesForDay(
+    doctorId,
+    dhakaDayOfWeek(dateStr)
+  );
   if (rules.length === 0) return [];
 
   const dayStartUtc = dhakaToUtc(dateStr, 0);
   const dayEndUtc = dhakaToUtc(dateStr, 24 * 60);
 
-  const booked = await db.appointment.findMany({
-    where: {
-      doctorId,
-      slotStart: { gte: dayStartUtc, lt: dayEndUtc },
-      status: { in: BLOCKING_STATUSES },
-    },
-    select: { slotStart: true },
-  });
-  const takenSet = new Set(booked.map((a) => a.slotStart.toISOString()));
+  const booked = await store.findBlockingSlotStarts(
+    doctorId,
+    dayStartUtc.toISOString(),
+    dayEndUtc.toISOString(),
+    BLOCKING_STATUSES
+  );
+  const takenSet = new Set(booked);
 
   const now = Date.now();
   const slots: SlotInfo[] = [];

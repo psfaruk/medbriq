@@ -1,9 +1,8 @@
 import { fail, handleRouteError, ok } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { getStore } from "@/lib/data";
 import { APPOINTMENT_STATUS, ROLES } from "@/lib/constants";
 import {
-  appointmentInclude,
   logAppointmentAction,
   toAppointmentDto,
 } from "@/app/api/v1/_lib/booking";
@@ -29,10 +28,7 @@ export async function POST(
       return fail("Only doctors can complete appointments.", 403, "FORBIDDEN");
     }
 
-    const appointment = await db.appointment.findUnique({
-      where: { id },
-      include: appointmentInclude,
-    });
+    const appointment = await getStore().getAppointmentById(id);
     if (!appointment) {
       return fail("Appointment not found.", 404, "NOT_FOUND");
     }
@@ -46,7 +42,7 @@ export async function POST(
         "INVALID_STATUS"
       );
     }
-    if (appointment.slotEnd.getTime() > Date.now()) {
+    if (new Date(appointment.slotEnd).getTime() > Date.now()) {
       return fail(
         "Consultation time has not ended yet.",
         400,
@@ -54,10 +50,8 @@ export async function POST(
       );
     }
 
-    const updated = await db.appointment.update({
-      where: { id: appointment.id },
-      data: { status: APPOINTMENT_STATUS.COMPLETED },
-      include: appointmentInclude,
+    const updated = await getStore().updateAppointment(id, {
+      status: APPOINTMENT_STATUS.COMPLETED,
     });
 
     await logAppointmentAction("APPOINTMENT_COMPLETED", updated.id, user.id, {

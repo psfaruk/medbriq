@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { db } from "@/lib/db";
+import { getStore } from "@/lib/data";
 import { fail, handleRouteError, ok } from "@/lib/api";
 import { getSlotsForDate } from "@/lib/slots";
 import { dateStrSchema } from "@/app/api/v1/_lib/booking";
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/v1/doctors/[slug]/slots?date=YYYY-MM-DD
  *
- * Returns the derived slots (from the doctor's weekly AvailabilityRule rows)
+ * Returns the derived slots (from the doctor's weekly availability rules)
  * for a single Dhaka-local date. Slots are hidden entirely (404) while the
  * doctor is not VERIFIED, so unverified profiles are never bookable.
  */
@@ -30,10 +30,7 @@ export async function GET(
       );
     }
 
-    const doctor = await db.doctorProfile.findUnique({
-      where: { slug },
-      select: { id: true, verificationStatus: true },
-    });
+    const doctor = await getStore().getDoctorIdAndStatusBySlug(slug);
     if (!doctor || doctor.verificationStatus !== "VERIFIED") {
       return fail("Doctor not available for booking.", 404, "NOT_FOUND");
     }

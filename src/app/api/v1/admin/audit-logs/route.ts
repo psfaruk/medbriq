@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { getStore } from "@/lib/data";
 import { ok, fail, handleRouteError } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { ROLES } from "@/lib/constants";
@@ -41,11 +41,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const logs = await db.auditLog.findMany({
-      orderBy: { createdAt: "desc" },
-      take: parsedLimit.data,
-      include: { actor: { select: { name: true } } },
-    });
+    const logs = await getStore().listAuditLogs(parsedLimit.data);
 
     const items: AuditLogItem[] = logs.map((log) => ({
       id: log.id,
@@ -53,8 +49,8 @@ export async function GET(req: NextRequest) {
       entity: log.entity,
       entityId: log.entityId,
       meta: log.meta,
-      createdAt: log.createdAt.toISOString(),
-      actorName: log.actor?.name ?? null,
+      createdAt: log.createdAt,
+      actorName: log.actorName,
     }));
 
     return ok({ items });

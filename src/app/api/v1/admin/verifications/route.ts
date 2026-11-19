@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { getStore } from "@/lib/data";
+import type { DoctorRecord } from "@/lib/data/types";
 import { ok, fail, handleRouteError } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { ROLES } from "@/lib/constants";
@@ -18,40 +19,25 @@ const statusSchema = z
   .enum(["PENDING", "UNDER_REVIEW", "MORE_INFO", "REJECTED", "VERIFIED", "ALL"])
   .default("PENDING");
 
-/** Shape of a doctor profile row with user + specialty names joined. */
-type VerificationRow = {
-  id: string;
-  slug: string;
-  city: string;
-  regNumber: string | null;
-  experienceYears: number;
-  consultationFee: number;
-  bio: string | null;
-  verificationStatus: string;
-  verificationNote: string | null;
-  createdAt: Date;
-  user: { id: string; name: string; email: string; phone: string | null };
-  specialties: { specialty: { name: string } }[];
-};
-
-function toVerificationItem(profile: VerificationRow): VerificationItem {
+/** Map a store doctor record (user + specialties joined) to the queue item. */
+function toVerificationItem(profile: DoctorRecord): VerificationItem {
   return {
-    userId: profile.user.id,
+    userId: profile.userId,
     doctorId: profile.id,
     slug: profile.slug,
-    name: profile.user.name,
-    email: profile.user.email,
-    phone: profile.user.phone,
+    name: profile.name,
+    email: profile.email,
+    phone: profile.phone,
     city: profile.city,
     regNumber: profile.regNumber,
     experienceYears: profile.experienceYears,
     consultationFee: profile.consultationFee,
     bio: profile.bio,
-    specialties: profile.specialties.map((ds) => ds.specialty.name),
+    specialties: profile.specialties.map((s) => s.name),
     verificationStatus:
       profile.verificationStatus as VerificationItem["verificationStatus"],
     verificationNote: profile.verificationNote,
-    submittedAt: profile.createdAt.toISOString(),
+    submittedAt: profile.createdAt,
   };
 }
 
@@ -77,13 +63,9 @@ export async function GET(req: NextRequest) {
     }
     const status = parsedStatus.data;
 
-    const profiles = await db.doctorProfile.findMany({
-      where: status === "ALL" ? undefined : { verificationStatus: status },
-      include: {
-        user: { select: { id: true, name: true, email: true, phone: true } },
-        specialties: { include: { specialty: { select: { name: true } } } },
-      },
-      orderBy: { createdAt: "asc" },
+    const profiles = await getStore().listDoctors({
+      ...(status !== "ALL" ? { verificationStatus: status } : {}),
+      order: "createdAtAsc",
     });
 
     return ok({ items: profiles.map(toVerificationItem) });

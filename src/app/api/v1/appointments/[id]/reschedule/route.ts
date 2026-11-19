@@ -1,18 +1,16 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
 import { fail, handleRouteError, ok } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
+import { getStore, SlotConflictError } from "@/lib/data";
+import type { AppointmentRecord } from "@/lib/data/types";
 import { APPOINTMENT_STATUS } from "@/lib/constants";
 import { validateBookableSlot } from "@/lib/slots";
 import {
-  appointmentInclude,
   dateStrSchema,
-  isSlotTakenError,
   logAppointmentAction,
   normalizePhone,
   toAppointmentDto,
-  type AppointmentWithDoctor,
 } from "@/app/api/v1/_lib/booking";
 
 export const dynamic = "force-dynamic";
@@ -29,9 +27,9 @@ const rescheduleSchema = z.object({
  *
  * Patient-side action: permission mirrors patient-side cancel (signed-in
  * patient owner, or guest with matching phone + referenceCode). The new slot
- * is re-validated server-side and the move happens in a transaction; the
- * (doctorId, slotStart) unique constraint is again the authoritative guard —
- * a concurrent taker of the new slot surfaces as 409 SLOT_TAKEN.
+ * is re-validated server-side and the move happens atomically in the store;
+ * the (doctorId, slotStart) uniqueness guard is again the authoritative
+ * check — a concurrent taker of the new slot surfaces as 409 SLOT_TAKEN.
  */
 export async function POST(
   req: NextRequest,
@@ -54,10 +52,8 @@ export async function POST(
     }
     const input = parsed.data;
 
-    const appointment = await db.appointment.findUnique({
-      where: { id },
-      include: appointmentInclude,
-    });
+    const store = getStore();
+    const appointment = await store.getAppointmentById(id);
     if (!appointment) {
       return fail("Appointment not found.", 404, "NOT_FOUND");
     }
@@ -107,7 +103,7 @@ export async function POST(
     if (Number.isNaN(newSlotStart.getTime())) {
       return fail("Invalid new slot.", 400, "VALIDATION_ERROR");
     }
-    if (newSlotStart.getTime() === appointment.slotStart.getTime()) {
+    if (newSlotStart.getTime() === new Date(appointment.slotStart).getTime()) {
       return fail(
         "This appointment is already booked for that slot.",
         400,
@@ -128,24 +124,17 @@ export async function POST(
       );
     }
 
-    let updated: AppointmentWithDoctor;
+    let updated: AppointmentRecord;
     try {
-      updated = await db.$transaction(async (tx) => {
-        return tx.appointment.update({
-          where: { id: appointment.id },
-          data: {
-            slotStart: new Date(slot.startIso),
-            slotEnd: new Date(slot.endIso),
-            // Approval-mode doctors must re-approve a moved appointment.
-            ...(appointment.doctor.requiresApproval
-              ? { status: APPOINTMENT_STATUS.PENDING_APPROVAL }
-              : {}),
-          },
-          include: appointmentInclude,
-        });
-      });
+      updated = await store.rescheduleAppointment(
+        id,
+        slot.startIso,
+        slot.endIso,
+        // Approval-mode doctors must re-approve a moved appointment.
+        appointment.doctor.requiresApproval
+      );
     } catch (err) {
-      if (isSlotTakenError(err)) {
+      if (err instanceof SlotConflictError) {
         return fail(
           "This slot was just booked by someone else. Please choose another slot.",
           409,
@@ -160,10 +149,10 @@ export async function POST(
       updated.id,
       user?.id ?? null,
       {
-        oldSlotStart: appointment.slotStart.toISOString(),
-        oldSlotEnd: appointment.slotEnd.toISOString(),
-        newSlotStart: updated.slotStart.toISOString(),
-        newSlotEnd: updated.slotEnd.toISOString(),
+        oldSlotStart: appointment.slotStart,
+        oldSlotEnd: appointment.slotEnd,
+        newSlotStart: updated.slotStart,
+        newSlotEnd: updated.slotEnd,
         ...(appointment.doctor.requiresApproval
           ? { statusResetTo: APPOINTMENT_STATUS.PENDING_APPROVAL }
           : {}),

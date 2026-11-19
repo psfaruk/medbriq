@@ -1,9 +1,8 @@
 import { fail, handleRouteError, ok } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { getStore } from "@/lib/data";
 import { APPOINTMENT_STATUS, ROLES } from "@/lib/constants";
 import {
-  appointmentInclude,
   logAppointmentAction,
   toAppointmentDto,
 } from "@/app/api/v1/_lib/booking";
@@ -29,10 +28,7 @@ export async function POST(
       return fail("Only doctors can approve appointments.", 403, "FORBIDDEN");
     }
 
-    const appointment = await db.appointment.findUnique({
-      where: { id },
-      include: appointmentInclude,
-    });
+    const appointment = await getStore().getAppointmentById(id);
     if (!appointment) {
       return fail("Appointment not found.", 404, "NOT_FOUND");
     }
@@ -47,10 +43,8 @@ export async function POST(
       );
     }
 
-    const updated = await db.appointment.update({
-      where: { id: appointment.id },
-      data: { status: APPOINTMENT_STATUS.CONFIRMED },
-      include: appointmentInclude,
+    const updated = await getStore().updateAppointment(id, {
+      status: APPOINTMENT_STATUS.CONFIRMED,
     });
 
     await logAppointmentAction("APPOINTMENT_APPROVED", updated.id, user.id, {

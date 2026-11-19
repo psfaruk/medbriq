@@ -1,0 +1,389 @@
+import type { AdminStats, SpecialtyInfo } from "@/lib/types";
+
+/**
+ * Medbriq data layer — store-agnostic domain contract.
+ *
+ * Every API route under src/app/api/v1/** (plus src/lib/auth.ts and
+ * src/lib/slots.ts) talks to the database EXCLUSIVELY through this interface.
+ * Two implementations exist:
+ *
+ *   - PrismaStore    (src/lib/data/prisma-store.ts)    → local dev, SQLite
+ *   - FirestoreStore (src/lib/data/firestore-store.ts) → production, Firebase
+ *
+ * The active store is selected at runtime by getStore() in src/lib/data/index.ts:
+ * when FIREBASE_SERVICE_ACCOUNT is set (and parses as JSON) the FirestoreStore
+ * is used, otherwise the local Prisma/SQLite store. See docs/database.md §8.
+ *
+ * All records are plain serializable objects; all timestamps are ISO-8601 UTC
+ * strings ("…Z") so they sort lexicographically and serialize identically in
+ * both stores.
+ */
+
+// ─────────────────────────── Domain errors ───────────────────────────
+
+/**
+ * Thrown by createAppointment/rescheduleAppointment when the
+ * (doctorId, slotStart) uniqueness guard rejects the write — the data-layer
+ * equivalent of Prisma's P2002 on @@unique([doctorId, slotStart]). API routes
+ * translate this into `409 SLOT_TAKEN`.
+ */
+export class SlotConflictError extends Error {
+  constructor(message = "This slot was just booked by someone else.") {
+    super(message);
+    this.name = "SlotConflictError";
+  }
+}
+
+/**
+ * Thrown by createAppointment when the generated referenceCode (MB-XXXXXX)
+ * collides with an existing appointment. Astronomically unlikely (32^6 space);
+ * callers retry with a fresh code.
+ */
+export class ReferenceCodeCollisionError extends Error {
+  constructor(message = "Reference code collision.") {
+    super(message);
+    this.name = "ReferenceCodeCollisionError";
+  }
+}
+
+// ─────────────────────────── Record types ───────────────────────────
+
+/** Users (patients, doctors, admins) as seen by the auth flow. */
+export type AuthUser = {
+  id: string;
+  email: string;
+  name: string;
+  phone: string | null;
+  role: string; // PATIENT | DOCTOR | ADMIN
+  status: string; // ACTIVE | SUSPENDED
+  doctorSlug: string | null;
+  verificationStatus: string | null;
+};
+
+export type AuthUserWithCredentials = AuthUser & { passwordHash: string };
+
+/** Session row + the resolved user (used by getCurrentUser). */
+export type SessionRecord = {
+  id: string;
+  token: string;
+  userId: string;
+  expiresAt: string; // ISO
+  createdAt: string; // ISO
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    status: string;
+    doctorSlug: string | null;
+    verificationStatus: string | null;
+  };
+};
+
+export type SpecialtyRecord = {
+  id: string;
+  name: string;
+  nameBn: string | null;
+  slug: string;
+  icon: string | null;
+};
+
+/**
+ * A doctor profile with the "joined" data the API needs: the owning user's
+ * identity fields, specialty list, hospital affiliation, and all review
+ * ratings (for in-memory aggregation). One rich shape serves search, detail,
+ * booking, dashboards and admin views.
+ */
+export type DoctorRecord = {
+  id: string;
+  userId: string;
+  slug: string;
+  bio: string | null;
+  experienceYears: number;
+  consultationFee: number;
+  followUpFee: number;
+  videoConsultFee: number | null;
+  regNumber: string | null;
+  verificationStatus: string;
+  verificationNote: string | null;
+  verifiedAt: string | null; // ISO
+  city: string;
+  country: string;
+  chamberAddress: string | null;
+  languages: string | null; // comma-separated codes, e.g. "bn,en"
+  supportsVideo: boolean;
+  requiresApproval: boolean;
+  photoUrl: string | null;
+  hospitalId: string | null;
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+  name: string; // owning user's display name
+  email: string; // owning user's email (admin views only — never in public DTOs)
+  phone: string | null; // owning user's phone (admin views only)
+  specialties: { name: string; slug: string }[];
+  hospital: { name: string; slug: string; city: string; address: string | null } | null;
+  reviewRatings: number[];
+};
+
+export type AvailabilityRuleRecord = {
+  id: string;
+  doctorId: string;
+  dayOfWeek: number; // 0 = Sunday … 6 = Saturday
+  startMinute: number; // minutes from Dhaka midnight
+  endMinute: number;
+  isActive: boolean;
+  createdAt: string; // ISO
+};
+
+/**
+ * An appointment plus the doctor join used by DTO mapping and ownership
+ * checks (doctor.userId, doctor.requiresApproval, specialty names).
+ */
+export type AppointmentRecord = {
+  id: string; // stable logical id (survives reschedule)
+  referenceCode: string;
+  doctorId: string;
+  patientId: string | null;
+  patientName: string;
+  patientPhone: string;
+  patientAge: number | null;
+  patientGender: string | null;
+  notes: string | null;
+  slotStart: string; // ISO UTC
+  slotEnd: string; // ISO UTC
+  type: string; // IN_PERSON | VIDEO
+  status: string; // see constants.ts APPOINTMENT_STATUS
+  bookingMode: string; // INSTANT | APPROVAL
+  fee: number;
+  currency: string;
+  doctorNote: string | null;
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+  doctor: {
+    userId: string;
+    slug: string;
+    city: string;
+    consultationFee: number;
+    requiresApproval: boolean;
+    name: string;
+    specialties: string[]; // names only
+  };
+};
+
+export type ReviewRecord = {
+  id: string;
+  doctorId: string;
+  patientId: string;
+  rating: number; // 1..5
+  comment: string | null;
+  createdAt: string; // ISO
+  patientName: string;
+};
+
+export type AuditLogRecord = {
+  id: string;
+  actorId: string | null;
+  action: string;
+  entity: string;
+  entityId: string | null;
+  meta: string | null; // JSON string
+  createdAt: string; // ISO
+  actorName: string | null;
+};
+
+// ─────────────────────────── Input types ───────────────────────────
+
+export type CreatePatientUserInput = {
+  email: string;
+  passwordHash: string;
+  name: string;
+  phone: string | null;
+};
+
+export type CreateDoctorAccountInput = {
+  email: string;
+  passwordHash: string;
+  name: string;
+  phone: string | null;
+  specialtyId: string;
+  profile: {
+    slug: string;
+    verificationStatus: string; // doctors register as PENDING
+    bio: string | null;
+    experienceYears: number;
+    consultationFee: number;
+    followUpFee: number;
+    videoConsultFee: number | null;
+    regNumber: string | null;
+    city: string;
+    chamberAddress: string | null;
+    languages: string;
+    supportsVideo: boolean;
+    requiresApproval: boolean;
+    hospitalId: string | null;
+  };
+};
+
+/** Partial DoctorProfile update. `undefined` = leave unchanged, `null` = clear. */
+export type DoctorProfilePatch = {
+  bio?: string | null;
+  experienceYears?: number;
+  consultationFee?: number;
+  followUpFee?: number;
+  videoConsultFee?: number | null;
+  city?: string;
+  chamberAddress?: string | null;
+  languages?: string;
+  supportsVideo?: boolean;
+  requiresApproval?: boolean;
+  photoUrl?: string | null;
+  verificationStatus?: string;
+  verificationNote?: string | null;
+  verifiedAt?: string | null; // ISO
+};
+
+export type NewAvailabilityRule = {
+  dayOfWeek: number;
+  startMinute: number;
+  endMinute: number;
+  isActive: boolean;
+};
+
+export type CreateAppointmentInput = {
+  referenceCode: string;
+  doctorId: string;
+  patientId: string | null;
+  patientName: string;
+  patientPhone: string;
+  patientAge: number | null;
+  patientGender: string | null;
+  notes: string | null;
+  slotStart: string; // ISO UTC
+  slotEnd: string; // ISO UTC
+  type: string;
+  status: string;
+  bookingMode: string;
+  fee: number;
+  currency: string;
+};
+
+export type AppointmentPatch = {
+  status?: string;
+  doctorNote?: string | null;
+};
+
+export type CreateAuditLogInput = {
+  actorId: string | null;
+  action: string;
+  entity: string;
+  entityId: string | null;
+  meta: string | null; // JSON string
+};
+
+/** DB-level filters of the public doctor search (see GET /api/v1/doctors). */
+export type SearchDoctorsFilters = {
+  /** allowed verification statuses (public = VERIFIED+PENDING; verified-only = [VERIFIED]) */
+  statuses: string[];
+  supportsVideo?: boolean;
+  maxFee?: number;
+  specialtySlug?: string;
+};
+
+export type ListDoctorsOptions = {
+  verificationStatus?: string; // omit for all statuses
+  order?: "createdAtAsc" | "createdAtDesc";
+};
+
+export type ReferenceMeta = {
+  /** distinct cities of doctors whose status is in the public statuses (unsorted) */
+  cities: string[];
+  verifiedDoctors: number;
+  pendingDoctors: number;
+  specialtyCount: number;
+  hospitalCount: number;
+};
+
+// ─────────────────────────── The interface ───────────────────────────
+
+export type StoreKind = "prisma" | "firestore";
+
+export interface DataStore {
+  // ── Auth / users / sessions ──────────────────────────────────────────
+  /** Find a user by email (login + registration duplicate check). */
+  findUserByEmail(email: string): Promise<AuthUserWithCredentials | null>;
+  /** Create a PATIENT user. */
+  createPatientUser(input: CreatePatientUserInput): Promise<AuthUser>;
+  /** Create a DOCTOR user + profile + specialty link atomically. */
+  createDoctorAccount(input: CreateDoctorAccountInput): Promise<AuthUser>;
+  /** Persist a session (token is generated by the caller). */
+  createSession(token: string, userId: string, expiresAtIso: string): Promise<void>;
+  /** Resolve a session token to its user (null when unknown). */
+  getSessionUser(token: string): Promise<SessionRecord | null>;
+  /** Delete one session row (lazy expiry cleanup). */
+  deleteSessionById(id: string): Promise<void>;
+  /** Delete session(s) for a token (logout). */
+  deleteSessionsByToken(token: string): Promise<void>;
+
+  // ── Reference data ───────────────────────────────────────────────────
+  findSpecialtyBySlug(slug: string): Promise<SpecialtyRecord | null>;
+  /** Specialties with doctor counts restricted to the given (public) statuses. */
+  getSpecialtiesWithDoctorCounts(publicStatuses: string[]): Promise<SpecialtyInfo[]>;
+  /** Aggregates for GET /api/v1/meta. */
+  getReferenceMeta(publicStatuses: string[]): Promise<ReferenceMeta>;
+
+  // ── Doctors ──────────────────────────────────────────────────────────
+  /** Directory search with the DB-level filters; remaining filtering/sorting/pagination stays in the route. */
+  searchDoctors(filters: SearchDoctorsFilters): Promise<DoctorRecord[]>;
+  getDoctorBySlug(slug: string): Promise<DoctorRecord | null>;
+  getDoctorById(id: string): Promise<DoctorRecord | null>;
+  getDoctorByUserId(userId: string): Promise<DoctorRecord | null>;
+  /** Lightweight lookup for the slots/reviews routes. */
+  getDoctorIdAndStatusBySlug(slug: string): Promise<{ id: string; verificationStatus: string } | null>;
+  doctorSlugExists(slug: string): Promise<boolean>;
+  updateDoctorProfile(id: string, patch: DoctorProfilePatch): Promise<DoctorRecord>;
+  /** All doctors, optionally filtered by verification status (admin views). */
+  listDoctors(options: ListDoctorsOptions): Promise<DoctorRecord[]>;
+
+  // ── Availability ─────────────────────────────────────────────────────
+  /** Active rules for one weekday, ordered by startMinute (slot engine). */
+  findActiveRulesForDay(doctorId: string, dayOfWeek: number): Promise<AvailabilityRuleRecord[]>;
+  /** All rules of a doctor, ordered by (dayOfWeek, startMinute). */
+  listAvailabilityRules(doctorId: string): Promise<AvailabilityRuleRecord[]>;
+  /** Replace-all weekly schedule; returns the new rules ordered. */
+  replaceAvailabilityRules(doctorId: string, rules: NewAvailabilityRule[]): Promise<AvailabilityRuleRecord[]>;
+
+  // ── Appointments ─────────────────────────────────────────────────────
+  /**
+   * Create an appointment. Throws SlotConflictError when (doctorId, slotStart)
+   * is already taken (the database-level double-booking guard) and
+   * ReferenceCodeCollisionError on a referenceCode collision.
+   */
+  createAppointment(input: CreateAppointmentInput): Promise<AppointmentRecord>;
+  getAppointmentById(id: string): Promise<AppointmentRecord | null>;
+  /** Patient history, slotStart desc, capped at 100. */
+  listAppointmentsByPatient(patientId: string): Promise<AppointmentRecord[]>;
+  /** All appointments of a doctor (doctor dashboard; filtering/slicing in the route). */
+  listAppointmentsByDoctor(doctorId: string): Promise<AppointmentRecord[]>;
+  /** Guest lookup: referenceCode compared case-insensitively, phone normalized on both sides. */
+  findAppointmentsByReferenceCode(referenceCode: string, phone: string): Promise<AppointmentRecord[]>;
+  /** Slot starts in [fromIso, toIso) occupied by any of the given statuses (slot engine). */
+  findBlockingSlotStarts(doctorId: string, fromIso: string, toIso: string, statuses: string[]): Promise<string[]>;
+  /** In-place update (status transitions, doctorNote). */
+  updateAppointment(id: string, patch: AppointmentPatch): Promise<AppointmentRecord>;
+  /**
+   * Move an appointment to a new slot. Throws SlotConflictError when the new
+   * (doctorId, slotStart) is taken. `resetToPendingApproval` mirrors the
+   * approval-mode doctors requiring re-approval after a move.
+   */
+  rescheduleAppointment(id: string, slotStartIso: string, slotEndIso: string, resetToPendingApproval: boolean): Promise<AppointmentRecord>;
+
+  // ── Reviews ──────────────────────────────────────────────────────────
+  /** All reviews of a doctor, newest first (route slices/aggregates). */
+  listReviewsByDoctor(doctorId: string): Promise<ReviewRecord[]>;
+
+  // ── Admin ────────────────────────────────────────────────────────────
+  getAdminStats(): Promise<AdminStats>;
+  /** Most recent audit entries with actor names, newest first. */
+  listAuditLogs(limit: number): Promise<AuditLogRecord[]>;
+  createAuditLog(input: CreateAuditLogInput): Promise<void>;
+}

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { getStore } from "@/lib/data";
 import { ok, fail, handleRouteError } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { ROLES } from "@/lib/constants";
@@ -52,7 +52,8 @@ const putSchema = z
       }
     });
 
-    // Exact duplicates (same day + start) would trip the DB unique constraint.
+    // Exact duplicates (same day + start) would trip the store-level unique
+    // constraint.
     const seen = new Set<string>();
     data.rules.forEach((rule, index) => {
       const key = `${rule.dayOfWeek}:${rule.startMinute}`;
@@ -102,17 +103,12 @@ export async function GET() {
         "FORBIDDEN"
       );
     }
-    const profile = await db.doctorProfile.findUnique({
-      where: { userId: user.id },
-      select: { id: true },
-    });
+    const store = getStore();
+    const profile = await store.getDoctorByUserId(user.id);
     if (!profile) {
       return fail("Doctor profile not found.", 404, "PROFILE_NOT_FOUND");
     }
-    const rules = await db.availabilityRule.findMany({
-      where: { doctorId: profile.id },
-      orderBy: [{ dayOfWeek: "asc" }, { startMinute: "asc" }],
-    });
+    const rules = await store.listAvailabilityRules(profile.id);
     return ok({
       items: rules.map((rule) => ({
         id: rule.id,
@@ -140,10 +136,8 @@ export async function PUT(req: NextRequest) {
         "FORBIDDEN"
       );
     }
-    const profile = await db.doctorProfile.findUnique({
-      where: { userId: user.id },
-      select: { id: true },
-    });
+    const store = getStore();
+    const profile = await store.getDoctorByUserId(user.id);
     if (!profile) {
       return fail("Doctor profile not found.", 404, "PROFILE_NOT_FOUND");
     }
@@ -158,34 +152,20 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // Replace-all inside a transaction: delete then recreate every rule.
-    await db.$transaction([
-      db.availabilityRule.deleteMany({ where: { doctorId: profile.id } }),
-      db.availabilityRule.createMany({
-        data: parsed.data.rules.map((rule) => ({
-          doctorId: profile.id,
-          dayOfWeek: rule.dayOfWeek,
-          startMinute: rule.startMinute,
-          endMinute: rule.endMinute,
-          isActive: rule.isActive,
-        })),
-      }),
-    ]);
+    // Replace-all update (delete + recreate in one atomic store operation).
+    const rules = await store.replaceAvailabilityRules(
+      profile.id,
+      parsed.data.rules
+    );
 
-    await db.auditLog.create({
-      data: {
-        actorId: user.id,
-        action: "AVAILABILITY_UPDATED",
-        entity: "DoctorProfile",
-        entityId: profile.id,
-        meta: JSON.stringify({ rules: parsed.data.rules }),
-      },
+    await store.createAuditLog({
+      actorId: user.id,
+      action: "AVAILABILITY_UPDATED",
+      entity: "DoctorProfile",
+      entityId: profile.id,
+      meta: JSON.stringify({ rules: parsed.data.rules }),
     });
 
-    const rules = await db.availabilityRule.findMany({
-      where: { doctorId: profile.id },
-      orderBy: [{ dayOfWeek: "asc" }, { startMinute: "asc" }],
-    });
     return ok({
       items: rules.map((rule) => ({
         id: rule.id,

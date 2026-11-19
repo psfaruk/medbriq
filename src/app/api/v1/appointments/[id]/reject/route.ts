@@ -2,10 +2,9 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { fail, handleRouteError, ok } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { getStore } from "@/lib/data";
 import { APPOINTMENT_STATUS, ROLES } from "@/lib/constants";
 import {
-  appointmentInclude,
   logAppointmentAction,
   toAppointmentDto,
 } from "@/app/api/v1/_lib/booking";
@@ -52,10 +51,7 @@ export async function POST(
       );
     }
 
-    const appointment = await db.appointment.findUnique({
-      where: { id },
-      include: appointmentInclude,
-    });
+    const appointment = await getStore().getAppointmentById(id);
     if (!appointment) {
       return fail("Appointment not found.", 404, "NOT_FOUND");
     }
@@ -70,13 +66,9 @@ export async function POST(
       );
     }
 
-    const updated = await db.appointment.update({
-      where: { id: appointment.id },
-      data: {
-        status: APPOINTMENT_STATUS.REJECTED,
-        doctorNote: parsed.data.reason,
-      },
-      include: appointmentInclude,
+    const updated = await getStore().updateAppointment(id, {
+      status: APPOINTMENT_STATUS.REJECTED,
+      doctorNote: parsed.data.reason,
     });
 
     await logAppointmentAction("APPOINTMENT_REJECTED", updated.id, user.id, {

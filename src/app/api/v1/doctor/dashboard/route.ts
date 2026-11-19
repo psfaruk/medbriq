@@ -1,4 +1,5 @@
-import { db } from "@/lib/db";
+import { getStore } from "@/lib/data";
+import type { AppointmentRecord } from "@/lib/data/types";
 import { ok, fail, handleRouteError } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { ROLES } from "@/lib/constants";
@@ -11,6 +12,10 @@ export const dynamic = "force-dynamic";
  * GET /api/v1/doctor/dashboard
  * Aggregated doctor workspace: stats, pending requests, upcoming confirmed
  * appointments, weekly availability, and the doctor's editable profile fields.
+ *
+ * All aggregations are computed in memory from the doctor's appointments
+ * (store-level list + JS filtering/sorting) — the same demo-scale tradeoff
+ * documented in src/lib/data/types.ts, kept identical across both stores.
  */
 
 /** Editable profile fields echoed back for the Profile tab form. */
@@ -46,12 +51,8 @@ export async function GET() {
       );
     }
 
-    const profile = await db.doctorProfile.findUnique({
-      where: { userId: user.id },
-      include: {
-        specialties: { include: { specialty: { select: { name: true } } } },
-      },
-    });
+    const store = getStore();
+    const profile = await store.getDoctorByUserId(user.id);
     if (!profile) {
       return fail("Doctor profile not found.", 404, "PROFILE_NOT_FOUND");
     }
@@ -63,72 +64,62 @@ export async function GET() {
     const dayEnd = dhakaToUtc(todayStr, 1440);
     const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
 
-    const [
-      todayTotal,
-      pendingRequests,
-      confirmedUpcoming,
-      completedTotal,
-      ratingAgg,
-      pendingRows,
-      upcomingRows,
-      availabilityRows,
-    ] = await Promise.all([
-      db.appointment.count({
-        where: {
-          doctorId: profile.id,
-          status: { in: ["PENDING_APPROVAL", "CONFIRMED", "COMPLETED"] },
-          slotStart: { gte: dayStart, lt: dayEnd },
-        },
-      }),
-      db.appointment.count({
-        where: { doctorId: profile.id, status: "PENDING_APPROVAL" },
-      }),
-      db.appointment.count({
-        where: {
-          doctorId: profile.id,
-          status: "CONFIRMED",
-          slotStart: { gt: now },
-        },
-      }),
-      db.appointment.count({
-        where: { doctorId: profile.id, status: "COMPLETED" },
-      }),
-      db.review.aggregate({
-        where: { doctorId: profile.id },
-        _avg: { rating: true },
-        _count: { rating: true },
-      }),
-      db.appointment.findMany({
-        where: { doctorId: profile.id, status: "PENDING_APPROVAL" },
-        orderBy: { slotStart: "asc" },
-        take: 20,
-      }),
-      db.appointment.findMany({
-        where: {
-          doctorId: profile.id,
-          status: "CONFIRMED",
-          slotEnd: { gt: twoHoursAgo },
-        },
-        orderBy: { slotStart: "asc" },
-        take: 20,
-      }),
-      db.availabilityRule.findMany({
-        where: { doctorId: profile.id },
-        orderBy: [{ dayOfWeek: "asc" }, { startMinute: "asc" }],
-      }),
+    const [appointments, availabilityRows] = await Promise.all([
+      store.listAppointmentsByDoctor(profile.id),
+      store.listAvailabilityRules(profile.id),
     ]);
+
+    const todayTotal = appointments.filter(
+      (appt) =>
+        ["PENDING_APPROVAL", "CONFIRMED", "COMPLETED"].includes(appt.status) &&
+        new Date(appt.slotStart).getTime() >= dayStart.getTime() &&
+        new Date(appt.slotStart).getTime() < dayEnd.getTime()
+    ).length;
+    const pendingRequests = appointments.filter(
+      (appt) => appt.status === "PENDING_APPROVAL"
+    ).length;
+    const confirmedUpcoming = appointments.filter(
+      (appt) =>
+        appt.status === "CONFIRMED" &&
+        new Date(appt.slotStart).getTime() > now.getTime()
+    ).length;
+    const completedTotal = appointments.filter(
+      (appt) => appt.status === "COMPLETED"
+    ).length;
+
+    // Rating aggregation in memory (null when there are no reviews).
+    const ratingCount = profile.reviewRatings.length;
+    const ratingAvgRaw =
+      ratingCount > 0
+        ? profile.reviewRatings.reduce((sum, rating) => sum + rating, 0) /
+          ratingCount
+        : null;
+
+    const bySlotStartAsc = (a: AppointmentRecord, b: AppointmentRecord) =>
+      a.slotStart.localeCompare(b.slotStart);
+
+    const pendingRows = appointments
+      .filter((appt) => appt.status === "PENDING_APPROVAL")
+      .sort(bySlotStartAsc)
+      .slice(0, 20);
+    const upcomingRows = appointments
+      .filter(
+        (appt) =>
+          appt.status === "CONFIRMED" &&
+          new Date(appt.slotEnd).getTime() > twoHoursAgo.getTime()
+      )
+      .sort(bySlotStartAsc)
+      .slice(0, 20);
 
     const doctorCardInfo = {
       slug: profile.slug,
       name: user.name,
       city: profile.city,
       consultationFee: profile.consultationFee,
-      specialties: profile.specialties.map((ds) => ds.specialty.name),
+      specialties: profile.specialties.map((s) => s.name),
     };
 
-    const toDto = (
-      appt: typeof pendingRows[number]
-    ): AppointmentDto => ({
+    const toDto = (appt: AppointmentRecord): AppointmentDto => ({
       id: appt.id,
       referenceCode: appt.referenceCode,
       status: appt.status as AppointmentDto["status"],
@@ -136,15 +127,15 @@ export async function GET() {
       bookingMode: appt.bookingMode as AppointmentDto["bookingMode"],
       fee: appt.fee,
       currency: appt.currency,
-      slotStart: appt.slotStart.toISOString(),
-      slotEnd: appt.slotEnd.toISOString(),
+      slotStart: appt.slotStart,
+      slotEnd: appt.slotEnd,
       patientName: appt.patientName,
       patientPhone: appt.patientPhone,
       patientAge: appt.patientAge,
       patientGender: appt.patientGender,
       notes: appt.notes,
       doctorNote: appt.doctorNote,
-      createdAt: appt.createdAt.toISOString(),
+      createdAt: appt.createdAt,
       doctor: doctorCardInfo,
       patientId: appt.patientId,
     });
@@ -156,10 +147,8 @@ export async function GET() {
         confirmedUpcoming,
         completedTotal,
         ratingAvg:
-          ratingAgg._avg.rating === null
-            ? null
-            : Math.round(ratingAgg._avg.rating * 10) / 10,
-        ratingCount: ratingAgg._count.rating,
+          ratingAvgRaw !== null ? Math.round(ratingAvgRaw * 10) / 10 : null,
+        ratingCount,
       },
       pending: pendingRows.map(toDto),
       upcoming: upcomingRows.map(toDto),
