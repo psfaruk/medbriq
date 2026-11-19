@@ -30,7 +30,10 @@ export function dhakaDateString(instant: Date = new Date()): string {
 
 /** Get the Dhaka-local day-of-week (0 = Sunday ... 6 = Saturday). */
 export function dhakaDayOfWeek(dateStr: string): number {
-  return dhakaToUtc(dateStr, 0).getUTCDay();
+  // Parse the date string directly — do NOT round-trip through dhakaToUtc,
+  // whose UTC instant (previous day 18:00Z) would yield the wrong weekday.
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 }
 
 /** Add days to a "YYYY-MM-DD" string, returning "YYYY-MM-DD". */
