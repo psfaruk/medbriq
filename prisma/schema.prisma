@@ -1,8 +1,14 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Medbriq — Global Doctor Discovery & Healthcare Platform
+// Prisma schema (SQLite for local/free-first MVP; designed to be portable to PostgreSQL)
+//
+// Conventions:
+// - SQLite does not support native enums in Prisma; status/role fields are strings
+//   validated at the application layer (see src/lib/constants.ts).
+// - All timestamps are stored in UTC. Bangladesh (initial market) is UTC+6 with no DST.
+// - Financial amounts use Float for MVP; production PostgreSQL migration should
+//   switch to Decimal (documented in docs/database.md).
+// - The @@unique([doctorId, slotStart]) on Appointment is the database-level
+//   double-booking guard. Booking code must rely on it, not on frontend checks.
 
 generator client {
   provider = "prisma-client-js"
@@ -14,19 +20,183 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  phone        String?
+  role         String   @default("PATIENT") // PATIENT | DOCTOR | ADMIN (see constants.ts)
+  status       String   @default("ACTIVE") // ACTIVE | SUSPENDED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  doctorProfile DoctorProfile?
+  sessions      Session[]
+  appointments  Appointment[]  @relation("PatientAppointments")
+  reviews       Review[]
+  auditLogs     AuditLog[]
 }
 
-model Post {
+model Session {
   id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Specialty {
+  id      String             @id @default(cuid())
+  name    String             @unique
+  nameBn  String?
+  slug    String             @unique
+  icon    String? // lucide icon name
+  doctors DoctorSpecialty[]
+
+  @@index([slug])
+}
+
+model Hospital {
+  id      String          @id @default(cuid())
+  name    String
+  slug    String          @unique
+  city    String
+  address String?
+  phone   String?
+  about   String?
+  doctors DoctorProfile[]
+
+  @@index([city])
+}
+
+model DoctorProfile {
+  id                 String    @id @default(cuid())
+  userId             String    @unique
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slug               String    @unique
+  bio                String?
+  experienceYears    Int       @default(0)
+  consultationFee    Float
+  followUpFee        Float     @default(0)
+  videoConsultFee    Float?
+  regNumber          String? // e.g. BMDC registration number (Bangladesh)
+  verificationStatus String    @default("PENDING") // PENDING | UNDER_REVIEW | VERIFIED | REJECTED | MORE_INFO
+  verificationNote   String?
+  verifiedAt         DateTime?
+  city               String
+  country            String    @default("Bangladesh")
+  chamberAddress     String?
+  languages          String? // comma-separated codes: "bn,en"
+  supportsVideo      Boolean   @default(false)
+  requiresApproval   Boolean   @default(true) // true => booking needs doctor approval; false => instant booking
+  photoUrl           String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  hospitalId        String?
+  hospital          Hospital?         @relation(fields: [hospitalId], references: [id])
+  specialties       DoctorSpecialty[]
+  availabilityRules AvailabilityRule[]
+  appointments      Appointment[]
+  reviews           Review[]
+
+  @@index([city])
+  @@index([verificationStatus])
+}
+
+model DoctorSpecialty {
+  doctorId    String
+  specialtyId String
+  doctor      DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  specialty   Specialty     @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
+
+  @@id([doctorId, specialtyId])
+  @@index([specialtyId])
+}
+
+// Weekly recurring availability. Times are minutes-from-midnight in the clinic's
+// local timezone (Asia/Dhaka, UTC+6). dayOfWeek: 0 = Sunday ... 6 = Saturday.
+model AvailabilityRule {
+  id          String        @id @default(cuid())
+  doctorId    String
+  doctor      DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  dayOfWeek   Int
+  startMinute Int
+  endMinute   Int
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+
+  @@unique([doctorId, dayOfWeek, startMinute])
+  @@index([doctorId])
+}
+
+model Appointment {
+  id            String        @id @default(cuid())
+  referenceCode String        @unique // e.g. MB-7K2P9Q — guest lookup reference
+  doctorId      String
+  doctor        DoctorProfile @relation(fields: [doctorId], references: [id])
+  patientId     String? // set when booked by a logged-in user
+  patient       User?         @relation("PatientAppointments", fields: [patientId], references: [id])
+  patientName   String
+  patientPhone  String
+  patientAge    Int?
+  patientGender String? // MALE | FEMALE | OTHER
+  notes         String? // patient's note for the doctor
+  slotStart     DateTime // UTC
+  slotEnd       DateTime // UTC
+  type          String        @default("IN_PERSON") // IN_PERSON | VIDEO
+  status        String        @default("PENDING_APPROVAL") // PENDING_APPROVAL | CONFIRMED | REJECTED | CANCELLED_BY_PATIENT | CANCELLED_BY_DOCTOR | COMPLETED | EXPIRED
+  bookingMode   String // INSTANT | APPROVAL
+  fee           Float
+  currency      String        @default("BDT")
+  doctorNote    String? // rejection / cancellation reason
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // DATABASE-LEVEL DOUBLE-BOOKING GUARD:
+  // one doctor can hold at most one appointment per exact slot start.
+  @@unique([doctorId, slotStart])
+  @@index([patientId])
+  @@index([doctorId, status])
+  @@index([slotStart])
+}
+
+model Review {
+  id        String        @id @default(cuid())
+  doctorId  String
+  doctor    DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patientId String
+  patient   User          @relation(fields: [patientId], references: [id])
+  rating    Int // 1..5
+  comment   String?
+  createdAt DateTime      @default(now())
+
+  @@unique([doctorId, patientId])
+  @@index([doctorId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  action    String // e.g. DOCTOR_VERIFIED, APPOINTMENT_CONFIRMED
+  entity    String // e.g. DoctorProfile, Appointment
+  entityId  String?
+  meta      String? // JSON string with action details
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+model Country {
+  id        String  @id @default(cuid())
+  code      String  @unique // ISO 3166-1 alpha-2, e.g. BD
+  name      String
+  currency  String // e.g. BDT
+  phoneCode String // e.g. +880
+  isActive  Boolean @default(true)
 }
