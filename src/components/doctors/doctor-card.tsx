@@ -51,23 +51,31 @@ export function DoctorCard({ doctor }: { doctor: DoctorCardData }) {
       aria-label={`View profile of ${doctor.name}, ${specialtyLabel}, ${doctor.city}`}
       className="group h-full w-full rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      <Card className="h-full gap-4 py-5 transition-all duration-200 group-hover:border-primary/40 group-hover:shadow-md">
+      <Card className="card-lift h-full gap-4 border-border/70 py-5 group-hover:border-primary/40">
         <CardContent className="flex h-full flex-col gap-3">
           {/* Header: avatar + name + specialty */}
           <div className="flex items-start gap-3">
-            <Avatar className="h-14 w-14 shrink-0 border">
-              {doctor.photoUrl ? (
-                <AvatarImage src={doctor.photoUrl} alt={doctor.name} />
+            <div className="relative shrink-0">
+              <Avatar className="h-14 w-14 border-2 border-primary/15">
+                {doctor.photoUrl ? (
+                  <AvatarImage src={doctor.photoUrl} alt={doctor.name} />
+                ) : null}
+                <AvatarFallback className="bg-brand-gradient text-sm font-semibold text-primary-foreground">
+                  {getInitials(doctor.name)}
+                </AvatarFallback>
+              </Avatar>
+              {doctor.nextAvailableLabel ? (
+                <span
+                  className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-success ring-2 ring-card animate-pulse-soft"
+                  aria-hidden="true"
+                />
               ) : null}
-              <AvatarFallback className="bg-primary text-sm font-semibold text-primary-foreground">
-                {getInitials(doctor.name)}
-              </AvatarFallback>
-            </Avatar>
+            </div>
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold leading-snug">
                 {doctor.name}
               </p>
-              <p className="mt-0.5 truncate text-sm text-muted-foreground">
+              <p className="mt-0.5 truncate text-sm text-primary/90 font-medium">
                 {specialtyLabel}
               </p>
             </div>
@@ -78,10 +86,10 @@ export function DoctorCard({ doctor }: { doctor: DoctorCardData }) {
           {/* Meta rows */}
           <div className="flex flex-col gap-1.5 text-sm text-muted-foreground">
             <p className="flex min-w-0 items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-primary/70" aria-hidden="true" />
               <span className="truncate">{doctor.city}</span>
               <span aria-hidden="true">·</span>
-              <Briefcase className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <Briefcase className="h-3.5 w-3.5 shrink-0 text-primary/70" aria-hidden="true" />
               <span className="shrink-0">
                 {doctor.experienceYears}+ yrs
               </span>
@@ -98,9 +106,9 @@ export function DoctorCard({ doctor }: { doctor: DoctorCardData }) {
           </div>
 
           {doctor.nextAvailableLabel ? (
-            <p className="flex items-center gap-1.5 text-sm font-medium text-success">
+            <p className="flex w-fit items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
               <CalendarClock
-                className="h-4 w-4 shrink-0"
+                className="h-3.5 w-3.5 shrink-0"
                 aria-hidden="true"
               />
               Available {doctor.nextAvailableLabel}
@@ -108,9 +116,12 @@ export function DoctorCard({ doctor }: { doctor: DoctorCardData }) {
           ) : null}
 
           {/* Footer: fee + rating + video indicator */}
-          <div className="mt-auto flex items-center justify-between gap-2 border-t pt-3">
-            <span className="text-base font-bold">
+          <div className="mt-auto flex items-center justify-between gap-2 border-t border-border/70 pt-3">
+            <span className="text-base font-bold text-primary">
               {formatFee(doctor.consultationFee)}
+              <span className="ml-1 text-[11px] font-medium text-muted-foreground">
+                / visit
+              </span>
             </span>
             <span className="flex items-center gap-2.5">
               {doctor.supportsVideo ? (

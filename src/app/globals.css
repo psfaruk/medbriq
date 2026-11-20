@@ -50,95 +50,99 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  /* Medbriq visual identity: Primary sky blue, secondary white,
-     accent soft green, neutral light gray (see docs/architecture.md). */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.208 0.042 265.75);
+  --radius: 0.75rem;
+  /* Medbriq 2.0 visual identity: deep emerald primary with teal gradient
+     partner, warm amber highlights, rose accents. Bangladesh-green inspired,
+     warm and trustworthy — see docs/architecture.md. */
+  --background: oklch(0.995 0.004 160);
+  --foreground: oklch(0.24 0.03 170);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.208 0.042 265.75);
+  --card-foreground: oklch(0.24 0.03 170);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.208 0.042 265.75);
-  /* sky-600 */
-  --primary: oklch(0.588 0.131 226.06);
-  --primary-foreground: oklch(0.985 0.02 237);
-  /* sky-50 — soft tinted panels */
-  --primary-soft: oklch(0.951 0.023 221.69);
-  /* slate-100 */
-  --secondary: oklch(0.968 0.007 247.9);
-  --secondary-foreground: oklch(0.208 0.042 265.75);
-  --muted: oklch(0.968 0.007 247.9);
-  --muted-foreground: oklch(0.554 0.046 257.42);
-  /* soft green tint (emerald-50) for hover accents */
-  --accent: oklch(0.979 0.021 166.11);
-  --accent-foreground: oklch(0.262 0.051 172.55);
+  --popover-foreground: oklch(0.24 0.03 170);
+  /* emerald-600 */
+  --primary: oklch(0.596 0.145 163.23);
+  --primary-foreground: oklch(0.985 0.01 165);
+  /* emerald-50 — soft tinted panels */
+  --primary-soft: oklch(0.972 0.021 160.54);
+  /* soft warm neutral */
+  --secondary: oklch(0.968 0.006 160);
+  --secondary-foreground: oklch(0.24 0.03 170);
+  --muted: oklch(0.962 0.006 160);
+  --muted-foreground: oklch(0.5 0.03 168);
+  /* amber-50 warm highlight for hover accents */
+  --accent: oklch(0.98 0.03 90);
+  --accent-foreground: oklch(0.35 0.07 65);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.929 0.013 255.51);
-  --input: oklch(0.929 0.013 255.51);
-  /* sky-500 */
-  --ring: oklch(0.685 0.155 237.32);
+  --border: oklch(0.917 0.015 160);
+  --input: oklch(0.917 0.015 160);
+  /* emerald-500 */
+  --ring: oklch(0.696 0.17 162.48);
+  /* teal-600 */
+  --brand-partner: oklch(0.6 0.118 184.7);
   /* emerald-600 */
   --success: oklch(0.596 0.145 163.23);
   --success-foreground: oklch(0.985 0 0);
   /* amber-500 */
   --warning: oklch(0.769 0.188 70.08);
   --warning-foreground: oklch(0.279 0.077 45.64);
-  --chart-1: oklch(0.685 0.155 237.32);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.6 0.118 184.7);
+  --chart-1: oklch(0.696 0.17 162.48);
+  --chart-2: oklch(0.6 0.118 184.7);
+  --chart-3: oklch(0.596 0.145 163.23);
   --chart-4: oklch(0.828 0.189 84.43);
   --chart-5: oklch(0.645 0.246 16.44);
-  --sidebar: oklch(0.984 0.003 247.86);
-  --sidebar-foreground: oklch(0.208 0.042 265.75);
-  --sidebar-primary: oklch(0.588 0.131 226.06);
-  --sidebar-primary-foreground: oklch(0.985 0.02 237);
-  --sidebar-accent: oklch(0.968 0.007 247.9);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.75);
-  --sidebar-border: oklch(0.929 0.013 255.51);
-  --sidebar-ring: oklch(0.685 0.155 237.32);
+  --sidebar: oklch(0.985 0.004 160);
+  --sidebar-foreground: oklch(0.24 0.03 170);
+  --sidebar-primary: oklch(0.596 0.145 163.23);
+  --sidebar-primary-foreground: oklch(0.985 0.01 165);
+  --sidebar-accent: oklch(0.968 0.006 160);
+  --sidebar-accent-foreground: oklch(0.24 0.03 170);
+  --sidebar-border: oklch(0.917 0.015 160);
+  --sidebar-ring: oklch(0.696 0.17 162.48);
 }
 
 .dark {
-  --background: oklch(0.129 0.042 264.7);
-  --foreground: oklch(0.984 0.003 247.86);
-  --card: oklch(0.208 0.042 265.75);
-  --card-foreground: oklch(0.984 0.003 247.86);
-  --popover: oklch(0.208 0.042 265.75);
-  --popover-foreground: oklch(0.984 0.003 247.86);
-  /* sky-500 */
-  --primary: oklch(0.685 0.155 237.32);
-  --primary-foreground: oklch(0.208 0.042 265.75);
-  --primary-soft: oklch(0.279 0.061 227.34);
-  --secondary: oklch(0.279 0.041 260.03);
-  --secondary-foreground: oklch(0.984 0.003 247.86);
-  --muted: oklch(0.279 0.041 260.03);
-  --muted-foreground: oklch(0.704 0.04 256.79);
-  /* emerald-950 */
-  --accent: oklch(0.262 0.051 172.55);
-  --accent-foreground: oklch(0.979 0.021 166.11);
+  --background: oklch(0.16 0.02 170);
+  --foreground: oklch(0.97 0.005 160);
+  --card: oklch(0.21 0.025 170);
+  --card-foreground: oklch(0.97 0.005 160);
+  --popover: oklch(0.21 0.025 170);
+  --popover-foreground: oklch(0.97 0.005 160);
+  /* emerald-500 */
+  --primary: oklch(0.696 0.17 162.48);
+  --primary-foreground: oklch(0.16 0.02 170);
+  --primary-soft: oklch(0.28 0.05 165);
+  --secondary: oklch(0.26 0.02 170);
+  --secondary-foreground: oklch(0.97 0.005 160);
+  --muted: oklch(0.26 0.02 170);
+  --muted-foreground: oklch(0.7 0.03 168);
+  /* emerald-900 tint */
+  --accent: oklch(0.3 0.05 165);
+  --accent-foreground: oklch(0.95 0.02 165);
   --destructive: oklch(0.704 0.191 22.22);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.685 0.155 237.32);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.696 0.17 162.48);
+  --brand-partner: oklch(0.65 0.12 184.7);
   --success: oklch(0.696 0.17 162.48);
   --success-foreground: oklch(0.145 0.02 163);
   --warning: oklch(0.769 0.188 70.08);
   --warning-foreground: oklch(0.279 0.077 45.64);
-  --chart-1: oklch(0.685 0.155 237.32);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.6 0.118 184.7);
+  --chart-1: oklch(0.696 0.17 162.48);
+  --chart-2: oklch(0.6 0.118 184.7);
+  --chart-3: oklch(0.596 0.145 163.23);
   --chart-4: oklch(0.828 0.189 84.43);
   --chart-5: oklch(0.645 0.246 16.44);
-  --sidebar: oklch(0.208 0.042 265.75);
-  --sidebar-foreground: oklch(0.984 0.003 247.86);
-  --sidebar-primary: oklch(0.685 0.155 237.32);
+  --sidebar: oklch(0.21 0.025 170);
+  --sidebar-foreground: oklch(0.97 0.005 160);
+  --sidebar-primary: oklch(0.696 0.17 162.48);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.279 0.041 260.03);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.86);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.685 0.155 237.32);
+  --sidebar-accent: oklch(0.26 0.02 170);
+  --sidebar-accent-foreground: oklch(0.97 0.005 160);
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: oklch(0.696 0.17 162.48);
 }
 
 @layer base {
@@ -148,6 +152,97 @@
   body {
     @apply bg-background text-foreground;
   }
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 25%, transparent);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Medbriq 2.0 — signature utilities                                   */
+/* ------------------------------------------------------------------ */
+
+/* Emerald → teal gradient text */
+.text-gradient {
+  background: linear-gradient(
+    120deg,
+    oklch(0.51 0.15 162),
+    oklch(0.6 0.13 185),
+    oklch(0.55 0.13 150)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Primary gradient surface (buttons, badges, bands) */
+.bg-brand-gradient {
+  background: linear-gradient(
+    120deg,
+    oklch(0.55 0.15 163),
+    oklch(0.62 0.12 185)
+  );
+}
+
+.bg-brand-gradient-soft {
+  background: linear-gradient(
+    150deg,
+    oklch(0.965 0.025 163),
+    oklch(0.96 0.02 185),
+    oklch(0.985 0.005 160)
+  );
+}
+
+/* Hero mesh backdrop: soft radial emerald/teal/amber glows */
+.bg-hero-mesh {
+  background:
+    radial-gradient(42rem 30rem at 85% 18%, color-mix(in oklab, var(--primary) 14%, transparent), transparent 60%),
+    radial-gradient(36rem 26rem at 8% 85%, color-mix(in oklab, var(--brand-partner) 12%, transparent), transparent 60%),
+    radial-gradient(28rem 22rem at 55% 110%, color-mix(in oklab, var(--warning) 10%, transparent), transparent 65%),
+    linear-gradient(180deg, color-mix(in oklab, var(--primary-soft) 65%, white), var(--background) 82%);
+}
+
+/* Floating soft blobs used around the hero illustration */
+.blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(44px);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Card hover lift */
+.card-lift {
+  transition:
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+.card-lift:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 12px 28px -10px color-mix(in oklab, var(--primary) 22%, transparent),
+    0 4px 12px -4px oklch(0.2 0.03 170 / 8%);
+}
+
+/* Gentle float animation for hero decor */
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+.animate-float {
+  animation: float-y 5s ease-in-out infinite;
+}
+.animate-float-slow {
+  animation: float-y 7s ease-in-out infinite;
+}
+
+/* Soft pulsing dot (live availability indicator) */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.82); }
+}
+.animate-pulse-soft {
+  animation: pulse-soft 2.2s ease-in-out infinite;
 }
 
 /* Thin, unobtrusive scrollbars for long lists */
@@ -158,6 +253,14 @@
 .medbriq-scroll::-webkit-scrollbar-thumb {
   @apply rounded-full bg-border;
 }
+.medbriq-scroll::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--primary) 45%, var(--border));
+}
 .medbriq-scroll::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* Safe-area padding for the mobile bottom tab bar */
+.pb-safe-nav {
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
 }

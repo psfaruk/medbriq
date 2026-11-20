@@ -28,6 +28,7 @@ import {
   ShieldCheck,
   Star,
   Stethoscope,
+  UserX,
   Video,
   Wallet,
   X,
@@ -122,6 +123,12 @@ const STATUS_STYLES: Record<AppointmentStatus, StatusStyle> = {
     icon: BadgeCheck,
   },
   EXPIRED: { label: "Expired", variant: "secondary", icon: Clock },
+  NO_SHOW: {
+    label: "No-show",
+    variant: "outline",
+    className: "border-destructive/40 text-destructive",
+    icon: UserX,
+  },
 };
 
 /** "MALE" -> "Male"; empty string for null/unknown. */

@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  // Hide the floating dev-tools indicator for a clean preview.
+  devIndicators: false,
 };
 
 export default nextConfig;

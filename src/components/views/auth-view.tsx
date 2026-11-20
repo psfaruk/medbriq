@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import Image from "next/image";
 import { useAppStore } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
 import { LANGUAGES } from "@/lib/constants";
@@ -48,6 +49,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
+  BadgeCheck,
   CalendarCheck,
   ChevronDown,
   Info,
@@ -55,8 +57,10 @@ import {
   Loader2,
   Mail,
   Phone,
+  ShieldCheck,
   Stethoscope,
   Timer,
+  Zap,
 } from "lucide-react";
 
 /** Minimal typings for the Google Identity Services script we load on demand. */
@@ -226,6 +230,7 @@ export default function AuthView() {
   >("loading");
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
   const [googleBusy, setGoogleBusy] = useState(false);
+  const [googleHelpOpen, setGoogleHelpOpen] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const googleCallbackRef = useRef<(credential: string) => void>(() => {});
 
@@ -733,8 +738,54 @@ export default function AuthView() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-lg px-4 py-10 sm:py-14">
-      <Card>
+    <div className="relative overflow-hidden bg-hero-mesh">
+      <div
+        className="blob h-72 w-72 bg-emerald-300/40 -top-20 -left-16"
+        aria-hidden="true"
+      />
+      <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 sm:py-14 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+        {/* Branding panel — desktop only */}
+        <aside className="relative hidden overflow-hidden rounded-3xl bg-brand-gradient p-8 text-primary-foreground shadow-xl shadow-emerald-900/20 lg:flex lg:flex-col lg:gap-6">
+          <div
+            className="blob h-56 w-56 bg-white/25 -top-16 -right-10"
+            aria-hidden="true"
+          />
+          <div className="relative">
+            <h2 className="text-2xl font-bold leading-snug">
+              Your health companion in Bangladesh
+            </h2>
+            <p lang="bn" className="mt-2 text-sm text-primary-foreground/85">
+              বিশ্বস্ত ডাক্তার খুঁজুন ও সহজেই অ্যাপয়েন্টমেন্ট নিন।
+            </p>
+          </div>
+          <div className="relative overflow-hidden rounded-2xl border border-white/20 shadow-lg">
+            <Image
+              src="/images/auth-side.png"
+              alt="Illustration of a doctor consulting a patient"
+              width={560}
+              height={560}
+              className="h-auto w-full object-cover"
+            />
+          </div>
+          <ul className="relative space-y-3 text-sm">
+            {[
+              { icon: ShieldCheck, text: "BMDC-verified doctor profiles" },
+              { icon: BadgeCheck, text: "Transparent new & returning patient fees" },
+              { icon: Zap, text: "Instant confirmation or doctor approval" },
+            ].map((benefit) => (
+              <li key={benefit.text} className="flex items-center gap-2.5">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/15">
+                  <benefit.icon className="h-4 w-4" aria-hidden="true" />
+                </span>
+                {benefit.text}
+              </li>
+            ))}
+          </ul>
+        </aside>
+
+        {/* Form column */}
+        <div className="mx-auto w-full max-w-lg">
+      <Card className="border-border/70 shadow-xl shadow-emerald-900/5">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Welcome to Medbriq</CardTitle>
           <CardDescription>
@@ -1054,8 +1105,7 @@ export default function AuthView() {
                         type="button"
                         variant="outline"
                         className="w-full gap-2"
-                        disabled
-                        aria-disabled="true"
+                        onClick={() => setGoogleHelpOpen(true)}
                       >
                         <GoogleGIcon />
                         Continue with Google
@@ -1063,7 +1113,7 @@ export default function AuthView() {
                       <p className="text-center text-xs text-muted-foreground">
                         {googleState === "error"
                           ? "Google sign-in could not be loaded right now. Refresh the page to retry."
-                          : "Google sign-in is not configured on this deployment (set GOOGLE_CLIENT_ID)."}
+                          : "Not configured yet — tap the button to see how to enable it."}
                       </p>
                     </>
                   )}
@@ -1604,6 +1654,53 @@ export default function AuthView() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Google sign-in setup help (shown when GOOGLE_CLIENT_ID is missing) */}
+      <Dialog open={googleHelpOpen} onOpenChange={setGoogleHelpOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" aria-hidden="true" />
+              Enable Google sign-in
+            </DialogTitle>
+            <DialogDescription>
+              Google sign-in is fully implemented but needs an OAuth client ID
+              for this deployment. Once configured, the official Google button
+              appears here automatically.
+            </DialogDescription>
+          </DialogHeader>
+          <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
+            <li>
+              Open{" "}
+              <a
+                href="https://console.cloud.google.com/apis/credentials"
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-primary hover:underline"
+              >
+                Google Cloud Console → Credentials
+              </a>{" "}
+              and create an <strong>OAuth Client ID</strong> (type: Web
+              application).
+            </li>
+            <li>
+              Add this deployment&apos;s domain (and{" "}
+              <code className="rounded bg-muted px-1">localhost</code> for
+              local dev) under <em>Authorized JavaScript origins</em>.
+            </li>
+            <li>
+              Set the resulting client ID as the{" "}
+              <code className="rounded bg-muted px-1">GOOGLE_CLIENT_ID</code>{" "}
+              environment variable, then redeploy / restart the server.
+            </li>
+          </ol>
+          <DialogFooter>
+            <Button onClick={() => setGoogleHelpOpen(false)}>Got it</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+        </div>
+      </div>
     </div>
   );
 }
