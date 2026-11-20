@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/app-state";
 import { apiGet } from "@/lib/api-client";
-import { searchPreset } from "../preset";
+import { searchPreset, setSearchPreset } from "../preset";
 import type { AppointmentDto, DoctorCard, SpecialtyInfo } from "@/lib/types";
 import {
   SectionCard,
@@ -57,7 +57,6 @@ export default function HomeScreen() {
 
   useEffect(() => {
     reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const upcoming = (appointments ?? [])
@@ -92,7 +91,7 @@ export default function HomeScreen() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && query.trim()) {
-                searchPreset.q = query.trim();
+                setSearchPreset({ q: query.trim() });
                 resetPatient({ name: "doctors" });
               }
             }}
@@ -105,7 +104,7 @@ export default function HomeScreen() {
             className="h-9 shrink-0"
             onClick={() => {
               if (query.trim()) {
-                searchPreset.q = query.trim();
+                setSearchPreset({ q: query.trim() });
               }
               resetPatient({ name: "doctors" });
             }}
@@ -179,7 +178,7 @@ export default function HomeScreen() {
               <button
                 key={s.id}
                 onClick={() => {
-                  searchPreset.specialty = s.slug;
+                  setSearchPreset({ specialty: s.slug });
                   resetPatient({ name: "doctors" });
                 }}
                 className="card-lift flex shrink-0 items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-2.5 shadow-soft"

@@ -1,15 +1,43 @@
 "use client";
 
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
 import { useAppStore, hydrateLang } from "@/lib/app-state";
 import { apiGet } from "@/lib/api-client";
 import type { SessionUser } from "@/lib/types";
 import AuthScreen from "@/components/app/auth-screen";
 import PatientShell from "@/components/app/patient-shell";
 import PatientApp from "@/components/app/patient";
-import DoctorDashboard from "@/components/app/doctor";
-import HospitalDashboard from "@/components/app/hospital";
-import AdminDashboard from "@/components/app/admin";
+
+// The three dashboards are big (charts, tables, form editors) and mutually
+// exclusive per session — load them lazily so a patient session never
+// compiles admin code (faster boot, much lower dev-server memory).
+const DoctorDashboard = dynamic(() => import("@/components/app/doctor"), {
+  loading: () => <DashboardFallback label="Doctor dashboard" />,
+});
+const HospitalDashboard = dynamic(() => import("@/components/app/hospital"), {
+  loading: () => <DashboardFallback label="Hospital dashboard" />,
+});
+const AdminDashboard = dynamic(() => import("@/components/app/admin"), {
+  loading: () => <DashboardFallback label="Admin panel" />,
+});
+
+function DashboardFallback({ label }: { label: string }) {
+  return (
+    <div
+      className="flex min-h-[60vh] items-center justify-center"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="flex flex-col items-center gap-3">
+        <span className="h-9 w-9 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+        <p className="text-xs font-medium text-muted-foreground">
+          Loading {label}…
+        </p>
+      </div>
+    </div>
+  );
+}
 
 /**
  * MedBricBD root application (single-route SPA on "/").

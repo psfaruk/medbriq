@@ -1,5 +1,10 @@
-@import "tailwindcss";
+/* Source detection is explicit (not automatic): Tailwind's auto-scanner walks
+   the whole project tree, which wedges this sandbox on the network-mounted
+   `upload/` directory (FUSE). Restrict scanning to src/ only.
+   CSS file lives at src/app/globals.css, so "../" == src/. */
+@import "tailwindcss" source(none);
 @import "tw-animate-css";
+@source "../";
 
 @custom-variant dark (&:is(.dark *));
 

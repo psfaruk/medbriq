@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/lib/app-state";
 import { apiGet } from "@/lib/api-client";
-import { searchPreset } from "../preset";
+import { searchPreset, clearSearchPreset } from "../preset";
 import type { DoctorCard, SpecialtyInfo } from "@/lib/types";
 import {
   EmptyState,
@@ -36,8 +36,8 @@ export default function DoctorsScreen() {
   const { t } = useT();
   const { pushPatient } = useAppStore();
 
-  const [query, setQuery] = useState("");
-  const [specialty, setSpecialty] = useState("any");
+  const [query, setQuery] = useState(() => searchPreset.q ?? "");
+  const [specialty, setSpecialty] = useState(() => searchPreset.specialty ?? "any");
   const [city, setCity] = useState("any");
   const [maxFee, setMaxFee] = useState("any");
   const [availableToday, setAvailableToday] = useState(false);
@@ -50,7 +50,7 @@ export default function DoctorsScreen() {
   const [total, setTotal] = useState(0);
   const [failed, setFailed] = useState(false);
 
-  const presetApplied = useRef(false);
+  const searchSeq = useRef(0);
 
   const buildUrl = () => {
     const params = new URLSearchParams({ page: "1", pageSize: "24" });
@@ -63,15 +63,20 @@ export default function DoctorsScreen() {
     return `/api/v1/doctors?${params.toString()}`;
   };
 
+  // Async-only search: state updates happen in promise continuations (never
+  // synchronously inside an effect), with a sequence guard against races.
   const search = () => {
-    setItems(null);
-    setFailed(false);
+    const seq = ++searchSeq.current;
     apiGet<{ items: DoctorCard[]; total: number }>(buildUrl())
       .then((d) => {
+        if (seq !== searchSeq.current) return;
         setItems(d.items);
         setTotal(d.total);
       })
-      .catch(() => setFailed(true));
+      .catch(() => {
+        if (seq !== searchSeq.current) return;
+        setFailed(true);
+      });
   };
 
   useEffect(() => {
@@ -83,24 +88,12 @@ export default function DoctorsScreen() {
         setCities(d.cities.map((c) => c.name).filter(Boolean))
       )
       .catch(() => setCities([]));
-    // One-time preset from Home/Specialties navigation.
-    if (!presetApplied.current) {
-      presetApplied.current = true;
-      if (searchPreset.q) {
-        setQuery(searchPreset.q);
-        searchPreset.q = undefined;
-      }
-      if (searchPreset.specialty) {
-        setSpecialty(searchPreset.specialty);
-        searchPreset.specialty = undefined;
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Consume the one-time preset handed over from Home/Specialties.
+    clearSearchPreset();
   }, []);
 
   useEffect(() => {
     search();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [specialty, city, maxFee, availableToday, verifiedOnly]);
 
   return (
