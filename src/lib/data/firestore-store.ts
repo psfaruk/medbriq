@@ -3,6 +3,8 @@ import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import { normalizePhone } from "@/lib/phone";
 import type {
+  ActiveOtpCode,
+  AdminUserRecord,
   AppointmentPatch,
   AppointmentRecord,
   AuditLogRecord,
@@ -12,17 +14,26 @@ import type {
   CreateAppointmentInput,
   CreateAuditLogInput,
   CreateDoctorAccountInput,
+  CreateNotificationInput,
+  CreateOtpCodeInput,
   CreatePatientUserInput,
+  CreatePhoneUserInput,
+  CreateReviewInput,
   DataStore,
   DoctorProfilePatch,
   DoctorRecord,
+  HospitalRecord,
   ListDoctorsOptions,
+  ModerationReviewRecord,
   NewAvailabilityRule,
+  NotificationRecord,
   ReferenceMeta,
   ReviewRecord,
   SearchDoctorsFilters,
   SessionRecord,
   SpecialtyRecord,
+  UpsertGoogleUserInput,
+  UserProfilePatch,
 } from "./types";
 import { ReferenceCodeCollisionError, SlotConflictError } from "./types";
 
@@ -30,7 +41,7 @@ import { ReferenceCodeCollisionError, SlotConflictError } from "./types";
  * Medbriq production data store — Firebase Firestore (firebase-admin v14).
  *
  * Collection modeling (docs/database.md §8):
- *   users/{uuid}              {email, passwordHash, name, phone, role, status, createdAt, updatedAt}
+ *   users/{uuid}              {email, passwordHash, name, phone, role, status, provider, phoneVerified, avatarUrl, createdAt, updatedAt}
  *   sessions/{token}          token IS the doc id → unique by construction
  *   specialties/{uuid}        {name, nameBn, slug, icon}
  *   hospitals/{uuid}          {name, slug, city, address, phone, about}
@@ -39,6 +50,8 @@ import { ReferenceCodeCollisionError, SlotConflictError } from "./types";
  *   appointments/{doctorId}_{slotStartISO}                    → THE double-booking guard, mirrors @@unique([doctorId, slotStart]).
  *                             The stable logical id lives INSIDE the doc (`id` field) so it survives reschedule.
  *   reviews/{doctorId}_{patientId}                            → mirrors @@unique([doctorId, patientId])
+ *   otp_codes/{uuid}          {phone, codeHash, purpose, attempts, consumed, expiresAt, createdAt}
+ *   notifications/{uuid}      {userId, type, title, body, meta, readAt, createdAt}
  *   audit_logs/{uuid}         {actorId, action, entity, entityId, meta, createdAt}
  *
  * TRADEOFF (deliberate, demo-scale): Firestore composite indexes are NOT
@@ -115,6 +128,9 @@ type UserDoc = {
   phone?: string | null;
   role: string;
   status?: string;
+  provider?: string;
+  phoneVerified?: boolean;
+  avatarUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -176,6 +192,7 @@ type AppointmentDoc = {
   fee: number;
   currency: string;
   doctorNote?: string | null;
+  consultationNote?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -203,6 +220,26 @@ type AuditLogDoc = {
   entity: string;
   entityId?: string | null;
   meta?: string | null;
+  createdAt: string;
+};
+
+type OtpCodeDoc = {
+  phone: string;
+  codeHash: string;
+  purpose: string;
+  attempts: number;
+  consumed: boolean;
+  expiresAt: string;
+  createdAt: string;
+};
+
+type NotificationDoc = {
+  userId: string;
+  type: string;
+  title: string;
+  body: string;
+  meta?: string | null;
+  readAt?: string | null;
   createdAt: string;
 };
 
@@ -352,6 +389,7 @@ export class FirestoreStore implements DataStore {
       fee: doc.fee,
       currency: doc.currency,
       doctorNote: doc.doctorNote ?? null,
+      consultationNote: doc.consultationNote ?? null,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };
@@ -401,9 +439,146 @@ export class FirestoreStore implements DataStore {
       phone: user.phone ?? null,
       role: user.role,
       status: user.status ?? "ACTIVE",
+      provider: user.provider ?? "credentials",
+      phoneVerified: user.phoneVerified ?? false,
+      avatarUrl: user.avatarUrl ?? null,
       doctorSlug: profile?.slug ?? null,
       verificationStatus: profile?.verificationStatus ?? null,
     };
+  }
+
+  async findUserByPhone(phone: string): Promise<AuthUserWithCredentials | null> {
+    const normalized = normalizePhone(phone);
+    // ONE indexed equality on a canonical-ish phone; fallback full-scan compare
+    // normalized (phones are stored as given — demo-scale, see header tradeoff).
+    let snap = await this.fs
+      .collection("users")
+      .where("phone", "==", phone)
+      .limit(1)
+      .get();
+    if (snap.empty) {
+      const all = await this.fs.collection("users").get();
+      snap = {
+        empty: all.empty,
+        docs: all.docs.filter(
+          (d) => normalizePhone((d.data() as UserDoc).phone ?? "") === normalized
+        ),
+      } as typeof snap;
+    }
+    if (snap.empty || snap.docs.length === 0) return null;
+    const doc = snap.docs[0];
+    return this.findUserByEmail((doc.data() as UserDoc).email);
+  }
+
+  private async getUserDocRef(id: string) {
+    const ref = this.fs.collection("users").doc(id);
+    const snap = await ref.get();
+    if (!snap.exists) throw new Error(`User ${id} not found.`);
+    return { ref, data: snap.data() as UserDoc };
+  }
+
+  private async toAuthUserById(id: string): Promise<AuthUser> {
+    const { data } = await this.getUserDocRef(id);
+    const profileSnap = await this.fs
+      .collection("doctors")
+      .where("userId", "==", id)
+      .limit(1)
+      .get();
+    const profile = profileSnap.empty
+      ? null
+      : (profileSnap.docs[0].data() as DoctorDoc);
+    return {
+      id,
+      email: data.email,
+      name: data.name,
+      phone: data.phone ?? null,
+      role: data.role,
+      status: data.status ?? "ACTIVE",
+      provider: data.provider ?? "credentials",
+      phoneVerified: data.phoneVerified ?? false,
+      avatarUrl: data.avatarUrl ?? null,
+      doctorSlug: profile?.slug ?? null,
+      verificationStatus: profile?.verificationStatus ?? null,
+    };
+  }
+
+  async findOrCreatePhoneUser(input: CreatePhoneUserInput): Promise<{ user: AuthUser; created: boolean }> {
+    const existing = await this.findUserByPhone(input.phone);
+    if (existing) {
+      const { ref } = await this.getUserDocRef(existing.id);
+      await ref.update({ phoneVerified: true, updatedAt: new Date().toISOString() });
+      return { user: await this.toAuthUserById(existing.id), created: false };
+    }
+    const id = randomUUID();
+    const now = new Date().toISOString();
+    await this.fs.collection("users").doc(id).set({
+      email: input.email,
+      passwordHash: "",
+      name: input.name,
+      phone: input.phone,
+      role: "PATIENT",
+      status: "ACTIVE",
+      provider: "phone",
+      phoneVerified: true,
+      avatarUrl: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return { user: await this.toAuthUserById(id), created: true };
+  }
+
+  async upsertGoogleUser(input: UpsertGoogleUserInput): Promise<{ user: AuthUser; created: boolean }> {
+    const existing = await this.findUserByEmail(input.email);
+    if (existing) {
+      const { ref } = await this.getUserDocRef(existing.id);
+      await ref.update({
+        provider: "google",
+        avatarUrl: input.avatarUrl,
+        updatedAt: new Date().toISOString(),
+      });
+      return { user: await this.toAuthUserById(existing.id), created: false };
+    }
+    const id = randomUUID();
+    const now = new Date().toISOString();
+    await this.fs.collection("users").doc(id).set({
+      email: input.email,
+      passwordHash: "",
+      name: input.name,
+      phone: null,
+      role: "PATIENT",
+      status: "ACTIVE",
+      provider: "google",
+      phoneVerified: false,
+      avatarUrl: input.avatarUrl,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return { user: await this.toAuthUserById(id), created: true };
+  }
+
+  async updateUserProfile(userId: string, patch: UserProfilePatch): Promise<AuthUser> {
+    const { ref } = await this.getUserDocRef(userId);
+    const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+    for (const [key, value] of Object.entries(patch)) {
+      if (value !== undefined) updates[key] = value;
+    }
+    await ref.update(updates);
+    return this.toAuthUserById(userId);
+  }
+
+  async updateUserPassword(userId: string, passwordHash: string): Promise<void> {
+    const { ref } = await this.getUserDocRef(userId);
+    await ref.update({ passwordHash, updatedAt: new Date().toISOString() });
+  }
+
+  async setUserPhoneVerified(userId: string): Promise<void> {
+    const { ref } = await this.getUserDocRef(userId);
+    await ref.update({ phoneVerified: true, updatedAt: new Date().toISOString() });
+  }
+
+  async updateUserStatus(userId: string, status: string): Promise<void> {
+    const { ref } = await this.getUserDocRef(userId);
+    await ref.update({ status, updatedAt: new Date().toISOString() });
   }
 
   async createPatientUser(input: CreatePatientUserInput): Promise<AuthUser> {
@@ -429,6 +604,9 @@ export class FirestoreStore implements DataStore {
       phone: input.phone,
       role: "PATIENT",
       status: "ACTIVE",
+      provider: "credentials",
+      phoneVerified: false,
+      avatarUrl: null,
       doctorSlug: null,
       verificationStatus: null,
     };
@@ -484,6 +662,9 @@ export class FirestoreStore implements DataStore {
       phone: input.phone,
       role: "DOCTOR",
       status: "ACTIVE",
+      provider: "credentials",
+      phoneVerified: false,
+      avatarUrl: null,
       doctorSlug: input.profile.slug,
       verificationStatus: input.profile.verificationStatus,
     };
@@ -529,6 +710,10 @@ export class FirestoreStore implements DataStore {
         email: user.email,
         role: user.role,
         status: user.status ?? "ACTIVE",
+        provider: user.provider ?? "credentials",
+        phone: user.phone ?? null,
+        phoneVerified: user.phoneVerified ?? false,
+        avatarUrl: user.avatarUrl ?? null,
         doctorSlug: profile?.slug ?? null,
         verificationStatus: profile?.verificationStatus ?? null,
       },
@@ -846,6 +1031,7 @@ export class FirestoreStore implements DataStore {
       fee: input.fee,
       currency: input.currency,
       doctorNote: null,
+      consultationNote: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -954,6 +1140,7 @@ export class FirestoreStore implements DataStore {
     };
     if (patch.status !== undefined) updates.status = patch.status;
     if (patch.doctorNote !== undefined) updates.doctorNote = patch.doctorNote;
+    if (patch.consultationNote !== undefined) updates.consultationNote = patch.consultationNote;
     await current.ref.update(updates);
     return this.withDoctorJoin({ ...current.data, ...(updates as Partial<AppointmentDoc>) });
   }
@@ -1116,6 +1303,285 @@ export class FirestoreStore implements DataStore {
         entityId: input.entityId,
         meta: input.meta,
         createdAt: new Date().toISOString(),
+      });
+  }
+
+  // ── Phone OTP codes ─────────────────────────────────────────────────
+
+  async createOtpCode(input: CreateOtpCodeInput): Promise<void> {
+    // Invalidate previous active codes for (phone, purpose), then create.
+    const existing = await this.fs
+      .collection("otp_codes")
+      .where("phone", "==", input.phone)
+      .get();
+    const batch = this.fs.batch();
+    for (const doc of existing.docs) {
+      const data = doc.data() as OtpCodeDoc;
+      if (data.purpose === input.purpose && !data.consumed) {
+        batch.update(doc.ref, { consumed: true });
+      }
+    }
+    batch.set(this.fs.collection("otp_codes").doc(randomUUID()), {
+      phone: input.phone,
+      codeHash: input.codeHash,
+      purpose: input.purpose,
+      attempts: 0,
+      consumed: false,
+      expiresAt: input.expiresAtIso,
+      createdAt: new Date().toISOString(),
+    });
+    await batch.commit();
+  }
+
+  async findActiveOtpCode(phone: string, purpose: string): Promise<ActiveOtpCode | null> {
+    const snap = await this.fs
+      .collection("otp_codes")
+      .where("phone", "==", phone)
+      .get();
+    const active = snap.docs
+      .map((doc) => ({ id: doc.id, data: doc.data() as OtpCodeDoc }))
+      .filter(({ data }) => data.purpose === purpose && !data.consumed)
+      .sort((a, b) => b.data.createdAt.localeCompare(a.data.createdAt))[0];
+    if (!active) return null;
+    if (new Date(active.data.expiresAt).getTime() <= Date.now()) return null;
+    return {
+      id: active.id,
+      codeHash: active.data.codeHash,
+      attempts: active.data.attempts ?? 0,
+      expiresAt: active.data.expiresAt,
+    };
+  }
+
+  async incrementOtpAttempts(id: string): Promise<void> {
+    const ref = this.fs.collection("otp_codes").doc(id);
+    const snap = await ref.get();
+    if (!snap.exists) return;
+    const data = snap.data() as OtpCodeDoc;
+    await ref.update({ attempts: (data.attempts ?? 0) + 1 });
+  }
+
+  async consumeOtpCode(id: string): Promise<void> {
+    await this.fs.collection("otp_codes").doc(id).update({ consumed: true });
+  }
+
+  // ── Notifications ───────────────────────────────────────────────────
+
+  async createNotification(input: CreateNotificationInput): Promise<void> {
+    await this.fs
+      .collection("notifications")
+      .doc(randomUUID())
+      .set({
+        userId: input.userId,
+        type: input.type,
+        title: input.title,
+        body: input.body,
+        meta: input.meta,
+        readAt: null,
+        createdAt: new Date().toISOString(),
+      });
+  }
+
+  async listNotifications(userId: string, limit: number): Promise<NotificationRecord[]> {
+    const snap = await this.fs
+      .collection("notifications")
+      .where("userId", "==", userId)
+      .get();
+    return snap.docs
+      .map((doc) => ({ id: doc.id, data: doc.data() as NotificationDoc }))
+      .sort((a, b) => b.data.createdAt.localeCompare(a.data.createdAt))
+      .slice(0, limit)
+      .map(({ id, data }) => ({
+        id,
+        userId: data.userId,
+        type: data.type,
+        title: data.title,
+        body: data.body,
+        meta: data.meta ?? null,
+        readAt: data.readAt ?? null,
+        createdAt: data.createdAt,
+      }));
+  }
+
+  async countUnreadNotifications(userId: string): Promise<number> {
+    const snap = await this.fs
+      .collection("notifications")
+      .where("userId", "==", userId)
+      .get();
+    return snap.docs.filter((doc) => (doc.data() as NotificationDoc).readAt == null).length;
+  }
+
+  async markNotificationRead(id: string, userId: string): Promise<boolean> {
+    const ref = this.fs.collection("notifications").doc(id);
+    const snap = await ref.get();
+    if (!snap.exists) return false;
+    const data = snap.data() as NotificationDoc;
+    if (data.userId !== userId || data.readAt != null) return false;
+    await ref.update({ readAt: new Date().toISOString() });
+    return true;
+  }
+
+  async markAllNotificationsRead(userId: string): Promise<number> {
+    const snap = await this.fs
+      .collection("notifications")
+      .where("userId", "==", userId)
+      .get();
+    const batch = this.fs.batch();
+    const unread = snap.docs.filter((doc) => (doc.data() as NotificationDoc).readAt == null);
+    for (const doc of unread) batch.update(doc.ref, { readAt: new Date().toISOString() });
+    if (unread.length > 0) await batch.commit();
+    return unread.length;
+  }
+
+  // ── Reviews (write + moderation) ────────────────────────────────────
+
+  async findReviewByDoctorAndPatient(doctorId: string, patientId: string): Promise<ReviewRecord | null> {
+    const ref = this.fs.collection("reviews").doc(`${doctorId}_${patientId}`);
+    const snap = await ref.get();
+    if (!snap.exists) return null;
+    const data = snap.data() as ReviewDoc;
+    const userSnap = await this.fs.collection("users").doc(patientId).get();
+    return {
+      id: snap.id,
+      doctorId: data.doctorId,
+      patientId: data.patientId,
+      rating: data.rating,
+      comment: data.comment ?? null,
+      createdAt: data.createdAt,
+      patientName: userSnap.exists ? (userSnap.data() as UserDoc).name : "",
+    };
+  }
+
+  async createReview(input: CreateReviewInput): Promise<ReviewRecord> {
+    // Doc id = the (doctorId, patientId) uniqueness guard.
+    const ref = this.fs.collection("reviews").doc(`${input.doctorId}_${input.patientId}`);
+    const existing = await ref.get();
+    if (existing.exists) throw new Error("Review already exists.");
+    const now = new Date().toISOString();
+    await ref.create({
+      doctorId: input.doctorId,
+      patientId: input.patientId,
+      rating: input.rating,
+      comment: input.comment,
+      createdAt: now,
+    });
+    const userSnap = await this.fs.collection("users").doc(input.patientId).get();
+    return {
+      id: ref.id,
+      doctorId: input.doctorId,
+      patientId: input.patientId,
+      rating: input.rating,
+      comment: input.comment,
+      createdAt: now,
+      patientName: userSnap.exists ? (userSnap.data() as UserDoc).name : "",
+    };
+  }
+
+  async listRecentReviews(limit: number): Promise<ModerationReviewRecord[]> {
+    const [reviewsSnap, doctorsSnap, usersSnap] = await Promise.all([
+      this.fs.collection("reviews").get(),
+      this.fs.collection("doctors").get(),
+      this.fs.collection("users").get(),
+    ]);
+    const doctorById = new Map(
+      doctorsSnap.docs.map((doc) => [doc.id, doc.data() as DoctorDoc])
+    );
+    const userById = new Map(
+      usersSnap.docs.map((doc) => [doc.id, doc.data() as UserDoc])
+    );
+    return reviewsSnap.docs
+      .map((doc) => ({ id: doc.id, data: doc.data() as ReviewDoc }))
+      .sort((a, b) => b.data.createdAt.localeCompare(a.data.createdAt))
+      .slice(0, limit)
+      .map(({ id, data }) => {
+        const doctor = doctorById.get(data.doctorId);
+        return {
+          id,
+          doctorId: data.doctorId,
+          patientId: data.patientId,
+          rating: data.rating,
+          comment: data.comment ?? null,
+          createdAt: data.createdAt,
+          patientName: userById.get(data.patientId)?.name ?? "",
+          doctorSlug: doctor?.slug ?? "",
+          doctorName: doctor ? userById.get(doctor.userId)?.name ?? "" : "",
+        };
+      });
+  }
+
+  async deleteReview(id: string): Promise<boolean> {
+    const ref = this.fs.collection("reviews").doc(id);
+    const snap = await ref.get();
+    if (!snap.exists) return false;
+    await ref.delete();
+    return true;
+  }
+
+  // ── Hospitals (public directory) ────────────────────────────────────
+
+  async listHospitals(): Promise<HospitalRecord[]> {
+    const [hospitalsSnap, doctorsSnap] = await Promise.all([
+      this.fs.collection("hospitals").get(),
+      this.fs.collection("doctors").get(),
+    ]);
+    const doctors = doctorsSnap.docs.map((doc) => doc.data() as DoctorDoc);
+    return hospitalsSnap.docs
+      .map((doc) => ({ id: doc.id, data: doc.data() as HospitalDoc & { phone?: string | null; about?: string | null } }))
+      .sort((a, b) => a.data.city.localeCompare(b.data.city) || a.data.name.localeCompare(b.data.name))
+      .map(({ id, data }) => ({
+        id,
+        name: data.name,
+        slug: data.slug,
+        city: data.city,
+        address: data.address ?? null,
+        phone: data.phone ?? null,
+        about: data.about ?? null,
+        doctorCount: doctors.filter(
+          (d) => d.hospitalId === id && ["VERIFIED", "PENDING"].includes(d.verificationStatus)
+        ).length,
+      }));
+  }
+
+  // ── Admin user directory ────────────────────────────────────────────
+
+  async listUsers(filters: { role?: string; q?: string }): Promise<AdminUserRecord[]> {
+    const [usersSnap, doctorsSnap] = await Promise.all([
+      filters.role
+        ? this.fs.collection("users").where("role", "==", filters.role).get()
+        : this.fs.collection("users").get(),
+      this.fs.collection("doctors").get(),
+    ]);
+    const profileByUser = new Map<string, DoctorDoc>();
+    for (const doc of doctorsSnap.docs) {
+      const data = doc.data() as DoctorDoc;
+      profileByUser.set(data.userId, data);
+    }
+    const q = filters.q?.trim().toLowerCase();
+    return usersSnap.docs
+      .map((doc) => ({ id: doc.id, data: doc.data() as UserDoc }))
+      .filter(({ data }) =>
+        q
+          ? data.name.toLowerCase().includes(q) ||
+            data.email.toLowerCase().includes(q) ||
+            (data.phone ?? "").toLowerCase().includes(q)
+          : true
+      )
+      .sort((a, b) => b.data.createdAt.localeCompare(a.data.createdAt))
+      .slice(0, 500)
+      .map(({ id, data }) => {
+        const profile = profileByUser.get(id);
+        return {
+          id,
+          name: data.name,
+          email: data.email,
+          phone: data.phone ?? null,
+          role: data.role,
+          status: data.status ?? "ACTIVE",
+          provider: data.provider ?? "credentials",
+          phoneVerified: data.phoneVerified ?? false,
+          createdAt: data.createdAt,
+          doctorSlug: profile?.slug ?? null,
+          verificationStatus: profile?.verificationStatus ?? null,
+        };
       });
   }
 }

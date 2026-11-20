@@ -3,10 +3,12 @@ import { z } from "zod";
 import { fail, handleRouteError, ok } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { getStore } from "@/lib/data";
-import { APPOINTMENT_STATUS, ROLES } from "@/lib/constants";
+import { APPOINTMENT_STATUS, NOTIFICATION_TYPES, ROLES } from "@/lib/constants";
 import {
+  doctorDisplayName,
   logAppointmentAction,
   normalizePhone,
+  notifyUser,
   toAppointmentDto,
 } from "@/app/api/v1/_lib/booking";
 
@@ -122,6 +124,31 @@ export async function POST(
         ...(input.reason ? { reason: input.reason } : {}),
       }
     );
+
+    // Notify the other party (guest cancellations count as patient-side).
+    const cancelDateLabel = updated.slotStart.slice(0, 10);
+    const cancelMeta = {
+      appointmentId: updated.id,
+      referenceCode: updated.referenceCode,
+      doctorSlug: updated.doctor.slug,
+    };
+    if (cancelledByDoctor) {
+      await notifyUser(
+        updated.patientId,
+        NOTIFICATION_TYPES.APPOINTMENT_CANCELLED_BY_DOCTOR,
+        "Appointment cancelled",
+        `${doctorDisplayName(updated.doctor.name)} cancelled your appointment on ${cancelDateLabel} (${updated.referenceCode}).`,
+        cancelMeta
+      );
+    } else {
+      await notifyUser(
+        updated.doctor.userId,
+        NOTIFICATION_TYPES.APPOINTMENT_CANCELLED_BY_PATIENT,
+        "Appointment cancelled",
+        `${updated.patientName} cancelled the appointment on ${cancelDateLabel} (${updated.referenceCode}).`,
+        cancelMeta
+      );
+    }
 
     return ok({ appointment: toAppointmentDto(updated) });
   } catch (err) {

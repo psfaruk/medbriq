@@ -2,7 +2,7 @@ import { getStore } from "@/lib/data";
 import type { AppointmentRecord } from "@/lib/data/types";
 import { ok, fail, handleRouteError } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
-import { ROLES } from "@/lib/constants";
+import { PLATFORM_COMMISSION_PERCENT, ROLES } from "@/lib/constants";
 import { dhakaDateString, dhakaToUtc } from "@/lib/time";
 import type { AppointmentDto, DoctorDashboardData } from "@/lib/types";
 
@@ -36,6 +36,11 @@ type DoctorProfileFields = {
 };
 
 type DashboardResponse = DoctorDashboardData & { profile: DoctorProfileFields };
+
+/** Round to 2 decimal places (money). */
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
+}
 
 export async function GET() {
   try {
@@ -83,9 +88,22 @@ export async function GET() {
         appt.status === "CONFIRMED" &&
         new Date(appt.slotStart).getTime() > now.getTime()
     ).length;
-    const completedTotal = appointments.filter(
+    const completedRows = appointments.filter(
       (appt) => appt.status === "COMPLETED"
-    ).length;
+    );
+    const completedTotal = completedRows.length;
+
+    // SIMULATED Phase-7 earnings preview (no real payments yet): revenue is
+    // the fee of every COMPLETED appointment, the platform keeps
+    // PLATFORM_COMMISSION_PERCENT of it, and the doctor nets the rest.
+    const completedRevenue = round2(
+      completedRows.reduce((sum, appt) => sum + appt.fee, 0)
+    );
+    const platformCommission = round2(
+      (completedRevenue * PLATFORM_COMMISSION_PERCENT) / 100
+    );
+    const netEarnings = round2(completedRevenue - platformCommission);
+    const earningsCurrency = completedRows[0]?.currency ?? "BDT";
 
     // Rating aggregation in memory (null when there are no reviews).
     const ratingCount = profile.reviewRatings.length;
@@ -135,6 +153,10 @@ export async function GET() {
       patientGender: appt.patientGender,
       notes: appt.notes,
       doctorNote: appt.doctorNote,
+      // The shared AppointmentRecord type does not declare this field yet
+      // (the Firestore store already returns it), so read it defensively.
+      consultationNote:
+        (appt as { consultationNote?: string | null }).consultationNote ?? null,
       createdAt: appt.createdAt,
       doctor: doctorCardInfo,
       patientId: appt.patientId,
@@ -149,6 +171,12 @@ export async function GET() {
         ratingAvg:
           ratingAvgRaw !== null ? Math.round(ratingAvgRaw * 10) / 10 : null,
         ratingCount,
+        earnings: {
+          completedRevenue,
+          platformCommission,
+          netEarnings,
+          currency: earningsCurrency,
+        },
       },
       pending: pendingRows.map(toDto),
       upcoming: upcomingRows.map(toDto),

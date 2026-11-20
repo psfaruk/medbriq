@@ -49,8 +49,10 @@ import {
   RotateCw,
   Star,
   Trash2,
+  Wallet,
   X,
 } from "lucide-react";
+import { formatFee } from "@/components/doctors/doctor-card";
 
 /**
  * DoctorDashboardView — the doctor workspace: verification banner, stats,
@@ -194,8 +196,8 @@ export default function DoctorDashboardView() {
     return (
       <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-10">
         <Skeleton className="h-9 w-64" />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, i) => (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
@@ -274,6 +276,12 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
   // Reject dialog state
   const [rejectTarget, setRejectTarget] = useState<AppointmentDto | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+
+  // Complete dialog state (consultation note for the patient)
+  const [completeTarget, setCompleteTarget] = useState<AppointmentDto | null>(
+    null
+  );
+  const [completeNote, setCompleteNote] = useState("");
 
   // Profile form state
   const [bio, setBio] = useState("");
@@ -417,6 +425,18 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
     await actOnAppointment(rejectTarget, "reject", { reason });
     setRejectTarget(null);
     setRejectReason("");
+  }
+
+  async function confirmComplete() {
+    if (!completeTarget) return;
+    const note = completeNote.trim();
+    await actOnAppointment(
+      completeTarget,
+      "complete",
+      note ? { consultationNote: note } : undefined
+    );
+    setCompleteTarget(null);
+    setCompleteNote("");
   }
 
   // --------------------------- availability ------------------------------
@@ -656,13 +676,13 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
 
       {/* Stats */}
       {loading && !data ? (
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, i) => (
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
       ) : data ? (
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
           <StatCard
             label="Pending requests"
             value={String(data.stats.pendingRequests)}
@@ -691,6 +711,16 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
                 : "—"
             }
             icon={<Star className="h-4 w-4 text-warning" />}
+          />
+          <StatCard
+            label="Earnings (est. after 10% platform fee)"
+            value={
+              data.stats.earnings
+                ? formatFee(data.stats.earnings.netEarnings)
+                : "—"
+            }
+            sub={`from ${data.stats.completedTotal} completed visits`}
+            icon={<Wallet className="h-4 w-4 text-success" />}
           />
         </div>
       ) : null}
@@ -855,7 +885,10 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
                           variant="outline"
                           className="border-success/50 text-success hover:bg-success/10 hover:text-success"
                           disabled={actionBusy !== null}
-                          onClick={() => actOnAppointment(appt, "complete")}
+                          onClick={() => {
+                            setCompleteTarget(appt);
+                            setCompleteNote("");
+                          }}
                         >
                           {actionBusy === `${appt.id}:complete` ? (
                             <Loader2 className="animate-spin" />
@@ -1264,6 +1297,76 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Complete dialog (optional consultation note) */}
+      <Dialog
+        open={completeTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCompleteTarget(null);
+            setCompleteNote("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2
+                className="h-5 w-5 text-success"
+                aria-hidden="true"
+              />
+              Mark visit completed
+            </DialogTitle>
+            <DialogDescription>
+              {completeTarget
+                ? `${completeTarget.patientName} · ${formatDhaka(
+                    new Date(completeTarget.slotStart)
+                  )}`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="complete-note">
+              Consultation note{" "}
+              <span className="text-muted-foreground">
+                (optional, visible to the patient)
+              </span>
+            </Label>
+            <Textarea
+              id="complete-note"
+              rows={4}
+              maxLength={2000}
+              value={completeNote}
+              onChange={(e) => setCompleteNote(e.target.value)}
+              placeholder="e.g. Diagnosis, advice given, follow-up date..."
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCompleteTarget(null);
+                setCompleteNote("");
+              }}
+              disabled={actionBusy !== null}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void confirmComplete()}
+              disabled={actionBusy !== null}
+              className="gap-1.5"
+            >
+              {actionBusy?.endsWith(":complete") ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" />
+              )}
+              Mark completed
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1276,10 +1379,12 @@ function StatCard({
   label,
   value,
   icon,
+  sub,
 }: {
   label: string;
   value: string;
   icon: React.ReactNode;
+  sub?: string;
 }) {
   return (
     <Card>
@@ -1289,6 +1394,9 @@ function StatCard({
           {icon}
         </div>
         <p className="mt-2 text-2xl font-semibold tabular-nums">{value}</p>
+        {sub ? (
+          <p className="mt-1 text-xs text-muted-foreground">{sub}</p>
+        ) : null}
       </CardContent>
     </Card>
   );

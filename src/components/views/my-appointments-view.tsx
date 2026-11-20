@@ -26,6 +26,7 @@ import {
   Search,
   SearchX,
   ShieldCheck,
+  Star,
   Stethoscope,
   Video,
   X,
@@ -67,6 +68,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import SlotPicker from "@/components/booking/slot-picker";
 import { formatFee } from "@/components/doctors/doctor-card";
 import { useAppStore } from "@/lib/store";
@@ -178,6 +180,16 @@ export default function MyAppointmentsView() {
   const [rescheduleBusy, setRescheduleBusy] = useState(false);
   const [slotRefresh, setSlotRefresh] = useState(0);
 
+  // --- review dialog (rate a completed visit) ---
+  const [reviewTarget, setReviewTarget] = useState<AppointmentDto | null>(null);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewHover, setReviewHover] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewBusy, setReviewBusy] = useState(false);
+  // The list endpoint does not expose "already reviewed" — tracked locally
+  // (also set when the server answers 409 ALREADY_REVIEWED).
+  const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
+
   const isPatient = Boolean(userLoaded && user && user.role === "PATIENT");
   const isGuest = Boolean(userLoaded && !user);
 
@@ -258,6 +270,81 @@ export default function MyAppointmentsView() {
   const openReschedule = (appointment: AppointmentDto) => {
     setRescheduleSlot(null);
     setRescheduleTarget(appointment);
+  };
+
+  const openReview = (appointment: AppointmentDto) => {
+    setReviewRating(0);
+    setReviewHover(0);
+    setReviewComment("");
+    setReviewTarget(appointment);
+  };
+
+  const submitReview = async () => {
+    if (!reviewTarget || reviewBusy) return;
+    const doctorSlug = reviewTarget.doctor?.slug;
+    if (!doctorSlug) return;
+    if (reviewRating < 1 || reviewRating > 5) {
+      toast({
+        variant: "destructive",
+        title: "Pick a star rating",
+        description: "Tap the stars to rate your visit.",
+      });
+      return;
+    }
+    setReviewBusy(true);
+    try {
+      const body: { rating: number; comment?: string } = { rating: reviewRating };
+      const comment = reviewComment.trim();
+      if (comment) body.comment = comment;
+      const res = await fetch(
+        `/api/v1/doctors/${encodeURIComponent(doctorSlug)}/reviews`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }
+      );
+      const json = (await res.json().catch(() => null)) as ApiResult<{
+        review: { id: string };
+      }> | null;
+      const errorCode = json && json.ok === false ? json.error.code : null;
+      if (errorCode === "ALREADY_REVIEWED" || res.status === 409) {
+        setReviewedIds((prev) => new Set(prev).add(reviewTarget.id));
+        toast({
+          title: "Already reviewed",
+          description: "You have already rated this visit. Thank you!",
+        });
+        setReviewTarget(null);
+        return;
+      }
+      if (!res.ok || !json || !json.ok) {
+        toast({
+          variant: "destructive",
+          title: "Could not submit review",
+          description:
+            json && json.ok === false
+              ? json.error.message
+              : "Please try again.",
+        });
+        return;
+      }
+      setReviewedIds((prev) => new Set(prev).add(reviewTarget.id));
+      toast({
+        title: "Thanks for your feedback!",
+        description: "Your rating helps other patients find great care.",
+      });
+      setReviewTarget(null);
+      refetch();
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "Network error",
+        description:
+          "Could not reach the server. Please check your connection and try again.",
+      });
+    } finally {
+      setReviewBusy(false);
+    }
   };
 
   const submitGuestLookup = async (e: FormEvent<HTMLFormElement>) => {
@@ -650,6 +737,14 @@ export default function MyAppointmentsView() {
                 appointment={appointment}
                 onCancel={openCancel}
                 onReschedule={openReschedule}
+                canRate={
+                  user !== null &&
+                  appointment.status === "COMPLETED" &&
+                  appointment.patientId === user.id &&
+                  Boolean(appointment.doctor?.slug)
+                }
+                reviewed={reviewedIds.has(appointment.id)}
+                onRate={openReview}
               />
             ))}
           </div>
@@ -794,6 +889,103 @@ export default function MyAppointmentsView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* --- Review dialog (rate a completed visit) --- */}
+      <Dialog
+        open={reviewTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setReviewTarget(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-warning" aria-hidden="true" />
+              Rate your visit
+            </DialogTitle>
+            <DialogDescription>
+              {reviewTarget
+                ? `How was your visit with ${
+                    reviewTarget.doctor?.name ?? "the doctor"
+                  } on ${formatDhaka(new Date(reviewTarget.slotStart))}?`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Rating</Label>
+              <div
+                className="flex items-center gap-1"
+                role="radiogroup"
+                aria-label="Star rating"
+              >
+                {[1, 2, 3, 4, 5].map((star) => {
+                  const active = (reviewHover || reviewRating) >= star;
+                  return (
+                    <button
+                      key={star}
+                      type="button"
+                      role="radio"
+                      aria-checked={reviewRating === star}
+                      aria-label={`${star} star${star > 1 ? "s" : ""}`}
+                      onClick={() => setReviewRating(star)}
+                      onMouseEnter={() => setReviewHover(star)}
+                      onMouseLeave={() => setReviewHover(0)}
+                      className="rounded p-0.5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <Star
+                        className={`h-7 w-7 transition-colors ${
+                          active
+                            ? "fill-primary text-primary"
+                            : "text-muted-foreground"
+                        }`}
+                        aria-hidden="true"
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="review-comment">
+                Comment{" "}
+                <span className="text-muted-foreground">(optional)</span>
+              </Label>
+              <Textarea
+                id="review-comment"
+                rows={3}
+                maxLength={1000}
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                placeholder="Share details of your visit — what went well, what could be better."
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setReviewTarget(null)}
+              disabled={reviewBusy}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void submitReview()}
+              disabled={reviewBusy || reviewRating < 1}
+              className="gap-1.5"
+            >
+              {reviewBusy ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Star className="h-4 w-4" aria-hidden="true" />
+              )}
+              Submit review
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -808,10 +1000,16 @@ function AppointmentCard({
   appointment,
   onCancel,
   onReschedule,
+  canRate,
+  reviewed,
+  onRate,
 }: {
   appointment: AppointmentDto;
   onCancel: (appointment: AppointmentDto) => void;
   onReschedule: (appointment: AppointmentDto) => void;
+  canRate: boolean;
+  reviewed: boolean;
+  onRate: (appointment: AppointmentDto) => void;
 }) {
   const status = STATUS_STYLES[appointment.status];
   const active =
@@ -919,9 +1117,25 @@ function AppointmentCard({
           </Alert>
         )}
 
+        {/* Doctor's consultation note on completed visits */}
+        {appointment.status === "COMPLETED" && appointment.consultationNote && (
+          <div className="rounded-lg border bg-muted/50 p-3">
+            <p className="flex items-center gap-1.5 text-xs font-semibold">
+              <Stethoscope
+                className="h-3.5 w-3.5 text-primary"
+                aria-hidden="true"
+              />
+              Doctor&apos;s consultation note
+            </p>
+            <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
+              {appointment.consultationNote}
+            </p>
+          </div>
+        )}
+
         {/* Actions */}
-        {(cancelable || reschedulable) && (
-          <div className="flex flex-wrap gap-2 border-t pt-4">
+        {(cancelable || reschedulable || canRate) && (
+          <div className="flex flex-wrap items-center gap-2 border-t pt-4">
             {cancelable && (
               <Button
                 variant="outline"
@@ -945,6 +1159,27 @@ function AppointmentCard({
                 <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
                 Reschedule
               </Button>
+            )}
+            {canRate && !reviewed && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => onRate(appointment)}
+                aria-label={`Rate your visit with ${doctorName}`}
+              >
+                <Star className="h-3.5 w-3.5" aria-hidden="true" />
+                Rate your visit
+              </Button>
+            )}
+            {canRate && reviewed && (
+              <Badge
+                variant="outline"
+                className="gap-1 border-success/40 text-success"
+              >
+                <Star className="h-3 w-3" aria-hidden="true" />
+                Reviewed
+              </Badge>
             )}
           </div>
         )}

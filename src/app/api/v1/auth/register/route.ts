@@ -5,7 +5,8 @@ import { ok, fail, handleRouteError } from "@/lib/api";
 import { hashPassword } from "@/lib/password";
 import { createSession } from "@/lib/auth";
 import { LANGUAGES, ROLES } from "@/lib/constants";
-import type { SessionUser } from "@/lib/types";
+import { normalizeBdPhone } from "@/lib/phone";
+import { toSessionUser } from "@/app/api/v1/_lib/session-user";
 
 export const dynamic = "force-dynamic";
 
@@ -134,6 +135,20 @@ export async function POST(req: NextRequest) {
     const input = parsed.data;
     const store = getStore();
 
+    // Optional phone: normalized to the canonical BD form (+8801…).
+    let phone: string | null = null;
+    if (input.phone && input.phone.length > 0) {
+      const normalized = normalizeBdPhone(input.phone);
+      if (!normalized) {
+        return fail(
+          "Enter a valid Bangladeshi mobile number (e.g. 01XXXXXXXXX).",
+          400,
+          "VALIDATION_ERROR"
+        );
+      }
+      phone = normalized;
+    }
+
     // Email uniqueness (application-level; the local DB column is also unique).
     const existing = await store.findUserByEmail(input.email);
     if (existing) {
@@ -162,7 +177,7 @@ export async function POST(req: NextRequest) {
         email: input.email,
         passwordHash,
         name: input.name,
-        phone: input.phone ?? null,
+        phone,
         specialtyId: specialty.id,
         profile: {
           slug,
@@ -196,15 +211,7 @@ export async function POST(req: NextRequest) {
       });
 
       await createSession(user.id);
-      const sessionUser: SessionUser = {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role as SessionUser["role"],
-        doctorSlug: user.doctorSlug ?? null,
-        verificationStatus: user.verificationStatus ?? null,
-      };
-      return ok({ user: sessionUser }, 201);
+      return ok({ user: toSessionUser(user) }, 201);
     }
 
     // PATIENT
@@ -212,7 +219,7 @@ export async function POST(req: NextRequest) {
       email: input.email,
       passwordHash,
       name: input.name,
-      phone: input.phone ?? null,
+      phone,
     });
 
     await store.createAuditLog({
@@ -224,15 +231,7 @@ export async function POST(req: NextRequest) {
     });
 
     await createSession(user.id);
-    const sessionUser: SessionUser = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role as SessionUser["role"],
-      doctorSlug: null,
-      verificationStatus: null,
-    };
-    return ok({ user: sessionUser }, 201);
+    return ok({ user: toSessionUser(user) }, 201);
   } catch (err) {
     return handleRouteError(err);
   }

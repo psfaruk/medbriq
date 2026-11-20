@@ -2,6 +2,8 @@ import { Prisma, PrismaClient } from "@prisma/client";
 import { normalizePhone } from "@/lib/phone";
 import { ROLES } from "@/lib/constants";
 import type {
+  ActiveOtpCode,
+  AdminUserRecord,
   AppointmentPatch,
   AppointmentRecord,
   AuditLogRecord,
@@ -11,17 +13,26 @@ import type {
   CreateAppointmentInput,
   CreateAuditLogInput,
   CreateDoctorAccountInput,
+  CreateNotificationInput,
+  CreateOtpCodeInput,
   CreatePatientUserInput,
+  CreatePhoneUserInput,
+  CreateReviewInput,
   DataStore,
   DoctorProfilePatch,
   DoctorRecord,
+  HospitalRecord,
   ListDoctorsOptions,
+  ModerationReviewRecord,
   NewAvailabilityRule,
+  NotificationRecord,
   ReferenceMeta,
   ReviewRecord,
   SearchDoctorsFilters,
   SessionRecord,
   SpecialtyRecord,
+  UpsertGoogleUserInput,
+  UserProfilePatch,
 } from "./types";
 import { ReferenceCodeCollisionError, SlotConflictError } from "./types";
 
@@ -180,6 +191,7 @@ export class PrismaStore implements DataStore {
       fee: row.fee,
       currency: row.currency,
       doctorNote: row.doctorNote,
+      consultationNote: row.consultationNote,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       doctor: {
@@ -212,10 +224,76 @@ export class PrismaStore implements DataStore {
       phone: user.phone,
       role: user.role,
       status: user.status,
+      provider: user.provider,
+      phoneVerified: user.phoneVerified,
+      avatarUrl: user.avatarUrl,
       doctorSlug: user.doctorProfile?.slug ?? null,
       verificationStatus: user.doctorProfile?.verificationStatus ?? null,
     };
   }
+
+  async findUserByPhone(phone: string): Promise<AuthUserWithCredentials | null> {
+    const normalized = normalizePhone(phone);
+    // Phones are stored as given; compare normalized on both sides (bounded scan
+    // mirrors findAppointmentsByReferenceCode).
+    const candidates = await this.db.user.findMany({
+      where: { phone: { not: null } },
+      select: {
+        id: true,
+        email: true,
+        passwordHash: true,
+        name: true,
+        phone: true,
+        role: true,
+        status: true,
+        provider: true,
+        phoneVerified: true,
+        avatarUrl: true,
+        doctorProfile: { select: { slug: true, verificationStatus: true } },
+      },
+      take: 5000,
+    });
+    const user = candidates.find((c) => normalizePhone(c.phone!) === normalized);
+    if (!user) return null;
+    return {
+      id: user.id,
+      email: user.email,
+      passwordHash: user.passwordHash,
+      name: user.name,
+      phone: user.phone,
+      role: user.role,
+      status: user.status,
+      provider: user.provider,
+      phoneVerified: user.phoneVerified,
+      avatarUrl: user.avatarUrl,
+      doctorSlug: user.doctorProfile?.slug ?? null,
+      verificationStatus: user.doctorProfile?.verificationStatus ?? null,
+    };
+  }
+
+  private toAuthUser(
+    user: Prisma.UserGetPayload<{
+      include: { doctorProfile: { select: { slug: true; verificationStatus: true } } };
+    }>
+  ): AuthUser {
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      phone: user.phone,
+      role: user.role,
+      status: user.status,
+      provider: user.provider,
+      phoneVerified: user.phoneVerified,
+      avatarUrl: user.avatarUrl,
+      doctorSlug: user.doctorProfile?.slug ?? null,
+      verificationStatus: user.doctorProfile?.verificationStatus ?? null,
+    };
+  }
+
+  private USER_INCLUDE = {
+    doctorProfile: { select: { slug: true, verificationStatus: true } },
+  } satisfies Prisma.UserInclude;
 
   async createPatientUser(input: CreatePatientUserInput): Promise<AuthUser> {
     const user = await this.db.user.create({
@@ -226,17 +304,81 @@ export class PrismaStore implements DataStore {
         phone: input.phone,
         role: ROLES.PATIENT,
       },
+      include: this.USER_INCLUDE,
     });
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      phone: user.phone,
-      role: user.role,
-      status: user.status,
-      doctorSlug: null,
-      verificationStatus: null,
-    };
+    return this.toAuthUser(user);
+  }
+
+  async findOrCreatePhoneUser(input: CreatePhoneUserInput): Promise<{ user: AuthUser; created: boolean }> {
+    const existing = await this.findUserByPhone(input.phone);
+    if (existing) {
+      // Keep profile basics in sync on later OTP logins (phone always verified).
+      const updated = await this.db.user.update({
+        where: { id: existing.id },
+        data: { phoneVerified: true },
+        include: this.USER_INCLUDE,
+      });
+      return { user: this.toAuthUser(updated), created: false };
+    }
+    const user = await this.db.user.create({
+      data: {
+        email: input.email,
+        passwordHash: "", // no password until the user sets one
+        name: input.name,
+        phone: input.phone,
+        role: ROLES.PATIENT,
+        provider: "phone",
+        phoneVerified: true,
+      },
+      include: this.USER_INCLUDE,
+    });
+    return { user: this.toAuthUser(user), created: true };
+  }
+
+  async upsertGoogleUser(input: UpsertGoogleUserInput): Promise<{ user: AuthUser; created: boolean }> {
+    const existing = await this.findUserByEmail(input.email);
+    if (existing) {
+      // Link Google to the existing account (Google has verified the email).
+      const updated = await this.db.user.update({
+        where: { id: existing.id },
+        data: { provider: "google", avatarUrl: input.avatarUrl },
+        include: this.USER_INCLUDE,
+      });
+      return { user: this.toAuthUser(updated), created: false };
+    }
+    const user = await this.db.user.create({
+      data: {
+        email: input.email,
+        passwordHash: "", // no password until the user sets one
+        name: input.name,
+        role: ROLES.PATIENT,
+        provider: "google",
+        avatarUrl: input.avatarUrl,
+      },
+      include: this.USER_INCLUDE,
+    });
+    return { user: this.toAuthUser(user), created: true };
+  }
+
+  async updateUserProfile(userId: string, patch: UserProfilePatch): Promise<AuthUser> {
+    const updated = await this.db.user.update({
+      where: { id: userId },
+      data: patch,
+      include: this.USER_INCLUDE,
+    });
+    return this.toAuthUser(updated);
+  }
+
+  async updateUserPassword(userId: string, passwordHash: string): Promise<void> {
+    await this.db.user.update({ where: { id: userId }, data: { passwordHash } });
+  }
+
+  async setUserPhoneVerified(userId: string): Promise<void> {
+    await this.db.user.update({ where: { id: userId }, data: { phoneVerified: true } });
+  }
+
+  async updateUserStatus(userId: string, status: string): Promise<void> {
+    await this.db.user.update({ where: { id: userId }, data: { status } });
   }
 
   async createDoctorAccount(input: CreateDoctorAccountInput): Promise<AuthUser> {
@@ -275,16 +417,7 @@ export class PrismaStore implements DataStore {
         },
       },
     });
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      phone: user.phone,
-      role: user.role,
-      status: user.status,
-      doctorSlug: user.doctorProfile?.slug ?? null,
-      verificationStatus: user.doctorProfile?.verificationStatus ?? null,
-    };
+    return this.toAuthUser(user);
   }
 
   async createSession(token: string, userId: string, expiresAtIso: string): Promise<void> {
@@ -315,6 +448,10 @@ export class PrismaStore implements DataStore {
         email: session.user.email,
         role: session.user.role,
         status: session.user.status,
+        provider: session.user.provider,
+        phone: session.user.phone,
+        phoneVerified: session.user.phoneVerified,
+        avatarUrl: session.user.avatarUrl,
         doctorSlug: session.user.doctorProfile?.slug ?? null,
         verificationStatus: session.user.doctorProfile?.verificationStatus ?? null,
       },
@@ -758,5 +895,240 @@ export class PrismaStore implements DataStore {
         meta: input.meta,
       },
     });
+  }
+
+  // ── Phone OTP codes ─────────────────────────────────────────────
+
+  async createOtpCode(input: CreateOtpCodeInput): Promise<void> {
+    // Invalidate previous active codes for this (phone, purpose), then create.
+    await this.db.$transaction([
+      this.db.otpCode.updateMany({
+        where: {
+          phone: input.phone,
+          purpose: input.purpose,
+          consumed: false,
+        },
+        data: { consumed: true },
+      }),
+      this.db.otpCode.create({
+        data: {
+          phone: input.phone,
+          codeHash: input.codeHash,
+          purpose: input.purpose,
+          expiresAt: new Date(input.expiresAtIso),
+        },
+      }),
+    ]);
+  }
+
+  async findActiveOtpCode(phone: string, purpose: string): Promise<ActiveOtpCode | null> {
+    const rows = await this.db.otpCode.findMany({
+      where: { phone, purpose, consumed: false },
+      orderBy: { createdAt: "desc" },
+      take: 1,
+    });
+    const row = rows[0];
+    if (!row) return null;
+    if (row.expiresAt.getTime() <= Date.now()) return null;
+    return {
+      id: row.id,
+      codeHash: row.codeHash,
+      attempts: row.attempts,
+      expiresAt: row.expiresAt.toISOString(),
+    };
+  }
+
+  async incrementOtpAttempts(id: string): Promise<void> {
+    const row = await this.db.otpCode.findUnique({ where: { id }, select: { attempts: true } });
+    await this.db.otpCode.update({
+      where: { id },
+      data: { attempts: (row?.attempts ?? 0) + 1 },
+    });
+  }
+
+  async consumeOtpCode(id: string): Promise<void> {
+    await this.db.otpCode.update({ where: { id }, data: { consumed: true } });
+  }
+
+  // ── Notifications ─────────────────────────────────────────────
+
+  async createNotification(input: CreateNotificationInput): Promise<void> {
+    await this.db.notification.create({
+      data: {
+        userId: input.userId,
+        type: input.type,
+        title: input.title,
+        body: input.body,
+        meta: input.meta,
+      },
+    });
+  }
+
+  async listNotifications(userId: string, limit: number): Promise<NotificationRecord[]> {
+    const rows = await this.db.notification.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      userId: row.userId,
+      type: row.type,
+      title: row.title,
+      body: row.body,
+      meta: row.meta,
+      readAt: row.readAt ? row.readAt.toISOString() : null,
+      createdAt: row.createdAt.toISOString(),
+    }));
+  }
+
+  async countUnreadNotifications(userId: string): Promise<number> {
+    return this.db.notification.count({ where: { userId, readAt: null } });
+  }
+
+  async markNotificationRead(id: string, userId: string): Promise<boolean> {
+    const result = await this.db.notification.updateMany({
+      where: { id, userId, readAt: null },
+      data: { readAt: new Date() },
+    });
+    return result.count > 0;
+  }
+
+  async markAllNotificationsRead(userId: string): Promise<number> {
+    const result = await this.db.notification.updateMany({
+      where: { userId, readAt: null },
+      data: { readAt: new Date() },
+    });
+    return result.count;
+  }
+
+  // ── Reviews (write + moderation) ───────────────────────
+
+  async findReviewByDoctorAndPatient(doctorId: string, patientId: string): Promise<ReviewRecord | null> {
+    const review = await this.db.review.findUnique({
+      where: { doctorId_patientId: { doctorId, patientId } },
+      include: { patient: { select: { name: true } } },
+    });
+    if (!review) return null;
+    return {
+      id: review.id,
+      doctorId: review.doctorId,
+      patientId: review.patientId,
+      rating: review.rating,
+      comment: review.comment,
+      createdAt: review.createdAt.toISOString(),
+      patientName: review.patient.name,
+    };
+  }
+
+  async createReview(input: CreateReviewInput): Promise<ReviewRecord> {
+    const review = await this.db.review.create({
+      data: {
+        doctorId: input.doctorId,
+        patientId: input.patientId,
+        rating: input.rating,
+        comment: input.comment,
+      },
+      include: { patient: { select: { name: true } } },
+    });
+    return {
+      id: review.id,
+      doctorId: review.doctorId,
+      patientId: review.patientId,
+      rating: review.rating,
+      comment: review.comment,
+      createdAt: review.createdAt.toISOString(),
+      patientName: review.patient.name,
+    };
+  }
+
+  async listRecentReviews(limit: number): Promise<ModerationReviewRecord[]> {
+    const reviews = await this.db.review.findMany({
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      include: {
+        patient: { select: { name: true } },
+        doctor: {
+          select: { slug: true, user: { select: { name: true } } },
+        },
+      },
+    });
+    return reviews.map((review) => ({
+      id: review.id,
+      doctorId: review.doctorId,
+      patientId: review.patientId,
+      rating: review.rating,
+      comment: review.comment,
+      createdAt: review.createdAt.toISOString(),
+      patientName: review.patient.name,
+      doctorSlug: review.doctor.slug,
+      doctorName: review.doctor.user.name,
+    }));
+  }
+
+  async deleteReview(id: string): Promise<boolean> {
+    const result = await this.db.review.deleteMany({ where: { id } });
+    return result.count > 0;
+  }
+
+  // ── Hospitals (public directory) ───────────────────────
+
+  async listHospitals(): Promise<HospitalRecord[]> {
+    const hospitals = await this.db.hospital.findMany({
+      orderBy: [{ city: "asc" }, { name: "asc" }],
+      include: {
+        doctors: {
+          where: { verificationStatus: { in: ["VERIFIED", "PENDING"] } },
+          select: { id: true },
+        },
+      },
+    });
+    return hospitals.map((hospital) => ({
+      id: hospital.id,
+      name: hospital.name,
+      slug: hospital.slug,
+      city: hospital.city,
+      address: hospital.address,
+      phone: hospital.phone,
+      about: hospital.about,
+      doctorCount: hospital.doctors.length,
+    }));
+  }
+
+  // ── Admin user directory ───────────────────────
+
+  async listUsers(filters: { role?: string; q?: string }): Promise<AdminUserRecord[]> {
+    const q = filters.q?.trim().toLowerCase();
+    const users = await this.db.user.findMany({
+      where: {
+        ...(filters.role ? { role: filters.role } : {}),
+      },
+      include: {
+        doctorProfile: { select: { slug: true, verificationStatus: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+    });
+    return users
+      .filter((user) =>
+        q
+          ? user.name.toLowerCase().includes(q) ||
+            user.email.toLowerCase().includes(q) ||
+            (user.phone ?? "").toLowerCase().includes(q)
+          : true
+      )
+      .map((user) => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        status: user.status,
+        provider: user.provider,
+        phoneVerified: user.phoneVerified,
+        createdAt: user.createdAt.toISOString(),
+        doctorSlug: user.doctorProfile?.slug ?? null,
+        verificationStatus: user.doctorProfile?.verificationStatus ?? null,
+      }));
   }
 }

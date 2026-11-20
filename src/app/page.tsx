@@ -4,9 +4,10 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useAppStore, type ViewName } from "@/lib/store";
 import { BrandLogo, BrandWordmark, DemoBadge } from "@/components/brand";
+import NotificationBell from "@/components/notification-bell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Sheet,
   SheetContent,
@@ -28,6 +29,7 @@ import {
   Search,
   CalendarCheck,
   LayoutDashboard,
+  Settings,
   ShieldCheck,
   LogIn,
   LogOut,
@@ -42,6 +44,7 @@ import BookingView from "@/components/views/booking-view";
 import MyAppointmentsView from "@/components/views/my-appointments-view";
 import DoctorDashboardView from "@/components/views/doctor-dashboard-view";
 import AdminView from "@/components/views/admin-view";
+import SettingsView from "@/components/views/settings-view";
 import AuthView from "@/components/views/auth-view";
 
 function initials(name: string) {
@@ -150,6 +153,7 @@ export default function MedbriqApp() {
             {/* Right side */}
             <div className="flex items-center gap-2">
               <DemoBadge />
+              {userLoaded && user ? <NotificationBell /> : null}
               {userLoaded && user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -158,6 +162,9 @@ export default function MedbriqApp() {
                       aria-label="Account menu"
                     >
                       <Avatar className="h-8 w-8">
+                        {user.avatarUrl ? (
+                          <AvatarImage src={user.avatarUrl} alt={user.name} />
+                        ) : null}
                         <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
                           {initials(user.name)}
                         </AvatarFallback>
@@ -193,6 +200,11 @@ export default function MedbriqApp() {
                         My Appointments
                       </DropdownMenuItem>
                     )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate({ name: "settings" })}>
+                      <Settings className="h-4 w-4 mr-2" />
+                      Settings
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={logout}>
                       <LogOut className="h-4 w-4 mr-2" />
@@ -241,14 +253,30 @@ export default function MedbriqApp() {
                     ))}
                     <div className="h-px bg-border my-2" />
                     {user ? (
-                      <Button
-                        variant="outline"
-                        className="justify-start gap-2"
-                        onClick={logout}
-                      >
-                        <LogOut className="h-4 w-4" />
-                        Sign out ({user.name.split(" ")[0]})
-                      </Button>
+                      <>
+                        <div className="flex items-center justify-between gap-2 px-1 py-1.5">
+                          <span className="text-sm font-medium">
+                            Notifications
+                          </span>
+                          <NotificationBell />
+                        </div>
+                        <Button
+                          variant="ghost"
+                          className="justify-start gap-2"
+                          onClick={() => navigate({ name: "settings" })}
+                        >
+                          <Settings className="h-4 w-4" />
+                          Settings
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="justify-start gap-2"
+                          onClick={logout}
+                        >
+                          <LogOut className="h-4 w-4" />
+                          Sign out ({user.name.split(" ")[0]})
+                        </Button>
+                      </>
                     ) : (
                       <Button
                         className="justify-start gap-2"
@@ -287,6 +315,7 @@ export default function MedbriqApp() {
         {view.name === "appointments" && <MyAppointmentsView />}
         {view.name === "doctor-dashboard" && <DoctorDashboardView />}
         {view.name === "admin" && <AdminView />}
+        {view.name === "settings" && <SettingsView />}
         {view.name === "auth" && <AuthView />}
       </main>
 

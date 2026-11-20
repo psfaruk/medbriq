@@ -20,6 +20,7 @@ export type ViewName =
   | "appointments"
   | "doctor-dashboard"
   | "admin"
+  | "settings"
   | "auth";
 
 export type AppView = { name: ViewName; slug?: string };

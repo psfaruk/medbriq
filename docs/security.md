@@ -38,6 +38,43 @@ Implementation: [`src/lib/auth.ts`](../src/lib/auth.ts) (server-only).
 - **Limitation:** per-instance and reset on restart; must move to a shared store
   (e.g., Redis) before any multi-instance deployment.
 
+### 1.4 Phone OTP authentication
+- Bangladeshi mobile numbers are normalized to E.164 (`+8801XXXXXXXXX`) before any
+  lookup; codes are 6 random digits (`crypto.randomInt`), stored **hashed** as
+  `sha256("phone:purpose:code")` so a DB leak does not reveal usable codes.
+- Codes are single-use, expire after 5 minutes, lock after 5 failed verification
+  attempts, and requests are limited to 3 per phone per rolling 10-minute window
+  (shared LOGIN/RESET bucket, in-memory — same per-instance limitation as §1.3).
+- **Dev mode (honest):** no SMS provider is wired (`SMS_PROVIDER=console`), so OTP codes
+  are logged server-side and returned in the API response/UI, clearly labeled. This is
+  acceptable **for development only** — a production deployment must integrate a real
+  provider in `src/lib/sms.ts` or disable phone OTP at the edge.
+- Phone-first accounts get a synthetic email (`p_<phone>@phone.medbriq.dev`) and an
+  empty password hash ("" sentinel — `verifyPassword` safely rejects it); owners can set
+  a real password via Settings → Set password.
+
+### 1.5 Google Sign-In
+- The browser uses the official Google Identity Services button; only the resulting ID
+  token is sent to the server. The server **re-verifies** it against Google’s tokeninfo
+  endpoint: `aud` must equal `GOOGLE_CLIENT_ID`, `email_verified` must be true, and `exp`
+  must be in the future (10-second fetch timeout; any failure rejects the login).
+- When the verified Google email matches an existing credentials account, the Google
+  identity is **linked** to it. Rationale: Google has *proven* ownership of that email,
+  which is a stronger claim than an unverified registration. Known tradeoff (documented):
+  until email verification exists for credentials signups, an attacker who registered
+  someone else’s email would hand the legitimate owner control via Google — acceptable
+  at MVP, revisited with email verification.
+- `GOOGLE_CLIENT_ID` is a **public** client id (safe to expose); the UI shows an honest
+  disabled state when it is unset — no flow is faked.
+
+### 1.6 Password reset
+- Reset is performed via phone OTP (`forgot-password` → `reset-password`). The request
+  response is **enumeration-safe**: identical shape whether or not the phone has an
+  account (in dev mode a chaff `devCode` is returned for unknown phones so the response
+  is indistinguishable; it can never verify).
+- **Known limitation:** a successful reset does not revoke the user’s existing sessions
+  (fix planned with hashed-token sessions).
+
 ## 2. Authorization (RBAC)
 
 - Roles: `PATIENT`, `DOCTOR`, `ADMIN` (`src/lib/constants.ts`).
@@ -55,11 +92,16 @@ Implementation: [`src/lib/auth.ts`](../src/lib/auth.ts) (server-only).
 - `login` returns the identical `401 INVALID_CREDENTIALS` for an unknown email and a
   wrong password, with the same timing profile, so attackers cannot distinguish
   “account exists”.
+- `forgot-password` returns the identical `202` response whether or not the phone has
+  an account (see §1.6).
 - Registration uses a specific `409 EMAIL_TAKEN` — a deliberate tradeoff: registration
   UX requires duplicate-email feedback. This reveals *which emails have accounts*;
   accepted at MVP because email is not a sensitive identifier in this context and the
   rate limiter throttles enumeration attempts. (A production hardening option is
   async email verification without existence disclosure.)
+- **Notifications privacy:** notification bodies contain only names, dates and reference
+  codes — never patient notes, rejection reasons or review comments (the patient/doctor
+  sees those in the authenticated surfaces that own them).
 
 ## 4. Booking Concurrency (the correctness-critical part)
 

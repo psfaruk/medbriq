@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAppStore } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
 import { LANGUAGES } from "@/lib/constants";
-import type { SessionUser } from "@/lib/types";
+import { normalizeBdPhone } from "@/lib/phone";
+import type { AuthConfig, SessionUser } from "@/lib/types";
 import {
   Card,
   CardContent,
@@ -29,6 +30,19 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
+import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -39,8 +53,90 @@ import {
   Info,
   KeyRound,
   Loader2,
+  Mail,
+  Phone,
   Stethoscope,
+  Timer,
 } from "lucide-react";
+
+/** Minimal typings for the Google Identity Services script we load on demand. */
+interface GoogleAccountsId {
+  initialize(config: {
+    client_id: string;
+    callback: (r: { credential: string }) => void;
+  }): void;
+  renderButton(el: HTMLElement, options: Record<string, unknown>): void;
+}
+
+declare global {
+  interface Window {
+    google?: { accounts: { id: GoogleAccountsId } };
+  }
+}
+
+/** The official multicolor Google "G" mark (inline, no external asset). */
+function GoogleGIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      aria-hidden="true"
+    >
+      <path
+        fill="#4285F4"
+        d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"
+      />
+    </svg>
+  );
+}
+
+/** Load the GIS client script once (idempotent across effect re-runs). */
+function loadGisScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined") {
+      reject(new Error("No window"));
+      return;
+    }
+    const existing = document.getElementById("medbriq-gis-script");
+    if (existing) {
+      if (window.google?.accounts?.id) {
+        resolve();
+      } else {
+        existing.addEventListener("load", () => resolve(), { once: true });
+      }
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.id = "medbriq-gis-script";
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load Google script"));
+    document.head.appendChild(script);
+  });
+}
+
+/** mm:ss countdown label for OTP expiry. */
+function countdownLabel(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
 
 /**
  * AuthView — sign in / create account (patient or doctor).
@@ -108,9 +204,39 @@ export default function AuthView() {
   const [role, setRole] = useState<"PATIENT" | "DOCTOR">("PATIENT");
 
   // Sign in
+  const [method, setMethod] = useState<"email" | "phone">("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [signingIn, setSigningIn] = useState(false);
+
+  // Phone (OTP) sign in
+  const [phone, setPhone] = useState("");
+  const [phoneName, setPhoneName] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [devCode, setDevCode] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<number | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+
+  // Google sign in
+  const [googleState, setGoogleState] = useState<
+    "loading" | "ready" | "unavailable" | "error"
+  >("loading");
+  const [googleClientId, setGoogleClientId] = useState<string | null>(null);
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+  const googleCallbackRef = useRef<(credential: string) => void>(() => {});
+
+  // Forgot-password dialog
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotStep, setForgotStep] = useState<1 | 2>(1);
+  const [forgotPhone, setForgotPhone] = useState("");
+  const [forgotCode, setForgotCode] = useState("");
+  const [forgotDevCode, setForgotDevCode] = useState<string | null>(null);
+  const [forgotPassword, setForgotPassword] = useState("");
+  const [forgotBusy, setForgotBusy] = useState(false);
 
   // Register (shared)
   const [regName, setRegName] = useState("");
@@ -183,6 +309,274 @@ export default function AuthView() {
       navigate({ name: "admin" });
     } else {
       navigate({ name: "home" });
+    }
+  }
+
+  // Fetch the auth config once on mount to know which methods are available.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/v1/auth/config")
+      .then((r) => r.json())
+      .then((res: unknown) => {
+        if (cancelled) return;
+        if (isApiSuccess(res)) {
+          const config = res.data as AuthConfig;
+          if (config.googleEnabled && config.googleClientId) {
+            setGoogleClientId(config.googleClientId);
+            setGoogleState("ready");
+          } else {
+            setGoogleState("unavailable");
+          }
+        } else {
+          setGoogleState("error");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setGoogleState("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Keep the latest Google credential handler available to the GIS callback.
+  async function handleGoogleCredential(credential: string) {
+    if (googleBusy) return;
+    setGoogleBusy(true);
+    try {
+      const data = (await postJson("/api/v1/auth/google", {
+        credential,
+      })) as { user: SessionUser; isNewAccount: boolean };
+      handleAuthSuccess(data.user, data.isNewAccount);
+    } catch (err) {
+      toast({
+        title: "Google sign-in failed",
+        description: err instanceof Error ? err.message : "Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setGoogleBusy(false);
+    }
+  }
+  useEffect(() => {
+    googleCallbackRef.current = handleGoogleCredential;
+  });
+
+  // Render the official GIS button once the config and script are ready.
+  useEffect(() => {
+    if (googleState !== "ready" || !googleClientId) return;
+    let cancelled = false;
+    loadGisScript()
+      .then(() => {
+        if (cancelled) return;
+        const idApi = window.google?.accounts?.id;
+        if (!idApi || !googleButtonRef.current) return;
+        idApi.initialize({
+          client_id: googleClientId,
+          callback: (response: { credential: string }) => {
+            void googleCallbackRef.current(response.credential);
+          },
+        });
+        idApi.renderButton(googleButtonRef.current, {
+          theme: "outline",
+          size: "large",
+          width: 300,
+          text: "signin_with",
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setGoogleState("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [googleState, googleClientId]);
+
+  // OTP expiry countdown (mm:ss).
+  useEffect(() => {
+    if (!otpSent || expiresAt === null) return;
+    const tick = () =>
+      setSecondsLeft(
+        Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000))
+      );
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [otpSent, expiresAt]);
+
+  function resetOtpState() {
+    setOtpSent(false);
+    setOtpCode("");
+    setDevCode(null);
+    setExpiresAt(null);
+    setSecondsLeft(0);
+  }
+
+  async function sendCode() {
+    if (sendingCode) return;
+    const normalized = normalizeBdPhone(phone.trim());
+    if (!normalized) {
+      toast({
+        title: "Invalid phone number",
+        description: "Enter a Bangladeshi mobile number, e.g. 01712345678.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSendingCode(true);
+    try {
+      const data = (await postJson("/api/v1/auth/otp/request", {
+        phone: normalized,
+      })) as {
+        sent: boolean;
+        expiresInSeconds: number;
+        devCode?: string;
+      };
+      setOtpSent(true);
+      setOtpCode("");
+      setDevCode(typeof data.devCode === "string" ? data.devCode : null);
+      setExpiresAt(Date.now() + data.expiresInSeconds * 1000);
+      toast({
+        title: "Code sent",
+        description: `A 6-digit code was sent to ${normalized}.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Could not send code",
+        description: err instanceof Error ? err.message : "Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingCode(false);
+    }
+  }
+
+  async function verifyOtp() {
+    if (verifying || otpCode.length !== 6) return;
+    const normalized = normalizeBdPhone(phone.trim());
+    if (!normalized) {
+      toast({
+        title: "Invalid phone number",
+        description: "Enter a Bangladeshi mobile number, e.g. 01712345678.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setVerifying(true);
+    try {
+      const body: { phone: string; code: string; name?: string } = {
+        phone: normalized,
+        code: otpCode,
+      };
+      const name = phoneName.trim();
+      if (name) body.name = name;
+      const data = (await postJson("/api/v1/auth/otp/verify", body)) as {
+        user: SessionUser;
+        isNewAccount: boolean;
+      };
+      resetOtpState();
+      setPhoneName("");
+      handleAuthSuccess(data.user, data.isNewAccount);
+    } catch (err) {
+      // 400 INVALID_CODE (message includes attempts left) / 429 too many attempts.
+      toast({
+        title: "Verification failed",
+        description: err instanceof Error ? err.message : "Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  function openForgotDialog() {
+    setForgotStep(1);
+    setForgotPhone("");
+    setForgotCode("");
+    setForgotDevCode(null);
+    setForgotPassword("");
+    setForgotOpen(true);
+  }
+
+  async function submitForgotRequest(e: FormEvent) {
+    e.preventDefault();
+    if (forgotBusy) return;
+    const normalized = normalizeBdPhone(forgotPhone.trim());
+    if (!normalized) {
+      toast({
+        title: "Invalid phone number",
+        description: "Enter the Bangladeshi mobile number on your account.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setForgotBusy(true);
+    try {
+      const data = (await postJson("/api/v1/auth/forgot-password", {
+        phone: normalized,
+      })) as { sent: boolean; expiresInSeconds: number; devCode?: string };
+      setForgotDevCode(
+        typeof data.devCode === "string" ? data.devCode : null
+      );
+      setForgotStep(2);
+    } catch (err) {
+      toast({
+        title: "Could not send reset code",
+        description: err instanceof Error ? err.message : "Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setForgotBusy(false);
+    }
+  }
+
+  async function submitForgotReset(e: FormEvent) {
+    e.preventDefault();
+    if (forgotBusy) return;
+    if (forgotCode.length !== 6) {
+      toast({
+        title: "Enter the 6-digit code",
+        description: "Check the code we sent to your phone.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (forgotPassword.length < 8) {
+      toast({
+        title: "Password too short",
+        description: "Use at least 8 characters.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const normalized = normalizeBdPhone(forgotPhone.trim());
+    if (!normalized) {
+      toast({
+        title: "Invalid phone number",
+        variant: "destructive",
+      });
+      return;
+    }
+    setForgotBusy(true);
+    try {
+      await postJson("/api/v1/auth/reset-password", {
+        phone: normalized,
+        code: forgotCode,
+        newPassword: forgotPassword,
+      });
+      toast({
+        title: "Password updated",
+        description: "You can now sign in with your new password.",
+      });
+      setForgotOpen(false);
+    } catch (err) {
+      toast({
+        title: "Could not reset password",
+        description: err instanceof Error ? err.message : "Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setForgotBusy(false);
     }
   }
 
@@ -380,46 +774,300 @@ export default function AuthView() {
 
               {/* ------------------------- Sign in ------------------------- */}
               <TabsContent value="signin" className="mt-6">
-                <form onSubmit={handleSignIn} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
-                    <Input
-                      id="signin-email"
-                      type="email"
-                      autoComplete="email"
-                      placeholder="you@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-password">Password</Label>
-                    <Input
-                      id="signin-password"
-                      type="password"
-                      autoComplete="current-password"
-                      placeholder="Your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={signingIn || email === "" || password === ""}
+                {/* Method switcher: Email | Phone */}
+                <div
+                  role="tablist"
+                  aria-label="Sign-in method"
+                  className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1"
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={method === "email"}
+                    onClick={() => setMethod("email")}
+                    className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      method === "email"
+                        ? "bg-background shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
                   >
-                    {signingIn ? (
-                      <>
-                        <Loader2 className="animate-spin" />
-                        Signing in
-                      </>
+                    <Mail className="h-4 w-4" aria-hidden="true" />
+                    Email
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={method === "phone"}
+                    onClick={() => setMethod("phone")}
+                    className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      method === "phone"
+                        ? "bg-background shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Phone className="h-4 w-4" aria-hidden="true" />
+                    Phone
+                  </button>
+                </div>
+
+                {method === "email" ? (
+                  <form onSubmit={handleSignIn} className="mt-4 space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signin-email">Email</Label>
+                      <Input
+                        id="signin-email"
+                        type="email"
+                        autoComplete="email"
+                        placeholder="you@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signin-password">Password</Label>
+                      <Input
+                        id="signin-password"
+                        type="password"
+                        autoComplete="current-password"
+                        placeholder="Your password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={signingIn || email === "" || password === ""}
+                    >
+                      {signingIn ? (
+                        <>
+                          <Loader2 className="animate-spin" />
+                          Signing in
+                        </>
+                      ) : (
+                        "Sign in"
+                      )}
+                    </Button>
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={openForgotDialog}
+                        className="text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="mt-4 space-y-4">
+                    {/* Step 1: phone number */}
+                    <div className="space-y-2">
+                      <Label htmlFor="signin-phone">Phone number</Label>
+                      <Input
+                        id="signin-phone"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="01XXXXXXXXX"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        maxLength={20}
+                        disabled={otpSent}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Bangladeshi mobile number
+                        {otpSent && (
+                          <>
+                            {" — "}
+                            <button
+                              type="button"
+                              onClick={resetOtpState}
+                              className="font-medium text-primary hover:underline"
+                            >
+                              Use a different number
+                            </button>
+                          </>
+                        )}
+                      </p>
+                    </div>
+
+                    {!otpSent ? (
+                      <Button
+                        type="button"
+                        className="w-full gap-1.5"
+                        onClick={() => void sendCode()}
+                        disabled={sendingCode || phone.trim() === ""}
+                      >
+                        {sendingCode ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Sending code
+                          </>
+                        ) : (
+                          <>
+                            <Phone className="h-4 w-4" />
+                            Send code
+                          </>
+                        )}
+                      </Button>
                     ) : (
-                      "Sign in"
+                      <>
+                        {/* Dev-mode OTP (no SMS provider configured) */}
+                        {devCode && (
+                          <Alert>
+                            <Info />
+                            <AlertTitle>
+                              Dev mode — no SMS provider configured
+                            </AlertTitle>
+                            <AlertDescription>
+                              Your code:{" "}
+                              <button
+                                type="button"
+                                onClick={() => setOtpCode(devCode)}
+                                className="rounded font-mono text-base font-bold tracking-widest text-foreground underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                aria-label={`Fill verification code ${devCode}`}
+                              >
+                                {devCode}
+                              </button>{" "}
+                              (tap to fill)
+                            </AlertDescription>
+                          </Alert>
+                        )}
+
+                        <div className="space-y-2">
+                          <Label htmlFor="signin-otp">Verification code</Label>
+                          <InputOTP
+                            id="signin-otp"
+                            maxLength={6}
+                            value={otpCode}
+                            onChange={setOtpCode}
+                            autoComplete="one-time-code"
+                            inputMode="numeric"
+                          >
+                            <InputOTPGroup>
+                              <InputOTPSlot index={0} />
+                              <InputOTPSlot index={1} />
+                              <InputOTPSlot index={2} />
+                              <InputOTPSlot index={3} />
+                              <InputOTPSlot index={4} />
+                              <InputOTPSlot index={5} />
+                            </InputOTPGroup>
+                          </InputOTP>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="signin-phone-name">
+                            Your name{" "}
+                            <span className="text-muted-foreground">
+                              (for new patients)
+                            </span>
+                          </Label>
+                          <Input
+                            id="signin-phone-name"
+                            value={phoneName}
+                            onChange={(e) => setPhoneName(e.target.value)}
+                            placeholder="e.g. Ayesha Rahman"
+                            maxLength={80}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3">
+                          {secondsLeft > 0 ? (
+                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Timer
+                                className="h-3.5 w-3.5"
+                                aria-hidden="true"
+                              />
+                              Code expires in {countdownLabel(secondsLeft)}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              The code has expired
+                            </span>
+                          )}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 gap-1 px-2 text-xs"
+                            onClick={() => void sendCode()}
+                            disabled={sendingCode || secondsLeft > 0}
+                          >
+                            {sendingCode && (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            )}
+                            Resend code
+                          </Button>
+                        </div>
+
+                        <Button
+                          type="button"
+                          className="w-full"
+                          onClick={() => void verifyOtp()}
+                          disabled={verifying || otpCode.length !== 6}
+                        >
+                          {verifying ? (
+                            <>
+                              <Loader2 className="animate-spin" />
+                              Verifying
+                            </>
+                          ) : (
+                            "Verify and sign in"
+                          )}
+                        </Button>
+                      </>
                     )}
-                  </Button>
-                </form>
+                  </div>
+                )}
+
+                {/* "or" divider + Google sign-in */}
+                <div className="flex items-center gap-3 py-5" aria-hidden="true">
+                  <span className="h-px flex-1 bg-border" />
+                  <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                    or
+                  </span>
+                  <span className="h-px flex-1 bg-border" />
+                </div>
+
+                <div className="flex flex-col items-center gap-3">
+                  {googleState === "loading" ? (
+                    <div
+                      className="h-10 w-[300px] animate-pulse rounded-md bg-secondary"
+                      aria-label="Loading Google sign-in"
+                    />
+                  ) : googleState === "ready" ? (
+                    <div className="relative flex w-full justify-center">
+                      <div ref={googleButtonRef} />
+                      {googleBusy && (
+                        <div className="absolute inset-0 flex items-center justify-center rounded-md bg-background/80">
+                          <Loader2
+                            className="h-5 w-5 animate-spin text-muted-foreground"
+                            aria-hidden="true"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full gap-2"
+                        disabled
+                        aria-disabled="true"
+                      >
+                        <GoogleGIcon />
+                        Continue with Google
+                      </Button>
+                      <p className="text-center text-xs text-muted-foreground">
+                        {googleState === "error"
+                          ? "Google sign-in could not be loaded right now. Refresh the page to retry."
+                          : "Google sign-in is not configured on this deployment (set GOOGLE_CLIENT_ID)."}
+                      </p>
+                    </>
+                  )}
+                </div>
               </TabsContent>
 
               {/* ------------------------ Register ------------------------ */}
@@ -497,9 +1145,13 @@ export default function AuthView() {
                         id="reg-phone"
                         value={regPhone}
                         onChange={(e) => setRegPhone(e.target.value)}
-                        placeholder="+880 1XXX-XXXXXX"
+                        placeholder="01XXXXXXXXX"
+                        inputMode="tel"
                         maxLength={20}
                       />
+                      <p className="text-xs text-muted-foreground">
+                        e.g. 01XXXXXXXXX — Bangladeshi mobile format
+                      </p>
                     </div>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -810,6 +1462,148 @@ export default function AuthView() {
           </Collapsible>
         </Card>
       )}
+
+      {/* Forgot-password dialog: phone OTP reset flow */}
+      <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-primary" aria-hidden="true" />
+              Reset your password
+            </DialogTitle>
+            <DialogDescription>
+              {forgotStep === 1
+                ? "Enter the phone number on your account. We will send a verification code."
+                : "Enter the code we sent and choose a new password."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {forgotStep === 1 ? (
+            <form onSubmit={submitForgotRequest} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="forgot-phone">Phone number</Label>
+                <Input
+                  id="forgot-phone"
+                  value={forgotPhone}
+                  onChange={(e) => setForgotPhone(e.target.value)}
+                  placeholder="01XXXXXXXXX"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  maxLength={20}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Bangladeshi mobile number
+                </p>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setForgotOpen(false)}
+                  disabled={forgotBusy}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={forgotBusy || forgotPhone.trim() === ""}
+                  className="gap-1.5"
+                >
+                  {forgotBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Send reset code
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={submitForgotReset} className="space-y-4">
+              {forgotDevCode && (
+                <Alert>
+                  <Info />
+                  <AlertTitle>Dev mode — no SMS provider configured</AlertTitle>
+                  <AlertDescription>
+                    Your code:{" "}
+                    <button
+                      type="button"
+                      onClick={() => setForgotCode(forgotDevCode)}
+                      className="rounded font-mono text-base font-bold tracking-widest text-foreground underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label={`Fill reset code ${forgotDevCode}`}
+                    >
+                      {forgotDevCode}
+                    </button>{" "}
+                    (tap to fill)
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="forgot-code">Verification code</Label>
+                <InputOTP
+                  id="forgot-code"
+                  maxLength={6}
+                  value={forgotCode}
+                  onChange={setForgotCode}
+                  autoComplete="one-time-code"
+                  inputMode="numeric"
+                >
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="forgot-password">New password</Label>
+                <Input
+                  id="forgot-password"
+                  type="password"
+                  autoComplete="new-password"
+                  value={forgotPassword}
+                  onChange={(e) => setForgotPassword(e.target.value)}
+                  placeholder="At least 8 characters"
+                  required
+                  minLength={8}
+                  maxLength={100}
+                />
+              </div>
+
+              <div className="flex justify-between gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setForgotStep(1)}
+                  disabled={forgotBusy}
+                >
+                  Back
+                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setForgotOpen(false)}
+                    disabled={forgotBusy}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={forgotBusy || forgotCode.length !== 6}
+                    className="gap-1.5"
+                  >
+                    {forgotBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Reset password
+                  </Button>
+                </div>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

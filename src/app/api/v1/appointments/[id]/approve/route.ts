@@ -1,9 +1,11 @@
 import { fail, handleRouteError, ok } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { getStore } from "@/lib/data";
-import { APPOINTMENT_STATUS, ROLES } from "@/lib/constants";
+import { APPOINTMENT_STATUS, NOTIFICATION_TYPES, ROLES } from "@/lib/constants";
 import {
+  doctorDisplayName,
   logAppointmentAction,
+  notifyUser,
   toAppointmentDto,
 } from "@/app/api/v1/_lib/booking";
 
@@ -51,6 +53,18 @@ export async function POST(
       fromStatus: appointment.status,
       toStatus: updated.status,
     });
+
+    await notifyUser(
+      updated.patientId,
+      NOTIFICATION_TYPES.APPOINTMENT_APPROVED,
+      "Appointment approved",
+      `${doctorDisplayName(updated.doctor.name)} approved your appointment (${updated.referenceCode}).`,
+      {
+        appointmentId: updated.id,
+        referenceCode: updated.referenceCode,
+        doctorSlug: updated.doctor.slug,
+      }
+    );
 
     return ok({ appointment: toAppointmentDto(updated) });
   } catch (err) {

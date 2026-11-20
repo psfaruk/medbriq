@@ -50,6 +50,13 @@ export function toAppointmentDto(row: AppointmentRecord): AppointmentDto {
     patientGender: row.patientGender,
     notes: row.notes,
     doctorNote: row.doctorNote,
+    // AppointmentRecord does not declare consultationNote yet (foundation
+    // gap: the Firestore store already returns it, the shared type and the
+    // Prisma mapper do not), so read it defensively and fall back to null.
+    // The complete endpoint additionally echoes the submitted note in its
+    // own response so the immediate feedback is always accurate.
+    consultationNote:
+      (row as { consultationNote?: string | null }).consultationNote ?? null,
     createdAt: row.createdAt,
     doctor: {
       slug: row.doctor.slug,
@@ -82,5 +89,40 @@ export async function logAppointmentAction(
     });
   } catch (err) {
     console.error("[medbriq-audit]", action, err);
+  }
+}
+
+/**
+ * Fire-and-forget in-app notification. A notification failure must never
+ * fail the action that triggered it, so errors are only logged server-side.
+ * Notification bodies must never contain medical information (no notes).
+ */
+/**
+ * Display name for doctors in user-facing text. Seeded names already carry a
+ * "Dr." prefix — never double it.
+ */
+export function doctorDisplayName(name: string): string {
+  const trimmed = name.trim();
+  return /^(dr\.?|ডা\.?)\s/i.test(trimmed) ? trimmed : `Dr. ${trimmed}`;
+}
+
+export async function notifyUser(
+  userId: string | null | undefined,
+  type: string,
+  title: string,
+  body: string,
+  meta: Record<string, unknown> | null
+): Promise<void> {
+  if (!userId) return;
+  try {
+    await getStore().createNotification({
+      userId,
+      type,
+      title,
+      body,
+      meta: meta ? JSON.stringify(meta) : null,
+    });
+  } catch (err) {
+    console.error("[medbriq-notify]", err);
   }
 }

@@ -6,12 +6,15 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDhaka } from "@/lib/time";
 import type {
   AdminStats,
+  AdminUserItem,
   AuditLogItem,
+  ModerationReviewItem,
   VerificationItem,
 } from "@/lib/types";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +30,23 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -35,8 +55,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Ban,
   CalendarCheck,
   CalendarDays,
+  CheckCircle2,
   FileQuestion,
   Hourglass,
   Loader2,
@@ -46,7 +68,9 @@ import {
   ScrollText,
   Search,
   ShieldCheck,
+  Star,
   Stethoscope,
+  Trash2,
   UserRound,
   Users,
   X,
@@ -158,6 +182,49 @@ function dateOnlyLabel(iso: string): string {
   return formatDhaka(new Date(iso), { hour: undefined, minute: undefined });
 }
 
+function initials(name: string): string {
+  return (
+    name
+      .split(" ")
+      .map((part) => part[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "?"
+  );
+}
+
+function roleLabel(role: string): string {
+  if (role === "DOCTOR") return "Doctor";
+  if (role === "ADMIN") return "Admin";
+  return "Patient";
+}
+
+function providerLabel(provider: string): string {
+  if (provider === "google") return "Google";
+  if (provider === "phone") return "Phone";
+  return "Email";
+}
+
+function StarRating({ rating }: { rating: number }) {
+  return (
+    <span
+      className="flex items-center gap-0.5"
+      aria-label={`${rating} out of 5 stars`}
+    >
+      {Array.from({ length: 5 }, (_, i) => (
+        <Star
+          key={i}
+          className={`h-3.5 w-3.5 ${
+            i < rating ? "fill-warning text-warning" : "text-muted-foreground"
+          }`}
+          aria-hidden="true"
+        />
+      ))}
+    </span>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Gate (auth + role) + inner console
 // ---------------------------------------------------------------------------
@@ -232,6 +299,8 @@ export default function AdminView() {
 
 function AdminConsole() {
   const { toast } = useToast();
+  const navigate = useAppStore((state) => state.navigate);
+  const currentUserId = useAppStore((state) => state.user?.id ?? null);
 
   const [tab, setTab] = useState("queue");
   const [refreshing, setRefreshing] = useState(false);
@@ -257,6 +326,26 @@ function AdminConsole() {
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
   const [logsError, setLogsError] = useState<string | null>(null);
+
+  // Users directory
+  const [users, setUsers] = useState<AdminUserItem[]>([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [usersError, setUsersError] = useState<string | null>(null);
+  const [userSearchInput, setUserSearchInput] = useState("");
+  const [userSearch, setUserSearch] = useState("");
+  const [userRoleFilter, setUserRoleFilter] = useState("all");
+  const [userStatusBusy, setUserStatusBusy] = useState(false);
+  const [userStatusTarget, setUserStatusTarget] = useState<AdminUserItem | null>(
+    null
+  );
+
+  // Reviews moderation
+  const [reviews, setReviews] = useState<ModerationReviewItem[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
+  const [deleteReviewTarget, setDeleteReviewTarget] =
+    useState<ModerationReviewItem | null>(null);
+  const [deleteReviewBusy, setDeleteReviewBusy] = useState(false);
 
   // Decision state
   const [decisionBusy, setDecisionBusy] = useState<string | null>(null);
@@ -316,6 +405,42 @@ function AdminConsole() {
     setLogsLoading(false);
   }, []);
 
+  const loadUsers = useCallback(async (role: string, q: string) => {
+    setUsersLoading(true);
+    const params = new URLSearchParams();
+    if (role !== "all") params.set("role", role);
+    if (q.trim() !== "") params.set("q", q.trim());
+    const qs = params.toString();
+    const result = await jsonFetch(
+      `/api/v1/admin/users${qs ? `?${qs}` : ""}`
+    );
+    if (result.ok) {
+      setUsers((result.data as { items: AdminUserItem[] }).items);
+      setUsersError(null);
+    } else {
+      setUsersError(result.message);
+    }
+    setUsersLoading(false);
+  }, []);
+
+  const loadReviews = useCallback(async () => {
+    setReviewsLoading(true);
+    const result = await jsonFetch("/api/v1/admin/reviews");
+    if (result.ok) {
+      setReviews((result.data as { items: ModerationReviewItem[] }).items);
+      setReviewsError(null);
+    } else {
+      setReviewsError(result.message);
+    }
+    setReviewsLoading(false);
+  }, []);
+
+  // Debounce the user search input (~300ms) before querying the server.
+  useEffect(() => {
+    const id = setTimeout(() => setUserSearch(userSearchInput), 300);
+    return () => clearTimeout(id);
+  }, [userSearchInput]);
+
   useEffect(() => {
     // Async kick-off: loaders set loading flags synchronously, which must
     // not happen directly in an effect body (react-hooks/set-state-in-effect).
@@ -325,8 +450,9 @@ function AdminConsole() {
       loadQueue("PENDING");
       loadDoctors();
       loadLogs();
+      loadReviews();
     })();
-  }, [loadStats, loadQueue, loadDoctors, loadLogs]);
+  }, [loadStats, loadQueue, loadDoctors, loadLogs, loadReviews]);
 
   // Refetch the queue whenever the status filter changes.
   useEffect(() => {
@@ -336,6 +462,14 @@ function AdminConsole() {
     })();
   }, [queueFilter, loadQueue]);
 
+  // Fetch users whenever the role filter or debounced search changes.
+  useEffect(() => {
+    void (async () => {
+      await Promise.resolve();
+      loadUsers(userRoleFilter, userSearch);
+    })();
+  }, [userRoleFilter, userSearch, loadUsers]);
+
   async function refreshAll() {
     setRefreshing(true);
     await Promise.all([
@@ -343,6 +477,8 @@ function AdminConsole() {
       loadQueue(queueFilter),
       loadDoctors(),
       loadLogs(),
+      loadUsers(userRoleFilter, userSearch),
+      loadReviews(),
     ]);
     setRefreshing(false);
   }
@@ -398,6 +534,62 @@ function AdminConsole() {
     await postDecision(target.item, target.decision, note);
     setDialog(null);
     setNoteText("");
+  }
+
+  async function confirmUserStatus() {
+    if (!userStatusTarget) return;
+    const target = userStatusTarget;
+    const nextStatus = target.status === "SUSPENDED" ? "ACTIVE" : "SUSPENDED";
+    setUserStatusBusy(true);
+    const result = await jsonFetch(
+      `/api/v1/admin/users/${encodeURIComponent(target.id)}/status`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      }
+    );
+    setUserStatusBusy(false);
+    setUserStatusTarget(null);
+    if (result.ok) {
+      toast({
+        title: nextStatus === "SUSPENDED" ? "User suspended" : "User reactivated",
+        description: `${target.name} · ${target.email}`,
+      });
+      loadUsers(userRoleFilter, userSearch);
+      loadStats();
+    } else {
+      toast({
+        title: "Status change failed",
+        description: result.message,
+        variant: "destructive",
+      });
+    }
+  }
+
+  async function confirmDeleteReview() {
+    if (!deleteReviewTarget || deleteReviewBusy) return;
+    const target = deleteReviewTarget;
+    setDeleteReviewBusy(true);
+    const result = await jsonFetch(
+      `/api/v1/admin/reviews/${encodeURIComponent(target.id)}`,
+      { method: "DELETE" }
+    );
+    setDeleteReviewBusy(false);
+    if (result.ok) {
+      toast({
+        title: "Review removed",
+        description: `Deleted ${target.patientName}'s review of ${target.doctorName}.`,
+      });
+      setDeleteReviewTarget(null);
+      loadReviews();
+    } else {
+      toast({
+        title: "Could not remove review",
+        description: result.message,
+        variant: "destructive",
+      });
+    }
   }
 
   const filteredDoctors = useMemo(() => {
@@ -494,6 +686,12 @@ function AdminConsole() {
           </TabsTrigger>
           <TabsTrigger value="doctors" className="h-9 flex-1 sm:flex-none">
             Doctors
+          </TabsTrigger>
+          <TabsTrigger value="users" className="h-9 flex-1 sm:flex-none">
+            Users
+          </TabsTrigger>
+          <TabsTrigger value="reviews" className="h-9 flex-1 sm:flex-none">
+            Reviews
           </TabsTrigger>
           <TabsTrigger value="audit" className="h-9 flex-1 sm:flex-none">
             Audit Log
@@ -738,6 +936,241 @@ function AdminConsole() {
           )}
         </TabsContent>
 
+        {/* ----------------------------- Users ----------------------------- */}
+        <TabsContent value="users" className="mt-4 space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={userSearchInput}
+                onChange={(e) => setUserSearchInput(e.target.value)}
+                placeholder="Search by name, email or phone..."
+                className="pl-9"
+                aria-label="Search users"
+              />
+            </div>
+            <Select value={userRoleFilter} onValueChange={setUserRoleFilter}>
+              <SelectTrigger
+                className="w-full sm:w-40"
+                aria-label="Filter users by role"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All roles</SelectItem>
+                <SelectItem value="PATIENT">Patients</SelectItem>
+                <SelectItem value="DOCTOR">Doctors</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {usersLoading ? (
+            <Skeleton className="h-64" />
+          ) : usersError ? (
+            <Alert variant="destructive">
+              <X />
+              <AlertTitle>Could not load users</AlertTitle>
+              <AlertDescription className="flex items-center gap-2">
+                <span>{usersError}</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => loadUsers(userRoleFilter, userSearch)}
+                >
+                  Retry
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <div className="medbriq-scroll max-h-[520px] overflow-auto rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="pl-4">Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Provider</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Joined</TableHead>
+                    <TableHead className="pr-4">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {users.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={8}
+                        className="py-10 text-center text-muted-foreground"
+                      >
+                        No users match your search.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    users.map((u) => {
+                      // Admins and the signed-in admin cannot be modified here.
+                      const manageable =
+                        u.role !== "ADMIN" && u.id !== currentUserId;
+                      return (
+                        <TableRow key={u.id}>
+                          <TableCell className="pl-4">
+                            <div className="flex items-center gap-2.5">
+                              <Avatar className="h-7 w-7">
+                                <AvatarFallback className="bg-secondary text-[10px] font-semibold">
+                                  {initials(u.name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="font-medium">{u.name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="max-w-[180px] truncate">
+                            {u.email}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {u.phone ?? "—"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                u.role === "DOCTOR" ? "secondary" : "outline"
+                              }
+                            >
+                              {roleLabel(u.role)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {providerLabel(u.provider)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {u.status === "SUSPENDED" ? (
+                              <Badge variant="destructive">Suspended</Badge>
+                            ) : (
+                              <Badge className="bg-success text-success-foreground hover:bg-success">
+                                Active
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {dateOnlyLabel(u.createdAt)}
+                          </TableCell>
+                          <TableCell className="pr-4">
+                            {manageable ? (
+                              u.status === "SUSPENDED" ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1.5 border-success/50 text-success hover:bg-success/10 hover:text-success"
+                                  disabled={userStatusBusy}
+                                  onClick={() => setUserStatusTarget(u)}
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                  Reactivate
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                  disabled={userStatusBusy}
+                                  onClick={() => setUserStatusTarget(u)}
+                                >
+                                  <Ban className="h-3.5 w-3.5" />
+                                  Suspend
+                                </Button>
+                              )
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                —
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ---------------------------- Reviews ---------------------------- */}
+        <TabsContent value="reviews" className="mt-4">
+          {reviewsLoading ? (
+            <Skeleton className="h-64" />
+          ) : reviewsError ? (
+            <Alert variant="destructive">
+              <X />
+              <AlertTitle>Could not load reviews</AlertTitle>
+              <AlertDescription className="flex items-center gap-2">
+                <span>{reviewsError}</span>
+                <Button size="sm" variant="outline" onClick={loadReviews}>
+                  Retry
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : reviews.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center gap-2 p-10 text-center">
+                <Star className="h-8 w-8 text-muted-foreground" />
+                <p className="font-medium">No reviews yet</p>
+                <p className="text-sm text-muted-foreground">
+                  Patient reviews will appear here for moderation.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="medbriq-scroll max-h-[520px] space-y-3 overflow-y-auto pr-1">
+              {reviews.map((review) => (
+                <Card key={review.id} className="py-0">
+                  <CardContent className="space-y-2 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <button
+                          type="button"
+                          className="font-medium text-primary hover:underline"
+                          onClick={() =>
+                            navigate({ name: "doctor", slug: review.doctorSlug })
+                          }
+                        >
+                          {review.doctorName}
+                        </button>
+                        <p className="text-xs text-muted-foreground">
+                          reviewed by {review.patientName}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <StarRating rating={review.rating} />
+                        <span className="text-xs text-muted-foreground">
+                          {dateOnlyLabel(review.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                    {review.comment && (
+                      <p className="line-clamp-2 text-sm text-muted-foreground">
+                        {review.comment}
+                      </p>
+                    )}
+                    <div className="flex justify-end border-t pt-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => setDeleteReviewTarget(review)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Remove review
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
         {/* ---------------------------- Audit log ---------------------------- */}
         <TabsContent value="audit" className="mt-4">
           {logsLoading ? (
@@ -859,6 +1292,92 @@ function AdminConsole() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Suspend / reactivate user confirmation */}
+      <AlertDialog
+        open={userStatusTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setUserStatusTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {userStatusTarget?.status === "SUSPENDED"
+                ? "Reactivate this account?"
+                : "Suspend this account?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {userStatusTarget
+                ? userStatusTarget.status === "SUSPENDED"
+                  ? `${userStatusTarget.name} (${userStatusTarget.email}) will be able to sign in and use the platform again.`
+                  : `${userStatusTarget.name} (${userStatusTarget.email}) will be blocked from signing in until the account is reactivated.`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={userStatusBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className={
+                userStatusTarget?.status === "SUSPENDED"
+                  ? undefined
+                  : buttonVariants({ variant: "destructive" })
+              }
+              disabled={userStatusBusy}
+              onClick={(e) => {
+                // Keep the dialog open until the request settles.
+                e.preventDefault();
+                void confirmUserStatus();
+              }}
+            >
+              {userStatusBusy && (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              )}
+              {userStatusTarget?.status === "SUSPENDED"
+                ? "Reactivate"
+                : "Suspend"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Remove review confirmation */}
+      <AlertDialog
+        open={deleteReviewTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteReviewTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove review?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteReviewTarget
+                ? `This permanently deletes ${deleteReviewTarget.patientName}'s ${deleteReviewTarget.rating}-star review of ${deleteReviewTarget.doctorName}. The action cannot be undone.`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteReviewBusy}>
+              Keep review
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className={buttonVariants({ variant: "destructive" })}
+              disabled={deleteReviewBusy}
+              onClick={(e) => {
+                // Keep the dialog open until the request settles.
+                e.preventDefault();
+                void confirmDeleteReview();
+              }}
+            >
+              {deleteReviewBusy && (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              )}
+              Remove review
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -18,6 +18,19 @@ export type SessionUser = {
   role: Role;
   doctorSlug: string | null;
   verificationStatus: string | null;
+  phone: string | null;
+  phoneVerified: boolean;
+  provider: string; // credentials | google | phone
+  avatarUrl: string | null;
+};
+
+/** GET /api/v1/auth/config — which alternative sign-in methods are available. */
+export type AuthConfig = {
+  googleEnabled: boolean;
+  googleClientId: string | null;
+  phoneOtpEnabled: boolean;
+  /** true when OTPs are returned in the API response (dev mode, no SMS provider) */
+  devOtpMode: boolean;
 };
 
 export type SpecialtyInfo = {
@@ -97,6 +110,7 @@ export type AppointmentDto = {
   patientGender: string | null;
   notes: string | null;
   doctorNote: string | null;
+  consultationNote: string | null;
   createdAt: string;
   doctor: {
     slug: string;
@@ -127,6 +141,13 @@ export type DoctorDashboardData = {
     completedTotal: number;
     ratingAvg: number | null;
     ratingCount: number;
+    /** Simulated earnings (Phase 7 preview): COMPLETED appointments only. */
+    earnings: {
+      completedRevenue: number;
+      platformCommission: number;
+      netEarnings: number;
+      currency: string;
+    };
   };
   pending: AppointmentDto[];
   upcoming: AppointmentDto[];
@@ -165,6 +186,55 @@ export type AuditLogItem = {
   meta: string | null;
   createdAt: string;
   actorName: string | null;
+};
+
+/** In-app notification (Phase 9 core slice). */
+export type NotificationItem = {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  meta: string | null; // JSON string: { appointmentId?, referenceCode?, doctorSlug? }
+  readAt: string | null;
+  createdAt: string;
+};
+
+/** Admin user-directory row. */
+export type AdminUserItem = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  role: string;
+  status: string;
+  provider: string;
+  phoneVerified: boolean;
+  createdAt: string;
+  doctorSlug: string | null;
+  verificationStatus: string | null;
+};
+
+/** Review for the admin moderation queue. */
+export type ModerationReviewItem = {
+  id: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  patientName: string;
+  doctorName: string;
+  doctorSlug: string;
+};
+
+/** Public hospital directory row (Phase 6 public slice). */
+export type HospitalInfo = {
+  id: string;
+  name: string;
+  slug: string;
+  city: string;
+  address: string | null;
+  phone: string | null;
+  about: string | null;
+  doctorCount: number;
 };
 
 export type SearchFilters = {

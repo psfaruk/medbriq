@@ -3,9 +3,11 @@ import { z } from "zod";
 import { fail, handleRouteError, ok } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { getStore } from "@/lib/data";
-import { APPOINTMENT_STATUS, ROLES } from "@/lib/constants";
+import { APPOINTMENT_STATUS, NOTIFICATION_TYPES, ROLES } from "@/lib/constants";
 import {
+  doctorDisplayName,
   logAppointmentAction,
+  notifyUser,
   toAppointmentDto,
 } from "@/app/api/v1/_lib/booking";
 
@@ -74,6 +76,20 @@ export async function POST(
     await logAppointmentAction("APPOINTMENT_REJECTED", updated.id, user.id, {
       reason: parsed.data.reason,
     });
+
+    // Privacy: the notification never contains the rejection reason — the
+    // patient reads it in the appointment detail instead.
+    await notifyUser(
+      updated.patientId,
+      NOTIFICATION_TYPES.APPOINTMENT_REJECTED,
+      "Appointment rejected",
+      `${doctorDisplayName(updated.doctor.name)} could not accept your appointment (${updated.referenceCode}).`,
+      {
+        appointmentId: updated.id,
+        referenceCode: updated.referenceCode,
+        doctorSlug: updated.doctor.slug,
+      }
+    );
 
     return ok({ appointment: toAppointmentDto(updated) });
   } catch (err) {

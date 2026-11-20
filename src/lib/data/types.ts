@@ -56,6 +56,9 @@ export type AuthUser = {
   phone: string | null;
   role: string; // PATIENT | DOCTOR | ADMIN
   status: string; // ACTIVE | SUSPENDED
+  provider: string; // credentials | google | phone
+  phoneVerified: boolean;
+  avatarUrl: string | null;
   doctorSlug: string | null;
   verificationStatus: string | null;
 };
@@ -75,6 +78,10 @@ export type SessionRecord = {
     email: string;
     role: string;
     status: string;
+    provider: string;
+    phone: string | null;
+    phoneVerified: boolean;
+    avatarUrl: string | null;
     doctorSlug: string | null;
     verificationStatus: string | null;
   };
@@ -157,6 +164,7 @@ export type AppointmentRecord = {
   fee: number;
   currency: string;
   doctorNote: string | null;
+  consultationNote: string | null;
   createdAt: string; // ISO
   updatedAt: string; // ISO
   doctor: {
@@ -178,6 +186,51 @@ export type ReviewRecord = {
   comment: string | null;
   createdAt: string; // ISO
   patientName: string;
+};
+
+/** Review + doctor join for the admin moderation queue. */
+export type ModerationReviewRecord = ReviewRecord & {
+  doctorSlug: string;
+  doctorName: string;
+};
+
+/** In-app notification row (Phase 9 core slice). */
+export type NotificationRecord = {
+  id: string;
+  userId: string;
+  type: string; // see NOTIFICATION_TYPES
+  title: string;
+  body: string;
+  meta: string | null; // JSON string
+  readAt: string | null; // ISO
+  createdAt: string; // ISO
+};
+
+/** Admin user-directory row. */
+export type AdminUserRecord = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  role: string;
+  status: string;
+  provider: string;
+  phoneVerified: boolean;
+  createdAt: string; // ISO
+  doctorSlug: string | null;
+  verificationStatus: string | null;
+};
+
+/** Public hospital directory row (Phase 6 public slice). */
+export type HospitalRecord = {
+  id: string;
+  name: string;
+  slug: string;
+  city: string;
+  address: string | null;
+  phone: string | null;
+  about: string | null;
+  doctorCount: number; // doctors in PUBLIC_STATUSES
 };
 
 export type AuditLogRecord = {
@@ -270,6 +323,7 @@ export type CreateAppointmentInput = {
 export type AppointmentPatch = {
   status?: string;
   doctorNote?: string | null;
+  consultationNote?: string | null;
 };
 
 export type CreateAuditLogInput = {
@@ -278,6 +332,56 @@ export type CreateAuditLogInput = {
   entity: string;
   entityId: string | null;
   meta: string | null; // JSON string
+};
+
+/** Find-or-create inputs for the OTP (phone) and Google auth flows. */
+export type CreatePhoneUserInput = {
+  /** normalized BD number, e.g. +8801712345678 */
+  phone: string;
+  name: string;
+  email: string; // deterministic synthetic email, e.g. p_8801712345678@phone.medbriq.dev
+};
+
+export type UpsertGoogleUserInput = {
+  email: string; // Google-verified email (lowercased)
+  name: string;
+  avatarUrl: string | null;
+};
+
+/** Self-service profile patch (PATCH /api/v1/auth/me). */
+export type UserProfilePatch = {
+  name?: string;
+  phone?: string | null;
+  avatarUrl?: string | null;
+};
+
+export type CreateOtpCodeInput = {
+  phone: string;
+  codeHash: string;
+  purpose: string; // LOGIN | RESET
+  expiresAtIso: string;
+};
+
+export type ActiveOtpCode = {
+  id: string;
+  codeHash: string;
+  attempts: number;
+  expiresAt: string; // ISO
+};
+
+export type CreateNotificationInput = {
+  userId: string;
+  type: string;
+  title: string;
+  body: string;
+  meta: string | null; // JSON string
+};
+
+export type CreateReviewInput = {
+  doctorId: string;
+  patientId: string;
+  rating: number; // 1..5
+  comment: string | null;
 };
 
 /** DB-level filters of the public doctor search (see GET /api/v1/doctors). */
@@ -311,6 +415,20 @@ export interface DataStore {
   // ── Auth / users / sessions ──────────────────────────────────────────
   /** Find a user by email (login + registration duplicate check). */
   findUserByEmail(email: string): Promise<AuthUserWithCredentials | null>;
+  /** Find a user by normalized phone (OTP login + password reset). */
+  findUserByPhone(phone: string): Promise<AuthUserWithCredentials | null>;
+  /** Find-or-create a PATIENT account for a phone-OTP login. */
+  findOrCreatePhoneUser(input: CreatePhoneUserInput): Promise<{ user: AuthUser; created: boolean }>;
+  /** Find-or-create/link a PATIENT account for a Google sign-in. */
+  upsertGoogleUser(input: UpsertGoogleUserInput): Promise<{ user: AuthUser; created: boolean }>;
+  /** Self-service profile updates (name / phone / avatar). */
+  updateUserProfile(userId: string, patch: UserProfilePatch): Promise<AuthUser>;
+  /** Replace the password hash ("" sentinel = no password set yet). */
+  updateUserPassword(userId: string, passwordHash: string): Promise<void>;
+  /** Mark the user's phone as verified (OTP flows). */
+  setUserPhoneVerified(userId: string): Promise<void>;
+  /** Admin: suspend or reactivate an account. */
+  updateUserStatus(userId: string, status: string): Promise<void>;
   /** Create a PATIENT user. */
   createPatientUser(input: CreatePatientUserInput): Promise<AuthUser>;
   /** Create a DOCTOR user + profile + specialty link atomically. */
@@ -323,6 +441,26 @@ export interface DataStore {
   deleteSessionById(id: string): Promise<void>;
   /** Delete session(s) for a token (logout). */
   deleteSessionsByToken(token: string): Promise<void>;
+
+  // ── Phone OTP codes ──────────────────────────────────────────────────
+  /** Invalidate previous active codes and persist a new one. */
+  createOtpCode(input: CreateOtpCodeInput): Promise<void>;
+  /** The newest unconsumed, unexpired code for (phone, purpose). */
+  findActiveOtpCode(phone: string, purpose: string): Promise<ActiveOtpCode | null>;
+  /** +1 failed attempt (locks the code after OTP_MAX_ATTEMPTS). */
+  incrementOtpAttempts(id: string): Promise<void>;
+  /** Mark consumed (single use). */
+  consumeOtpCode(id: string): Promise<void>;
+
+  // ── Notifications (Phase 9 core slice) ────────────────────────
+  createNotification(input: CreateNotificationInput): Promise<void>;
+  /** Newest-first list for the bell/notification center. */
+  listNotifications(userId: string, limit: number): Promise<NotificationRecord[]>;
+  countUnreadNotifications(userId: string): Promise<number>;
+  /** Mark one notification read; false when not found/not owned. */
+  markNotificationRead(id: string, userId: string): Promise<boolean>;
+  /** Mark all owned notifications read; returns the updated count. */
+  markAllNotificationsRead(userId: string): Promise<number>;
 
   // ── Reference data ───────────────────────────────────────────────────
   findSpecialtyBySlug(slug: string): Promise<SpecialtyRecord | null>;
@@ -380,6 +518,20 @@ export interface DataStore {
   // ── Reviews ──────────────────────────────────────────────────────────
   /** All reviews of a doctor, newest first (route slices/aggregates). */
   listReviewsByDoctor(doctorId: string): Promise<ReviewRecord[]>;
+  /** One patient's review of one doctor (dedupe check). */
+  findReviewByDoctorAndPatient(doctorId: string, patientId: string): Promise<ReviewRecord | null>;
+  /** Create a review (unique per doctor+patient enforced by the DB). */
+  createReview(input: CreateReviewInput): Promise<ReviewRecord>;
+  /** Recent reviews across all doctors with doctor names (admin moderation). */
+  listRecentReviews(limit: number): Promise<ModerationReviewRecord[]>;
+  /** Admin moderation delete; false when not found. */
+  deleteReview(id: string): Promise<boolean>;
+
+  /** Public hospital directory with doctor counts in the public statuses. */
+  listHospitals(): Promise<HospitalRecord[]>;
+
+  /** User directory with optional role filter and name/email/phone search. */
+  listUsers(filters: { role?: string; q?: string }): Promise<AdminUserRecord[]>;
 
   // ── Admin ────────────────────────────────────────────────────────────
   getAdminStats(): Promise<AdminStats>;

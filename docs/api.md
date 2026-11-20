@@ -88,15 +88,60 @@ Deletes the server-side session row and clears the cookie. Response: `200` `{ su
 Responses: `200` `{ user: SessionUser }` · `401 UNAUTHORIZED` (no/invalid session — the
 SPA treats this as “guest”).
 
+#### `PATCH /auth/me` — update own profile (authenticated)
+Body: `{ "name": "…", "phone": "+8801…" }` (both optional; `phone: null` or `""` clears it).
+Responses: `200` `{ user: SessionUser }` · `400 VALIDATION_ERROR` (non-BD phone) ·
+`409 PHONE_TAKEN`.
+
+#### `POST /auth/password` — set or change password (authenticated)
+Body: `{ "currentPassword": "…", "newPassword": "…" }`. `currentPassword` is required
+when the account already has a password; Google/phone accounts without one may set a
+password directly. Responses: `200` `{ changed: true }` · `401 INVALID_CREDENTIALS`.
+
 **SessionUser** (shared shape):
 ```jsonc
 {
   "id": "…", "name": "…", "email": "…",
   "role": "PATIENT",            // PATIENT | DOCTOR | ADMIN
   "doctorSlug": "dr-ayesha-rahman",  // null unless DOCTOR
-  "verificationStatus": "VERIFIED"   // null unless DOCTOR
+  "verificationStatus": "VERIFIED",  // null unless DOCTOR
+  "phone": "+8801712345678",          // null when unset
+  "phoneVerified": true,              // true after an OTP flow
+  "provider": "credentials",          // credentials | google | phone
+  "avatarUrl": null                    // Google profile picture when present
 }
 ```
+
+#### `GET /auth/config` — available sign-in methods (public)
+Response: `200` `{ googleEnabled, googleClientId, phoneOtpEnabled, devOtpMode }`.
+`devOtpMode` is true while `SMS_PROVIDER=console` (no SMS provider wired) — OTP codes are
+then returned in API responses and shown in the UI, clearly labeled as dev mode.
+
+#### `POST /auth/otp/request` — request a login code (public, rate-limited)
+Body: `{ "phone": "01XXXXXXXXX" }` — BD numbers are normalized to `+8801XXXXXXXXX`.
+Responses: `202` `{ sent: true, expiresInSeconds: 300, devCode? }` (`devCode` only in
+dev mode) · `400 VALIDATION_ERROR` · `429 RATE_LIMITED` (3 requests / 10 min / phone).
+
+#### `POST /auth/otp/verify` — verify the code and sign in (public)
+Body: `{ "phone": "…", "code": "123456", "name": "optional for new accounts" }`.
+Creates a PATIENT account on first use (synthetic email `p_<phone>@phone.medbriq.dev`,
+provider `phone`, `phoneVerified: true`). Responses: `200` `{ user: SessionUser,
+isNewAccount }` · `400 INVALID_CODE` (message includes remaining attempts) ·
+`429 TOO_MANY_ATTEMPTS` (5 attempts / code) · `403 ACCOUNT_SUSPENDED`.
+
+#### `POST /auth/google` — Google Sign-In (public)
+Body: `{ "credential": "<Google ID token from GIS>" }`. The token is verified server-side
+(audience / `email_verified` / `exp`); accounts are created or linked by verified email.
+Responses: `200` `{ user: SessionUser, isNewAccount }` · `503 GOOGLE_NOT_CONFIGURED` ·
+`400 INVALID_GOOGLE_TOKEN`.
+
+#### `POST /auth/forgot-password` — request a reset code (public, rate-limited)
+Body: `{ "phone": "…" }`. Enumeration-safe: the response shape is identical whether or
+not an account exists for the phone. Response: `202` (same shape as `/auth/otp/request`).
+
+#### `POST /auth/reset-password` — reset via OTP (public)
+Body: `{ "phone": "…", "code": "…", "newPassword": "…" }` (min 8 chars).
+Responses: `200` `{ changed: true }` · `400 INVALID_CODE` · `429 TOO_MANY_ATTEMPTS`.
 
 ### 3.2 Doctors (public directory)
 
@@ -164,6 +209,15 @@ Response `200`:
   "ratingAvg": 4.5, "ratingCount": 2 }
 ```
 
+#### `POST /doctors/[slug]/reviews` — rate a completed visit (PATIENT only)
+Body: `{ "rating": 5, "comment": "…" }` (`rating` 1–5 required; `comment` ≤1000 chars
+optional). Eligibility: the caller must have a `COMPLETED` appointment with this doctor
+and must not have reviewed them before (`@@unique([doctorId, patientId])`).
+Responses: `201` `{ review: { id, rating, comment, createdAt, patientName } }` ·
+`403 NOT_ELIGIBLE` (no completed appointment) · `409 ALREADY_REVIEWED` ·
+`404 DOCTOR_NOT_FOUND`. The doctor receives a `REVIEW_RECEIVED` notification
+(rating only — never the comment text).
+
 ### 3.3 Reference data (public)
 
 #### `GET /specialties`
@@ -184,6 +238,35 @@ Response `200`:
   "currency": "BDT",
   "emergencyNumber": "999" }
 ```
+
+#### `GET /hospitals` — public hospital directory (Phase 6 public slice)
+Response `200`:
+```jsonc
+{ "items": [
+  { "id": "…", "name": "Greenview General Hospital", "slug": "greenview-general-hospital",
+    "city": "Dhaka", "address": "…", "phone": "+880 …", "about": "…",
+    "doctorCount": 3 }   // doctors in the public statuses
+] }
+```
+
+### 3.3b Notifications (authenticated — Phase 9 core slice)
+
+#### `GET /notifications`
+Response `200`: `{ "items": [ NotificationItem … ], "unreadCount": 2 }` (newest first,
+capped at 50). **NotificationItem:**
+```jsonc
+{ "id": "…", "type": "APPOINTMENT_APPROVED",   // see NOTIFICATION_TYPES in constants.ts
+  "title": "Appointment approved", "body": "Dr. Ayesha Rahman approved your appointment (MB-…).",
+  "meta": "{\"appointmentId\":\"…\",\"referenceCode\":\"MB-…\",\"doctorSlug\":\"dr-…\"}",
+  "readAt": null, "createdAt": "…" }
+```
+Notification bodies never contain medical information (no notes, no review comments).
+
+#### `POST /notifications/:id/read` — mark one read
+Response: `200` `{ read: true }` · `404 NOT_FOUND` (not owned).
+
+#### `POST /notifications/read-all` — mark everything read
+Response: `200` `{ updated: <count> }`.
 
 ### 3.4 Appointments
 
@@ -210,7 +293,7 @@ Response `200`: `{ "appointments": [ AppointmentDto … ] }` ·
   "slotStart": "2026-11-21T11:00:00.000Z", "slotEnd": "2026-11-21T11:30:00.000Z",
   "patientName": "…", "patientPhone": "…", "patientAge": 34,
   "patientGender": "MALE",
-  "notes": "…", "doctorNote": null, "createdAt": "…",
+  "notes": "…", "doctorNote": null, "consultationNote": null, "createdAt": "…",
   "doctor": { "slug": "dr-ayesha-rahman", "name": "Dr. Ayesha Rahman", "city": "Dhaka",
               "consultationFee": 1000, "specialties": ["Medicine & Diabetology"] },
   "patientId": "…"
@@ -268,7 +351,10 @@ Responses: `200` `{ appointment }` · `403 FORBIDDEN` · `409 INVALID_STATE`.
 
 #### `POST /appointments/[id]/complete` — doctor marks a visit done
 **DOCTOR only**, own appointment, `CONFIRMED` → `COMPLETED` (terminal).
-Responses: `200` `{ appointment }` · `403 FORBIDDEN` · `409 INVALID_STATE`.
+Body: `{ "consultationNote": "…" }` (optional, ≤2000 chars — stored on the appointment
+and shown to the patient in their history).
+Responses: `200` `{ appointment }` · `403 FORBIDDEN` · `409 INVALID_STATE` ·
+`400 NOT_ENDED` (the consultation time has not ended yet).
 
 > State-transition rules and blocking statuses are specified in
 > [database.md §3.1](database.md#31-appointment-state-machine). Transitions that would
@@ -281,7 +367,10 @@ Response `200`:
 ```jsonc
 {
   "stats": { "todayTotal": 3, "pendingRequests": 2, "confirmedUpcoming": 4,
-             "completedTotal": 12, "ratingAvg": 4.5, "ratingCount": 2 },
+             "completedTotal": 12, "ratingAvg": 4.5, "ratingCount": 2,
+             "earnings": {                     // SIMULATED Phase-7 preview (no real payments)
+               "completedRevenue": 12000, "platformCommission": 1200,
+               "netEarnings": 10800, "currency": "BDT" } },
   "pending": [ AppointmentDto … ],     // PENDING_APPROVAL queue
   "upcoming": [ AppointmentDto … ],    // upcoming CONFIRMED
   "availability": [ { "id": "…", "dayOfWeek": 6, "startMinute": 1020, "endMinute": 1260, "isActive": true } ]
@@ -335,6 +424,26 @@ Responses: `200` `{ doctor: VerificationItem }` · `404 NOT_FOUND` ·
 #### `GET /admin/doctors`
 All doctors with verification status (supports the same filter params as `GET /doctors`
 where applicable). Response `200`: `{ "doctors": [ DoctorCard … ] }`.
+
+#### `GET /admin/users` — user directory (Phase 11 slice)
+Query: `?role=PATIENT|DOCTOR|ADMIN` (optional) and `?q=<name/email/phone search>`
+(optional). Response `200`: `{ "items": [ AdminUserItem … ] }` where each item carries
+`id`, `name`, `email`, `phone`, `role`, `status`, `provider`, `phoneVerified`,
+`createdAt`, `doctorSlug`, `verificationStatus`.
+
+#### `POST /admin/users/[id]/status` — suspend / reactivate (audited)
+Body: `{ "status": "ACTIVE" | "SUSPENDED" }`. Guards: an admin cannot change their own
+status and cannot modify ADMIN accounts; suspended users lose their sessions immediately.
+Responses: `200` `{ status }` · `400 CANNOT_MODIFY_SELF` · `403 FORBIDDEN` (ADMIN target).
+
+#### `GET /admin/reviews` — review moderation queue (Phase 11 slice)
+Response `200`: `{ "items": [ ModerationReviewItem … ] }` (newest first, capped at 100)
+where each item carries `id`, `rating`, `comment`, `createdAt`, `patientName`,
+`doctorName`, `doctorSlug`.
+
+#### `DELETE /admin/reviews/[id]` — remove a review (audited)
+Response: `200` `{ deleted: true }` · `404 NOT_FOUND`. Writes an `AuditLog` row
+(`REVIEW_DELETED`).
 
 #### `GET /admin/audit-logs`
 Response `200`:

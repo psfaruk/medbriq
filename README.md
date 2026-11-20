@@ -23,27 +23,45 @@
 - **Instant booking** (doctor allows it) and **doctor-approval booking** requests
 - **Guest bookings** without an account, tracked by a reference code (`MB-XXXXXX`) + phone lookup
 - Appointment history, cancellation, and rescheduling
+- **Consultation notes** from the doctor on completed visits
+- **Rate completed visits** (1–5 stars + comment; one review per doctor per patient)
 - Account registration / login / logout
 
+### Authentication (three methods)
+- **Email + password** (scrypt, opaque DB sessions, RBAC)
+- **Mobile number OTP login** — Bangladeshi numbers (`01XXXXXXXXX` / `+8801…`) normalized to E.164; 6-digit codes hashed (`sha256(phone:purpose:code)`), 5-minute TTL, single-use, 5-attempt lockout, 3-requests-per-10-minutes per phone. No SMS provider is wired yet — a **clearly labeled dev mode** returns the code in the API response/UI (`SMS_PROVIDER=console`); a real provider slots into `src/lib/sms.ts`.
+- **Google Sign-In** — official Google Identity Services button; the ID token is verified server-side (audience / `email_verified` / `exp` via Google’s tokeninfo endpoint) and accounts are created or linked by verified email. Requires `GOOGLE_CLIENT_ID`; when unset the UI shows an honest “not configured” state.
+- **Password reset via phone OTP** (enumeration-safe), **set/change password** for Google/phone accounts, self-service **profile & phone editing** (`PATCH /api/v1/auth/me`)
+
+### Notifications (Phase 9 core slice)
+- In-app notification center (bell + popover, unread badge, 30s polling)
+- Events: appointment requested (to doctor), approved/rejected/cancelled/completed/rescheduled (to patient), instant-booking confirmation, new review (to doctor)
+- Bodies carry **no medical content** — only names, dates and reference codes
+
 ### Doctor (dashboard)
-- Dashboard overview: today’s appointments, pending requests, upcoming confirmed, completed total, rating
+- Dashboard overview: today’s appointments, pending requests, upcoming confirmed, completed total, rating, **estimated earnings** (simulated Phase-7 preview: completed revenue − 10% platform commission)
 - Weekly availability manager (per-weekday time windows)
 - Profile editor (bio, fees, chamber address, languages, video support, booking mode)
-- Appointment queue management: approve / reject (with reason) / complete / cancel
+- Appointment queue management: approve / reject (with reason) / **complete with an optional consultation note** / cancel
 
 ### Admin (console)
 - Platform statistics (users, doctors, verified/pending, appointments)
 - Doctor verification queue with decisions (approve / reject / request more info) — audited
+- **User management**: directory with search + role filter, provider/status columns, suspend/reactivate (guarded: admins cannot suspend themselves or other admins; audited)
+- **Review moderation**: recent reviews across all doctors with removal (audited)
 - Doctor directory, audit log viewer
+
+### Public hospital directory (Phase 6 public slice)
+- “Hospitals & clinics” section on the home page with city, address, phone and affiliated doctor counts; clicking filters doctor search by city
 
 ### Platform guarantees
 - **Database-level double-booking prevention** — one doctor, one appointment per exact slot start (unique constraint, not just a frontend check)
 - Verifiable booking lifecycle: `PENDING_APPROVAL → CONFIRMED / REJECTED / CANCELLED_BY_PATIENT / CANCELLED_BY_DOCTOR / COMPLETED / EXPIRED`
 - Role-based access control (PATIENT / DOCTOR / ADMIN) with server-side authorization
-- Audit logging of privileged actions (verification decisions, appointment transitions)
+- Audit logging of privileged actions (verification decisions, appointment transitions, suspensions, review moderation, password changes)
 - Emergency guidance (**999**) kept visible in the UI; the platform never provides medical advice, diagnosis, or prescriptions
 
-Not implemented at MVP (honest scope): payments (Phase 7 — provider-abstraction ready), video consultation calls (Phase 8 — only a support flag), notification channels (Phase 9), i18n localization (Phase 10), hospital dashboard (Phase 6), Flutter mobile apps, staging/production deployment (Phase 12).
+Not implemented at MVP (honest scope): real payment processing (Phase 7 — simulated earnings preview only), video consultation calls (Phase 8 — only a support flag), push/email/SMS notification channels (Phase 9 — in-app only), i18n localization (Phase 10 — Bengali font support only), hospital owner dashboards (Phase 6 — public directory only), Flutter mobile apps, staging/production deployment (Phase 12).
 
 ---
 
@@ -203,16 +221,16 @@ Development follows the 12-phase plan from the master product spec. Current stat
 | Phase | Scope | Status |
 | --- | --- | --- |
 | 1 | Foundation & architecture | ✅ Done (this MVP) |
-| 2 | Authentication & users | ✅ Core MVP slice (credentials auth, RBAC, sessions) |
-| 3 | Doctor directory & verification | ✅ Core MVP slice (search/filters, verification workflow, audit) |
+| 2 | Authentication & users | ✅ Core slice extended — email+password, **phone OTP login**, **Google Sign-In**, password reset via OTP, profile/password settings (email verification still deferred — needs an email provider) |
+| 3 | Doctor directory & verification | ✅ Core slice extended — search/filters, verification workflow, audit, **patient review writing** |
 | 4 | Appointment booking engine | ✅ Core MVP slice (slots, instant/approval, cancel/reschedule, DB-level concurrency guard) |
-| 5 | Doctor dashboard | ✅ Core MVP slice (stats, availability, queue management) |
-| 6 | Hospital & clinic management | ⛔ Not implemented (Hospital is a reference entity only) |
-| 7 | Payments & revenue | ⛔ Not implemented (provider-abstraction-ready design) |
+| 5 | Doctor dashboard | ✅ Core slice extended — stats, availability, queue management, **consultation notes**, **estimated earnings** (simulated) |
+| 6 | Hospital & clinic management | 🟡 Public directory slice (hospital cards + city-filter navigation); owner dashboards deferred |
+| 7 | Payments & revenue | 🟡 Simulated earnings preview only (10% commission math); real payments deferred |
 | 8 | Video consultation | ⛔ Not implemented (doctor *video support* flag only) |
-| 9 | Notifications | ⛔ Not implemented (in-app status changes only) |
+| 9 | Notifications | 🟡 In-app notification center done (all booking events + reviews); push/email/SMS channels deferred |
 | 10 | Localization & compliance | ⛔ Not implemented (Bengali *font* support only, no i18n framework) |
-| 11 | Admin, analytics & operations | ✅ Core MVP slice (stats, verification queue, audit logs) |
+| 11 | Admin, analytics & operations | ✅ Core slice extended — stats, verification queue, **user management (suspend/reactivate)**, **review moderation**, audit logs |
 | 12 | Final testing, security & launch | ⛔ Not implemented (no automated test suite, no staging/prod deploy) |
 
 Details, known issues, and the full acceptance-criteria checklist:

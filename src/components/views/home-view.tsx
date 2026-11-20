@@ -37,6 +37,7 @@ import { useToast } from "@/hooks/use-toast";
 import type {
   ApiResult,
   DoctorCard as DoctorCardData,
+  HospitalInfo,
   SpecialtyInfo,
 } from "@/lib/types";
 
@@ -119,6 +120,90 @@ const HOW_IT_WORKS: { icon: LucideIcon; title: string; text: string }[] = [
   },
 ];
 
+/**
+ * Hospital directory card. The whole card navigates to a city-filtered search
+ * via a stretched button; the phone number stays a real tel: link above it.
+ */
+function HospitalCard({
+  hospital,
+  onSelect,
+}: {
+  hospital: HospitalInfo;
+  onSelect: (hospital: HospitalInfo) => void;
+}) {
+  return (
+    <Card className="group relative h-full gap-3 py-4 transition-all duration-200 hover:border-primary/40 hover:shadow-md">
+      <CardContent className="flex h-full flex-col gap-3 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+            <Building2 className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <Badge variant="secondary">
+            {hospital.doctorCount}{" "}
+            {hospital.doctorCount === 1 ? "doctor" : "doctors"}
+          </Badge>
+        </div>
+        <div className="min-w-0 space-y-1.5">
+          <p className="truncate font-medium">{hospital.name}</p>
+          <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
+            <MapPin
+              className="mt-0.5 h-3.5 w-3.5 shrink-0"
+              aria-hidden="true"
+            />
+            <span className="line-clamp-2">
+              {hospital.city}
+              {hospital.address ? ` · ${hospital.address}` : ""}
+            </span>
+          </p>
+          {hospital.phone && (
+            <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <PhoneCall
+                className="h-3.5 w-3.5 shrink-0"
+                aria-hidden="true"
+              />
+              <a
+                href={`tel:${hospital.phone}`}
+                className="relative z-10 font-medium hover:text-foreground hover:underline"
+              >
+                {hospital.phone}
+              </a>
+            </p>
+          )}
+          {hospital.about && (
+            <p className="line-clamp-2 text-sm text-muted-foreground">
+              {hospital.about}
+            </p>
+          )}
+        </div>
+      </CardContent>
+      <button
+        type="button"
+        onClick={() => onSelect(hospital)}
+        aria-label={`Browse doctors in ${hospital.city} — ${hospital.name}`}
+        className="absolute inset-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      />
+    </Card>
+  );
+}
+
+function HospitalCardSkeleton() {
+  return (
+    <Card className="py-4">
+      <CardContent className="flex flex-col gap-3 p-4">
+        <div className="flex items-start justify-between">
+          <Skeleton className="h-10 w-10 rounded-xl" />
+          <Skeleton className="h-5 w-16 rounded-full" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-3 w-2/3" />
+          <Skeleton className="h-3 w-1/2" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function HomeView() {
   const navigate = useAppStore((state) => state.navigate);
   const setSearchFilters = useAppStore((state) => state.setSearchFilters);
@@ -136,6 +221,8 @@ export default function HomeView() {
   const [metaFailed, setMetaFailed] = useState(false);
   const [featured, setFeatured] = useState<DoctorCardData[] | null>(null);
   const [featuredFailed, setFeaturedFailed] = useState(false);
+  const [hospitals, setHospitals] = useState<HospitalInfo[] | null>(null);
+  const [hospitalsFailed, setHospitalsFailed] = useState(false);
 
   const loadSpecialties = useCallback(async () => {
     setSpecialtiesFailed(false);
@@ -182,6 +269,20 @@ export default function HomeView() {
     }
   }, []);
 
+  const loadHospitals = useCallback(async () => {
+    setHospitalsFailed(false);
+    try {
+      const data = await fetchApi<{ items: HospitalInfo[] }>(
+        "/api/v1/hospitals"
+      );
+      setHospitals(data.items);
+    } catch (err) {
+      // Spec: the hospitals section degrades silently on failure — log only.
+      console.error("[HomeView] Failed to load hospitals:", err);
+      setHospitalsFailed(true);
+    }
+  }, []);
+
   useEffect(() => {
     // Kick off loads asynchronously — the loaders set loading flags
     // synchronously, which is not allowed directly in an effect body
@@ -191,8 +292,9 @@ export default function HomeView() {
       loadSpecialties();
       loadMeta();
       loadFeatured();
+      loadHospitals();
     })();
-  }, [loadSpecialties, loadMeta, loadFeatured]);
+  }, [loadSpecialties, loadMeta, loadFeatured, loadHospitals]);
 
   const submitSearch = (event: FormEvent) => {
     event.preventDefault();
@@ -206,6 +308,11 @@ export default function HomeView() {
 
   const browseSpecialty = (slug: string) => {
     setSearchFilters({ specialty: slug });
+    navigate({ name: "search" });
+  };
+
+  const browseHospital = (hospital: HospitalInfo) => {
+    setSearchFilters({ city: hospital.city });
     navigate({ name: "search" });
   };
 
@@ -471,6 +578,41 @@ export default function HomeView() {
           ) : null}
         </section>
       )}
+
+      {/* -------------------------------------------------------------- */}
+      {/* Hospitals & clinics                                             */}
+      {/* -------------------------------------------------------------- */}
+      {(hospitals === null && !hospitalsFailed) ||
+      (hospitals !== null && hospitals.length > 0) ? (
+        <section
+          aria-labelledby="home-hospitals-heading"
+          className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12"
+        >
+          <h2
+            id="home-hospitals-heading"
+            className="text-2xl font-semibold tracking-tight"
+          >
+            Hospitals &amp; clinics
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Browse doctors by where they practice.
+          </p>
+
+          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {hospitals === null
+              ? Array.from({ length: 6 }).map((_, index) => (
+                  <HospitalCardSkeleton key={index} />
+                ))
+              : hospitals.map((hospital) => (
+                  <HospitalCard
+                    key={hospital.id}
+                    hospital={hospital}
+                    onSelect={browseHospital}
+                  />
+                ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* -------------------------------------------------------------- */}
       {/* How it works                                                    */}

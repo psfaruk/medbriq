@@ -8,6 +8,7 @@ import {
   APPOINTMENT_STATUS,
   BOOKING_MODE,
   DEFAULT_SLOT_MINUTES,
+  NOTIFICATION_TYPES,
 } from "@/lib/constants";
 import {
   generateReferenceCode,
@@ -15,7 +16,9 @@ import {
 } from "@/lib/slots";
 import {
   dateStrSchema,
+  doctorDisplayName,
   logAppointmentAction,
+  notifyUser,
   toAppointmentDto,
 } from "@/app/api/v1/_lib/booking";
 
@@ -206,6 +209,32 @@ export async function POST(req: NextRequest) {
       type: input.type,
       ...(user ? { patientId: user.id } : {}),
     });
+
+    // Fire-and-forget notifications (never fail the booking; no medical
+    // info in bodies). UTC date label only — the client renders local time.
+    const dateLabel = created.slotStart.slice(0, 10);
+    const notificationMeta = {
+      appointmentId: created.id,
+      referenceCode: created.referenceCode,
+      doctorSlug: created.doctor.slug,
+    };
+    if (bookingMode === BOOKING_MODE.APPROVAL) {
+      await notifyUser(
+        created.doctor.userId,
+        NOTIFICATION_TYPES.APPOINTMENT_REQUESTED,
+        "New appointment request",
+        `${created.patientName} requested ${dateLabel} (${created.referenceCode}).`,
+        notificationMeta
+      );
+    } else if (created.patientId) {
+      await notifyUser(
+        created.patientId,
+        NOTIFICATION_TYPES.APPOINTMENT_CONFIRMED,
+        "Booking confirmed",
+        `Your appointment with ${doctorDisplayName(created.doctor.name)} on ${dateLabel} is confirmed (${created.referenceCode}).`,
+        notificationMeta
+      );
+    }
 
     return ok({
       appointment: toAppointmentDto(created),

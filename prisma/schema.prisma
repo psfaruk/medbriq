@@ -20,21 +20,60 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  phone        String?
-  role         String   @default("PATIENT") // PATIENT | DOCTOR | ADMIN (see constants.ts)
-  status       String   @default("ACTIVE") // ACTIVE | SUSPENDED
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String // "" sentinel for OAuth/phone-only accounts (no password set yet)
+  name          String
+  phone         String?
+  // Auth provider that created (or most recently linked to) this account:
+  // credentials | google | phone. Credential logins remain possible while a
+  // password hash exists; see docs/security.md.
+  provider      String   @default("credentials")
+  phoneVerified Boolean  @default(false)
+  avatarUrl     String?
+  role          String   @default("PATIENT") // PATIENT | DOCTOR | ADMIN (see constants.ts)
+  status        String   @default("ACTIVE") // ACTIVE | SUSPENDED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   doctorProfile DoctorProfile?
   sessions      Session[]
   appointments  Appointment[]  @relation("PatientAppointments")
   reviews       Review[]
   auditLogs     AuditLog[]
+  notifications Notification[]
+}
+
+// Phone-OTP verification codes (login + password reset). Codes are stored as
+// sha256("phone:purpose:code") so a DB leak does not reveal usable codes.
+model OtpCode {
+  id        String   @id @default(cuid())
+  phone     String // normalized BD number, e.g. +8801712345678
+  codeHash  String
+  purpose   String   @default("LOGIN") // LOGIN | RESET
+  attempts  Int      @default(0)
+  consumed  Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([phone, purpose])
+}
+
+// In-app notifications (Phase 9 core slice). Titles/bodies never contain
+// medical information (no patient notes) — only names, dates and reference
+// codes, per the master spec's notification privacy rule.
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // see NOTIFICATION_TYPES in src/lib/constants.ts
+  title     String
+  body      String
+  meta      String? // JSON string, e.g. {"appointmentId":"…","referenceCode":"MB-…"}
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
 }
 
 model Session {
@@ -153,6 +192,9 @@ model Appointment {
   fee           Float
   currency      String        @default("BDT")
   doctorNote    String? // rejection / cancellation reason
+  // Private consultation note the doctor may attach when completing an
+  // appointment (Phase 5 slice). Visible to the patient on their history.
+  consultationNote String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 

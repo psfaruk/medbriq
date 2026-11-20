@@ -57,6 +57,10 @@ export type SessionUser = {
   role: Role;
   doctorSlug: string | null;
   verificationStatus: string | null;
+  phone: string | null;
+  phoneVerified: boolean;
+  provider: string;
+  avatarUrl: string | null;
 };
 
 /**
@@ -85,6 +89,10 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
     role: session.user.role as Role,
     doctorSlug: session.user.doctorSlug,
     verificationStatus: session.user.verificationStatus,
+    phone: session.user.phone,
+    phoneVerified: session.user.phoneVerified,
+    provider: session.user.provider,
+    avatarUrl: session.user.avatarUrl,
   };
 }
 

@@ -4,7 +4,7 @@ import { getStore } from "@/lib/data";
 import { ok, fail, handleRouteError } from "@/lib/api";
 import { verifyPassword } from "@/lib/password";
 import { createSession } from "@/lib/auth";
-import type { SessionUser } from "@/lib/types";
+import { toSessionUser } from "@/app/api/v1/_lib/session-user";
 
 export const dynamic = "force-dynamic";
 
@@ -88,15 +88,7 @@ export async function POST(req: NextRequest) {
     attemptsByIp.delete(key);
 
     await createSession(user.id);
-    const sessionUser: SessionUser = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role as SessionUser["role"],
-      doctorSlug: user.doctorSlug,
-      verificationStatus: user.verificationStatus,
-    };
-    return ok({ user: sessionUser });
+    return ok({ user: toSessionUser(user) });
   } catch (err) {
     return handleRouteError(err);
   }

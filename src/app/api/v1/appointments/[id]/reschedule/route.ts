@@ -4,12 +4,14 @@ import { fail, handleRouteError, ok } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { getStore, SlotConflictError } from "@/lib/data";
 import type { AppointmentRecord } from "@/lib/data/types";
-import { APPOINTMENT_STATUS } from "@/lib/constants";
+import { APPOINTMENT_STATUS, NOTIFICATION_TYPES } from "@/lib/constants";
 import { validateBookableSlot } from "@/lib/slots";
 import {
   dateStrSchema,
+  doctorDisplayName,
   logAppointmentAction,
   normalizePhone,
+  notifyUser,
   toAppointmentDto,
 } from "@/app/api/v1/_lib/booking";
 
@@ -157,6 +159,28 @@ export async function POST(
           ? { statusResetTo: APPOINTMENT_STATUS.PENDING_APPROVAL }
           : {}),
       }
+    );
+
+    // Notify both sides about the new date (UTC label; client renders local).
+    const newDateLabel = updated.slotStart.slice(0, 10);
+    const rescheduleMeta = {
+      appointmentId: updated.id,
+      referenceCode: updated.referenceCode,
+      doctorSlug: updated.doctor.slug,
+    };
+    await notifyUser(
+      updated.doctor.userId,
+      NOTIFICATION_TYPES.APPOINTMENT_RESCHEDULED,
+      "Appointment rescheduled",
+      `${updated.patientName} rescheduled their appointment to ${newDateLabel} (${updated.referenceCode}).`,
+      rescheduleMeta
+    );
+    await notifyUser(
+      updated.patientId,
+      NOTIFICATION_TYPES.APPOINTMENT_RESCHEDULED,
+      "Appointment rescheduled",
+      `Your appointment with ${doctorDisplayName(updated.doctor.name)} was rescheduled to ${newDateLabel} (${updated.referenceCode}).`,
+      rescheduleMeta
     );
 
     return ok({ appointment: toAppointmentDto(updated) });

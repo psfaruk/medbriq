@@ -57,6 +57,43 @@ export const SESSION_COOKIE = "medbriq_session";
 /** Session lifetime in days. */
 export const SESSION_TTL_DAYS = 7;
 
+// ── Authentication providers (User.provider) ────────────────────────────
+export const AUTH_PROVIDERS = {
+  CREDENTIALS: "credentials",
+  GOOGLE: "google",
+  PHONE: "phone",
+} as const;
+
+// ── Phone OTP (login + password reset) ──────────────────────────────────
+/** OTP code length (digits). */
+export const OTP_LENGTH = 6;
+/** OTP validity window in seconds. */
+export const OTP_TTL_SECONDS = 5 * 60;
+/** Max failed verify attempts per code before it is invalidated. */
+export const OTP_MAX_ATTEMPTS = 5;
+/** Max OTP requests per phone per rolling window (see otpRequestLimiter). */
+export const OTP_REQUEST_LIMIT = 3;
+/** Rolling window for OTP request limiting, in milliseconds. */
+export const OTP_REQUEST_WINDOW_MS = 10 * 60 * 1000;
+/** OTP purposes. */
+export const OTP_PURPOSE = {
+  LOGIN: "LOGIN",
+  RESET: "RESET",
+} as const;
+
+/** In-app notification types (Phase 9 core slice). */
+export const NOTIFICATION_TYPES = {
+  APPOINTMENT_REQUESTED: "APPOINTMENT_REQUESTED",
+  APPOINTMENT_APPROVED: "APPOINTMENT_APPROVED",
+  APPOINTMENT_REJECTED: "APPOINTMENT_REJECTED",
+  APPOINTMENT_CONFIRMED: "APPOINTMENT_CONFIRMED",
+  APPOINTMENT_CANCELLED_BY_PATIENT: "APPOINTMENT_CANCELLED_BY_PATIENT",
+  APPOINTMENT_CANCELLED_BY_DOCTOR: "APPOINTMENT_CANCELLED_BY_DOCTOR",
+  APPOINTMENT_COMPLETED: "APPOINTMENT_COMPLETED",
+  APPOINTMENT_RESCHEDULED: "APPOINTMENT_RESCHEDULED",
+  REVIEW_RECEIVED: "REVIEW_RECEIVED",
+} as const;
+
 /** Default slot length in minutes when a doctor has no finer configuration. */
 export const DEFAULT_SLOT_MINUTES = 30;
 
