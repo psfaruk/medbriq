@@ -35,6 +35,7 @@ const BLOCKING_STATUSES = [
   "PENDING_APPROVAL",
   "CONFIRMED",
   "COMPLETED",
+  "NO_SHOW", // the slot was consumed even though the patient did not attend
 ];
 
 export async function getSlotsForDate(

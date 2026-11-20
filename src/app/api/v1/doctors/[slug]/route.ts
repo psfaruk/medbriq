@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getStore } from "@/lib/data";
+import { FeeModuleUnavailableError } from "@/lib/data/types";
 import { fail, handleRouteError, ok } from "@/lib/api";
 import { CURRENCY, type VerificationStatus } from "@/lib/constants";
 import { getSlotsForDate } from "@/lib/slots";
@@ -59,6 +60,28 @@ export async function GET(
     // Active weekly rules, sorted by day then start time (contract order).
     const rules = await store.listAvailabilityRules(row.id);
 
+    // Doctor-wise fee structure (docs/FEE_SYSTEM.md). The fee module is
+    // gated per store (data-residency gate) — fall back to null there and
+    // let the UI render the legacy single-fee display.
+    let feeStructure: DoctorDetail["feeStructure"] = null;
+    try {
+      const settings = await store.getFeeSettings(row.id);
+      feeStructure = {
+        newPatientFee: settings.newPatientFee,
+        returningPatientFee: settings.returningPatientFee,
+        returningValidityValue: settings.returningValidityValue,
+        returningValidityUnit: settings.returningValidityUnit as "DAYS" | "MONTHS",
+        followUpEnabled: settings.followUpEnabled,
+        followUpFee: settings.followUpFee,
+        followUpValidityValue: settings.followUpValidityValue,
+        followUpValidityUnit: settings.followUpValidityUnit as "DAYS" | "MONTHS",
+        version: settings.version,
+        updatedAt: settings.updatedAt,
+      };
+    } catch (err) {
+      if (!(err instanceof FeeModuleUnavailableError)) throw err;
+    }
+
     const ratingCount = row.reviewRatings.length;
     const ratingAvg =
       ratingCount > 0
@@ -100,6 +123,7 @@ export async function GET(
       chamberAddress: row.chamberAddress,
       verifiedAt: row.verifiedAt,
       country: row.country,
+      feeStructure,
       hospital: row.hospital
         ? {
             name: row.hospital.name,

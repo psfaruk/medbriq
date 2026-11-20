@@ -4,6 +4,7 @@ import { fail, handleRouteError, ok } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { getStore } from "@/lib/data";
 import { APPOINTMENT_STATUS, NOTIFICATION_TYPES, ROLES } from "@/lib/constants";
+import { requireModule } from "@/lib/modules";
 import {
   doctorDisplayName,
   logAppointmentAction,
@@ -27,7 +28,12 @@ const completeSchema = z.object({
 
 /**
  * POST /api/v1/appointments/[id]/complete — doctor owner only.
- * Marks a CONFIRMED appointment COMPLETED once its slot has fully passed.
+ * Marks a CONFIRMED appointment COMPLETED once its slot has fully passed,
+ * and — in the SAME transaction — records the doctor_patient_history visit
+ * row that establishes/renews returning-patient eligibility
+ * (docs/FEE_SYSTEM.md §2.2). Only completed consultations with settled
+ * payment (NOT_REQUIRED or PAID) qualify; the flag is snapshotted onto the
+ * visit row so later payment changes never rewrite history.
  * An optional consultationNote (≤ 2000 chars) may be recorded with the visit.
  */
 export async function POST(
@@ -35,6 +41,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    requireModule("appointmentBooking");
+
     const { id } = await params;
 
     const user = await getCurrentUser();
@@ -84,14 +92,18 @@ export async function POST(
         ? parsed.data.consultationNote
         : null;
 
-    const updated = await getStore().updateAppointment(id, {
-      status: APPOINTMENT_STATUS.COMPLETED,
-      ...(consultationNote !== null ? { consultationNote } : {}),
+    const updated = await getStore().completeAppointmentWithVisit(id, {
+      consultationNote,
     });
 
     await logAppointmentAction("APPOINTMENT_COMPLETED", updated.id, user.id, {
       fromStatus: appointment.status,
       toStatus: updated.status,
+      patientType: updated.patientType,
+      fee: updated.fee,
+      qualifyingVisitRecorded:
+        updated.paymentStatus === "NOT_REQUIRED" ||
+        updated.paymentStatus === "PAID",
       ...(consultationNote !== null
         ? { consultationNoteIncluded: true }
         : {}),

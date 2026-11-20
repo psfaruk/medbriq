@@ -46,6 +46,34 @@ export class ReferenceCodeCollisionError extends Error {
   }
 }
 
+/**
+ * Thrown when a retried idempotency key belongs to a DIFFERENT payload — a
+ * client bug or a tampering attempt, not an innocent retry. API routes map
+ * this to `409 IDEMPOTENCY_MISMATCH`.
+ */
+export class IdempotencyMismatchError extends Error {
+  constructor(message = "This idempotency key was already used for a different booking.") {
+    super(message);
+    this.name = "IdempotencyMismatchError";
+  }
+}
+
+/**
+ * Thrown by the fee-system store methods when the active store cannot host
+ * the fee module. Per docs/ARCHITECTURE_CORRECTIONS.md #5/#6, patient visit
+ * history must not leave the approved region — the Firestore path stays
+ * frozen until the Phase 0 data-residency review completes. API routes map
+ * this to `503 MODULE_DISABLED`.
+ */
+export class FeeModuleUnavailableError extends Error {
+  constructor(
+    message = "The fee module is not available on this data store (Phase 0 data-residency gate — see docs/ARCHITECTURE_CORRECTIONS.md #5)."
+  ) {
+    super(message);
+    this.name = "FeeModuleUnavailableError";
+  }
+}
+
 // ─────────────────────────── Record types ───────────────────────────
 
 /** Users (patients, doctors, admins) as seen by the auth flow. */
@@ -165,6 +193,16 @@ export type AppointmentRecord = {
   currency: string;
   doctorNote: string | null;
   consultationNote: string | null;
+  // ── Separated status axes (docs/ARCHITECTURE_CORRECTIONS.md #12) ──
+  paymentStatus: string; // NOT_REQUIRED | PENDING | PAID | REFUNDED
+  consultationStatus: string; // NOT_STARTED | COMPLETED | NOT_HELD
+  refundStatus: string; // NONE | REQUESTED | PROCESSED
+  // ── Pricing snapshot (docs/FEE_SYSTEM.md §3) ──
+  patientType: string | null; // NEW | RETURNING | FOLLOW_UP
+  feeSettingsVersion: number | null;
+  pricingBasis: string | null; // JSON ClassificationBasis
+  pricedAt: string | null; // ISO
+  idempotencyKey: string | null;
   createdAt: string; // ISO
   updatedAt: string; // ISO
   doctor: {
@@ -318,12 +356,92 @@ export type CreateAppointmentInput = {
   bookingMode: string;
   fee: number;
   currency: string;
+  // ── Fee system (docs/FEE_SYSTEM.md §3) ──
+  /** Server-computed classification — never client input. */
+  patientType?: string; // NEW | RETURNING | FOLLOW_UP
+  feeSettingsVersion?: number;
+  /** JSON ClassificationBasis snapshot. */
+  pricingBasis?: string | null;
+  pricedAt?: string; // ISO
+  /** Replay-safe duplicate-submit guard (unique). */
+  idempotencyKey?: string | null;
 };
 
 export type AppointmentPatch = {
   status?: string;
   doctorNote?: string | null;
   consultationNote?: string | null;
+  consultationStatus?: string;
+  paymentStatus?: string;
+};
+
+// ── Fee system records (docs/FEE_SYSTEM.md) ──────────────────────
+
+/** Current per-doctor fee configuration. */
+export type FeeSettingsRecord = {
+  id: string;
+  doctorId: string;
+  newPatientFee: number;
+  returningPatientFee: number;
+  returningValidityValue: number;
+  returningValidityUnit: string; // DAYS | MONTHS
+  followUpEnabled: boolean;
+  followUpFee: number;
+  followUpValidityValue: number;
+  followUpValidityUnit: string; // DAYS | MONTHS
+  version: number;
+  updatedAt: string; // ISO
+};
+
+/** One immutable version of a doctor's fee configuration. */
+export type FeeSettingsHistoryRecord = {
+  id: string;
+  doctorId: string;
+  version: number;
+  newPatientFee: number;
+  returningPatientFee: number;
+  returningValidityValue: number;
+  returningValidityUnit: string;
+  followUpEnabled: boolean;
+  followUpFee: number;
+  followUpValidityValue: number;
+  followUpValidityUnit: string;
+  changeReason: string | null;
+  changedBy: string | null; // acting user id
+  createdAt: string; // ISO
+};
+
+/** doctor_patient_history row — one per completed appointment. */
+export type PatientVisitRecord = {
+  id: string;
+  doctorId: string;
+  appointmentId: string;
+  patientId: string | null;
+  patientPhone: string;
+  slotStart: string; // ISO
+  completedAt: string; // ISO
+  qualifying: boolean;
+  paymentStatusAtCompletion: string;
+  recordedAt: string; // ISO
+};
+
+/** Validated fee-settings update (validated in src/lib/fees/engine.ts). */
+export type UpdateFeeSettingsInput = {
+  newPatientFee: number;
+  returningPatientFee: number;
+  returningValidityValue: number;
+  returningValidityUnit: string; // DAYS | MONTHS
+  followUpEnabled: boolean;
+  followUpFee: number;
+  followUpValidityValue: number;
+  followUpValidityUnit: string; // DAYS | MONTHS
+  changeReason: string | null;
+};
+
+/** How a patient is resolved in visit history (docs/FEE_SYSTEM.md §2.1). */
+export type PatientLookup = {
+  patientId: string | null;
+  phone: string; // normalized
 };
 
 export type CreateAuditLogInput = {
@@ -498,6 +616,8 @@ export interface DataStore {
    */
   createAppointment(input: CreateAppointmentInput): Promise<AppointmentRecord>;
   getAppointmentById(id: string): Promise<AppointmentRecord | null>;
+  /** Idempotent-replay lookup for booking retries (docs/FEE_SYSTEM.md §3.4). */
+  findAppointmentByIdempotencyKey(key: string): Promise<AppointmentRecord | null>;
   /** Patient history, slotStart desc, capped at 100. */
   listAppointmentsByPatient(patientId: string): Promise<AppointmentRecord[]>;
   /** All appointments of a doctor (doctor dashboard; filtering/slicing in the route). */
@@ -514,6 +634,35 @@ export interface DataStore {
    * approval-mode doctors requiring re-approval after a move.
    */
   rescheduleAppointment(id: string, slotStartIso: string, slotEndIso: string, resetToPendingApproval: boolean): Promise<AppointmentRecord>;
+
+  // ── Doctor-wise fee system (docs/FEE_SYSTEM.md) ──────────────────────
+  /**
+   * Current fee settings for a doctor; auto-created with platform defaults
+   * (new 1000 / returning 600 / 6 months) on first read. Throws
+   * FeeModuleUnavailableError on stores that cannot host the fee module.
+   */
+  getFeeSettings(doctorId: string): Promise<FeeSettingsRecord>;
+  /**
+   * Atomically update fee settings: bump version, write the immutable history
+   * row, mirror newPatientFee/followUpFee onto DoctorProfile, and append an
+   * audit log entry. Input MUST be validated first (validateFeeSettings).
+   */
+  updateFeeSettings(doctorId: string, input: UpdateFeeSettingsInput, actorId: string | null): Promise<FeeSettingsRecord>;
+  /** Versioned fee-settings history, newest first. */
+  listFeeSettingsHistory(doctorId: string, limit: number): Promise<FeeSettingsHistoryRecord[]>;
+  /** Latest qualifying completed visit for (doctor, patient) — the classification anchor. */
+  findLatestQualifyingVisit(doctorId: string, patient: PatientLookup): Promise<PatientVisitRecord | null>;
+  /** One patient's visit history WITH THIS DOCTOR ONLY (doctor-authorized). */
+  listPatientVisitsForDoctor(doctorId: string, patient: PatientLookup): Promise<PatientVisitRecord[]>;
+  /**
+   * Mark a CONFIRMED appointment COMPLETED and record its visit-history row in
+   * ONE transaction. `qualifying` is computed here (payment settled?) and
+   * snapshotted onto the visit row — later payment changes never rewrite it.
+   */
+  completeAppointmentWithVisit(
+    id: string,
+    input: { consultationNote: string | null }
+  ): Promise<AppointmentRecord>;
 
   // ── Reviews ──────────────────────────────────────────────────────────
   /** All reviews of a doctor, newest first (route slices/aggregates). */

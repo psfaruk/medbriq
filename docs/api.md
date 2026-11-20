@@ -562,3 +562,87 @@ curl -s -b admin.txt -X POST $BASE/admin/verifications/<DOCTOR_ID>/decision \
 - Additive changes (new optional fields, new filters) are allowed within v1.
 - The planned Flutter clients (see [architecture.md](architecture.md#6-future-scaling-path))
   consume this same contract — treat any breaking change as a cross-platform release issue.
+
+## 9. Doctor-wise Fee System (docs/FEE_SYSTEM.md)
+
+All fee endpoints are bound to the `appointmentBooking` module and the
+Prisma-backed store (data-residency gate, `docs/ARCHITECTURE_CORRECTIONS.md`
+#5/#6). On a gated store they answer `503 MODULE_DISABLED` with the reason.
+
+### POST /api/v1/booking/price-preview — guest-eligible
+
+Classification + price breakdown BEFORE confirmation. The response is
+informational only — the authoritative price is recomputed at booking time.
+
+```bash
+curl -s -X POST $BASE/booking/price-preview -H "Content-Type: application/json" \
+  -d '{"doctorSlug":"dr-ayesha-rahman","patientPhone":"+880 1811-000001"}'
+# → 200 { ok: true, data: { preview: {
+#     patientType: "NEW|RETURNING|FOLLOW_UP", fee: 600, currency: "BDT",
+#     explanation: "Last completed visit was on …",
+#     basis: { rule, anchorDate, returningExpiryDate, followUpExpiryDate, … },
+#     feeSettings: { newPatientFee, returningPatientFee, … }
+#   }, doctor: { slug, name, city } } }
+```
+
+### POST /api/v1/appointments — booking with server-side pricing
+
+The body additionally accepts OPTIONAL client expectations and an idempotency
+key (never trusted — the server always recomputes):
+
+| Field | Type | Behavior |
+|---|---|---|
+| `expectedFee` | int | mismatch with the recomputed fee → `409 PRICE_CHANGED` |
+| `expectedPatientType` | `"NEW"\|"RETURNING"\|"FOLLOW_UP"` | mismatch → `409 PRICE_CHANGED` |
+| `idempotencyKey` | string 8–80 | retry with the same key replays the original appointment (`idempotentReplay: true`); reused for a different payload → `409 IDEMPOTENCY_MISMATCH` |
+| `type: "VIDEO"` | — | `503 MODULE_DISABLED` (telehealth is Phase-0 gated) |
+
+Success now includes `priceBreakdown` (patientType, fee, explanation, basis).
+Every appointment stores the frozen snapshot: `patientType`, `fee`,
+`feeSettingsVersion`, `pricingBasis` (JSON), `pricedAt`, plus the separated
+status axes `paymentStatus` / `consultationStatus` / `refundStatus`.
+
+### GET /api/v1/doctor/fee-settings — DOCTOR
+
+Own settings; auto-created with platform defaults (new ৳1000 / returning ৳600 /
+6 months) on first read.
+
+### PUT /api/v1/doctor/fee-settings — DOCTOR
+
+Validated server-side (fees 0–100000 whole ৳, returning ≤ new, follow-up ≤ new
+when enabled, returning validity 1–365 days / 1–36 months, follow-up validity
+1–90 days / 1–12 months). Version auto-increments; an immutable history row and
+an audit log entry are written in the same transaction; `DoctorProfile` fee
+fields stay in sync.
+
+```bash
+curl -s -b doc.txt -X PUT $BASE/doctor/fee-settings -H "Content-Type: application/json" \
+  -d '{"newPatientFee":1000,"returningPatientFee":600,"returningValidityValue":6,
+       "returningValidityUnit":"MONTHS","followUpEnabled":true,"followUpFee":400,
+       "followUpValidityValue":15,"followUpValidityUnit":"DAYS",
+       "changeReason":"Chamber fee revision"}'
+# → 200 { ok: true, data: { settings: { …, version: 2 } } }
+```
+
+### GET /api/v1/doctor/fee-settings/history?limit=20 — DOCTOR
+
+Immutable versioned history, newest first (`version`, all fee fields,
+`changeReason`, `changedBy`, `createdAt`).
+
+### GET /api/v1/doctor/patients/visits?phone=… — DOCTOR
+
+One patient's completed-visit history **with the signed-in doctor only** (the
+query is doctor-scoped in the data layer). Each item carries `qualifying`
+(whether it counts toward returning status) and `paymentStatusAtCompletion`.
+
+### POST /api/v1/appointments/{id}/no-show — DOCTOR owner
+
+Marks a CONFIRMED appointment `NO_SHOW` (`consultationStatus: NOT_HELD`).
+No visit-history row is written — a no-show never establishes returning-patient
+eligibility (docs/FEE_SYSTEM.md §2.2).
+
+### POST /api/v1/appointments/{id}/complete — DOCTOR owner
+
+Now completes the appointment AND records the `doctor_patient_history` visit
+row in ONE transaction. The `qualifying` flag (completed consultation +
+settled payment) is snapshotted onto the visit row.

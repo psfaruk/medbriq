@@ -29,6 +29,7 @@ import {
   Star,
   Stethoscope,
   Video,
+  Wallet,
   X,
   XCircle,
   Zap,
@@ -71,6 +72,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import SlotPicker from "@/components/booking/slot-picker";
 import { formatFee } from "@/components/doctors/doctor-card";
+import { PatientTypeBadge } from "@/components/booking/patient-type-badge";
 import { useAppStore } from "@/lib/store";
 import { dhakaDateString, formatDhaka } from "@/lib/time";
 import { useToast } from "@/hooks/use-toast";
@@ -1044,6 +1046,9 @@ function AppointmentCard({
               </>
             )}
           </Badge>
+          {appointment.patientType && (
+            <PatientTypeBadge type={appointment.patientType} />
+          )}
           <span
             className="ml-auto font-mono text-xs text-muted-foreground"
             aria-label={`Reference code ${appointment.referenceCode}`}
@@ -1105,6 +1110,12 @@ function AppointmentCard({
                 </>
               )}
             </span>
+            {appointment.paymentStatus === "NOT_REQUIRED" && (
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <Wallet className="h-3 w-3" aria-hidden="true" />
+                Pay at chamber
+              </span>
+            )}
           </div>
         </div>
 

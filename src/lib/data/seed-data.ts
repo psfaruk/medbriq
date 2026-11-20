@@ -71,7 +71,7 @@ export const SEED_ADMIN = {
   email: "admin@medbriq.dev",
   password: "Admin@Medbriq123",
   name: "Platform Admin",
-  phone: "+880 1700-000000 (demo)",
+  phone: "+880 1700-000000",
   role: "ADMIN" as const,
 };
 
@@ -80,21 +80,21 @@ export const SEED_PATIENTS = [
     email: "patient@medbriq.dev",
     password: "Patient@123",
     name: "Rahim Uddin",
-    phone: "+880 1811-000001 (demo)",
+    phone: "+880 1811-000001",
     role: "PATIENT" as const,
   },
   {
     email: "patient2@medbriq.dev",
     password: "Patient@123",
     name: "Salma Khatun",
-    phone: "+880 1811-000002 (demo)",
+    phone: "+880 1811-000002",
     role: "PATIENT" as const,
   },
   {
     email: "patient3@medbriq.dev",
     password: "Patient@123",
     name: "Abdul Karim",
-    phone: "+880 1811-000003 (demo)",
+    phone: "+880 1811-000003",
     role: "PATIENT" as const,
   },
 ];
@@ -127,7 +127,7 @@ export type DoctorSeed = {
 
 export const SEED_DOCTORS: DoctorSeed[] = [
   {
-    name: "Dr. Ayesha Rahman", email: "doctor@medbriq.dev", phone: "+880 1711-000001 (demo)",
+    name: "Dr. Ayesha Rahman", email: "doctor@medbriq.dev", phone: "+880 1711-000001",
     slug: "dr-ayesha-rahman", specialtySlug: "medicine-diabetology",
     bio: "Consultant physician focused on diabetes management, thyroid disorders and preventive family medicine. MBBS, FCPS (Medicine). Fictional demo profile.",
     experienceYears: 12, consultationFee: 1000, followUpFee: 600, videoConsultFee: 800,
@@ -139,7 +139,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Mahmudul Hasan", email: "dr.mahmudul@medbriq.dev", phone: "+880 1711-000002 (demo)",
+    name: "Dr. Mahmudul Hasan", email: "dr.mahmudul@medbriq.dev", phone: "+880 1711-000002",
     slug: "dr-mahmudul-hasan", specialtySlug: "cardiology",
     bio: "Interventional cardiologist managing hypertension, coronary artery disease and heart failure. MBBS, MD (Cardiology). Fictional demo profile.",
     experienceYears: 15, consultationFee: 1500, followUpFee: 800,
@@ -151,7 +151,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Farhana Akter", email: "dr.farhana@medbriq.dev", phone: "+880 1711-000003 (demo)",
+    name: "Dr. Farhana Akter", email: "dr.farhana@medbriq.dev", phone: "+880 1711-000003",
     slug: "dr-farhana-akter", specialtySlug: "dermatology",
     bio: "Dermatologist and venereologist treating acne, eczema, psoriasis and hair disorders. MBBS, DDV. Fictional demo profile.",
     experienceYears: 8, consultationFee: 800, followUpFee: 500, videoConsultFee: 700,
@@ -163,7 +163,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Tanvir Ahmed", email: "dr.tanvir@medbriq.dev", phone: "+880 1711-000004 (demo)",
+    name: "Dr. Tanvir Ahmed", email: "dr.tanvir@medbriq.dev", phone: "+880 1711-000004",
     slug: "dr-tanvir-ahmed", specialtySlug: "pediatrics",
     bio: "Child specialist covering newborn care, immunization, nutrition and childhood asthma. MBBS, FCPS (Paediatrics). Fictional demo profile.",
     experienceYears: 10, consultationFee: 900, followUpFee: 500,
@@ -175,7 +175,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Nusrat Jahan", email: "dr.nusrat@medbriq.dev", phone: "+880 1711-000005 (demo)",
+    name: "Dr. Nusrat Jahan", email: "dr.nusrat@medbriq.dev", phone: "+880 1711-000005",
     slug: "dr-nusrat-jahan", specialtySlug: "gynecology-obstetrics",
     bio: "Consultant gynecologist & obstetrician — pregnancy care, infertility counseling and minimally invasive surgery. MBBS, FCPS (Gynae). Fictional demo profile.",
     experienceYears: 14, consultationFee: 1200, followUpFee: 700,
@@ -187,7 +187,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Rafiul Islam", email: "dr.rafiul@medbriq.dev", phone: "+880 1711-000006 (demo)",
+    name: "Dr. Rafiul Islam", email: "dr.rafiul@medbriq.dev", phone: "+880 1711-000006",
     slug: "dr-rafiul-islam", specialtySlug: "orthopedics",
     bio: "Orthopedic surgeon — fracture care, sports injuries, knee and hip replacement. MBBS, MS (Ortho). Fictional demo profile.",
     experienceYears: 11, consultationFee: 1000, followUpFee: 600,
@@ -199,7 +199,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Sadia Karim", email: "dr.sadia@medbriq.dev", phone: "+880 1711-000007 (demo)",
+    name: "Dr. Sadia Karim", email: "dr.sadia@medbriq.dev", phone: "+880 1711-000007",
     slug: "dr-sadia-karim", specialtySlug: "ent",
     bio: "ENT specialist for sinusitis, tonsillitis, hearing loss and vertigo. MBBS, DLO. Fictional demo profile.",
     experienceYears: 7, consultationFee: 900, followUpFee: 500, videoConsultFee: 750,
@@ -211,7 +211,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Imran Chowdhury", email: "dr.imran@medbriq.dev", phone: "+880 1711-000008 (demo)",
+    name: "Dr. Imran Chowdhury", email: "dr.imran@medbriq.dev", phone: "+880 1711-000008",
     slug: "dr-imran-chowdhury", specialtySlug: "neurology",
     bio: "Neurologist treating stroke, epilepsy, migraine and neuropathy. MBBS, MD (Neurology). Fictional demo profile.",
     experienceYears: 16, consultationFee: 1600, followUpFee: 900,
@@ -223,7 +223,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Mehjabin Islam", email: "dr.mehjabin@medbriq.dev", phone: "+880 1711-000009 (demo)",
+    name: "Dr. Mehjabin Islam", email: "dr.mehjabin@medbriq.dev", phone: "+880 1711-000009",
     slug: "dr-mehjabin-islam", specialtySlug: "psychiatry",
     bio: "Psychiatrist for anxiety, depression, sleep disorders and CBT-based therapy. MBBS, FCPS (Psychiatry). Fictional demo profile.",
     experienceYears: 6, consultationFee: 1300, followUpFee: 800, videoConsultFee: 1100,
@@ -235,7 +235,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Arif Hossain", email: "dr.arif@medbriq.dev", phone: "+880 1711-000010 (demo)",
+    name: "Dr. Arif Hossain", email: "dr.arif@medbriq.dev", phone: "+880 1711-000010",
     slug: "dr-arif-hossain", specialtySlug: "dentistry",
     bio: "Dental surgeon — root canal, braces consultation and cosmetic dentistry. BDS, FCPS-I. Fictional demo profile.",
     experienceYears: 5, consultationFee: 700, followUpFee: 400,
@@ -247,7 +247,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Kamrul Hasan", email: "dr.kamrul@medbriq.dev", phone: "+880 1711-000011 (demo)",
+    name: "Dr. Kamrul Hasan", email: "dr.kamrul@medbriq.dev", phone: "+880 1711-000011",
     slug: "dr-kamrul-hasan", specialtySlug: "medicine-diabetology",
     bio: "General physician with special interest in hypertension and lifestyle diseases. MBBS, MCPS. Fictional demo profile.",
     experienceYears: 9, consultationFee: 800, followUpFee: 500,
@@ -259,7 +259,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Shireen Huq", email: "dr.shireen@medbriq.dev", phone: "+880 1711-000012 (demo)",
+    name: "Dr. Shireen Huq", email: "dr.shireen@medbriq.dev", phone: "+880 1711-000012",
     slug: "dr-shireen-huq", specialtySlug: "cardiology",
     bio: "Senior consultant cardiologist — echocardiography, heart failure clinics and preventive cardiology. MBBS, MD, FACC. Fictional demo profile.",
     experienceYears: 20, consultationFee: 2000, followUpFee: 1200,
@@ -289,11 +289,16 @@ export type DemoAppointmentSpec = {
   status: "PENDING_APPROVAL" | "CONFIRMED";
   bookingMode: "INSTANT" | "APPROVAL";
   fee: number;
+  // ── Fee system snapshots (docs/FEE_SYSTEM.md §3) ──
+  patientType?: "NEW" | "RETURNING" | "FOLLOW_UP";
+  feeSettingsVersion?: number;
 };
 
 /**
  * Build the 4 demo appointments. Future dates are computed relative to today
- * in Dhaka so the demo always shows bookable upcoming slots.
+ * in Dhaka so the demo always shows bookable upcoming slots. Fee snapshots
+ * are consistent with SEED_FEE_SETTINGS + SEED_COMPLETED_VISITS below
+ * (docs/FEE_SYSTEM.md).
  */
 export function buildDemoAppointments(): DemoAppointmentSpec[] {
   const ayesha = SEED_DOCTORS.find((d) => d.slug === "dr-ayesha-rahman")!;
@@ -319,7 +324,11 @@ export function buildDemoAppointments(): DemoAppointmentSpec[] {
       type: "IN_PERSON",
       status: "PENDING_APPROVAL",
       bookingMode: "APPROVAL",
-      fee: ayesha.consultationFee,
+      // Rahim completed a visit 60 days ago (SEED_COMPLETED_VISITS) →
+      // within Ayesha's 6-month returning validity → RETURNING @ 600.
+      fee: 600,
+      patientType: "RETURNING",
+      feeSettingsVersion: 1,
     },
     {
       referenceCode: "MB-DEMO02",
@@ -336,6 +345,8 @@ export function buildDemoAppointments(): DemoAppointmentSpec[] {
       status: "PENDING_APPROVAL",
       bookingMode: "APPROVAL",
       fee: ayesha.consultationFee,
+      patientType: "NEW",
+      feeSettingsVersion: 1,
     },
     {
       referenceCode: "MB-DEMO03",
@@ -351,7 +362,11 @@ export function buildDemoAppointments(): DemoAppointmentSpec[] {
       type: "IN_PERSON",
       status: "CONFIRMED",
       bookingMode: "APPROVAL",
+      // Salma's completed visit is with Dr. Farhana — classification is
+      // per-doctor, so with Dr. Ayesha she is NEW (docs/FEE_SYSTEM.md §1).
       fee: ayesha.consultationFee,
+      patientType: "NEW",
+      feeSettingsVersion: 1,
     },
     {
       referenceCode: "MB-DEMO04",
@@ -364,10 +379,132 @@ export function buildDemoAppointments(): DemoAppointmentSpec[] {
       notes: "Skin rash on forearm (demo instant booking)",
       slotStartIso: dhakaToUtc(date3, 990).toISOString(), // 4:30 PM
       slotEndIso: dhakaToUtc(date3, 1020).toISOString(),
-      type: "VIDEO",
+      // Telehealth module is disabled (docs/ARCHITECTURE_CORRECTIONS.md #2/#3)
+      // — demo bookings are physical (in-person) visits.
+      type: "IN_PERSON",
       status: "CONFIRMED",
       bookingMode: "INSTANT",
-      fee: 700,
+      fee: farhana.consultationFee,
+      patientType: "NEW",
+      feeSettingsVersion: 1,
+    },
+  ];
+}
+
+// ── Doctor-wise fee settings (docs/FEE_SYSTEM.md) ─────────────────────
+
+export type FeeSettingsSpec = {
+  doctorSlug: string;
+  newPatientFee: number;
+  returningPatientFee: number;
+  returningValidityValue: number;
+  returningValidityUnit: "DAYS" | "MONTHS";
+  followUpEnabled: boolean;
+  followUpFee: number;
+  followUpValidityValue: number;
+  followUpValidityUnit: "DAYS" | "MONTHS";
+};
+
+/**
+ * Per-doctor fee configurations for the demo — deliberately varied so the
+ * UI shows different validity units, presets and follow-up setups:
+ *  - dr-ayesha-rahman: spec defaults (1000/600, 6 months) + 15-day follow-up
+ *  - dr-mahmudul-hasan: 12-month returning validity, no follow-up
+ *  - dr-farhana-akter: 1-month returning + 10-day follow-up @ 300
+ *  - dr-tanvir-ahmed: custom DAYS validity (30 days)
+ *  - others: their legacy consultation fee as the new-patient fee
+ */
+export const SEED_FEE_SETTINGS: FeeSettingsSpec[] = [
+  { doctorSlug: "dr-ayesha-rahman", newPatientFee: 1000, returningPatientFee: 600, returningValidityValue: 6, returningValidityUnit: "MONTHS", followUpEnabled: true, followUpFee: 400, followUpValidityValue: 15, followUpValidityUnit: "DAYS" },
+  { doctorSlug: "dr-mahmudul-hasan", newPatientFee: 1500, returningPatientFee: 800, returningValidityValue: 12, returningValidityUnit: "MONTHS", followUpEnabled: false, followUpFee: 0, followUpValidityValue: 15, followUpValidityUnit: "DAYS" },
+  { doctorSlug: "dr-farhana-akter", newPatientFee: 800, returningPatientFee: 500, returningValidityValue: 1, returningValidityUnit: "MONTHS", followUpEnabled: true, followUpFee: 300, followUpValidityValue: 10, followUpValidityUnit: "DAYS" },
+  { doctorSlug: "dr-tanvir-ahmed", newPatientFee: 900, returningPatientFee: 500, returningValidityValue: 30, returningValidityUnit: "DAYS", followUpEnabled: false, followUpFee: 0, followUpValidityValue: 15, followUpValidityUnit: "DAYS" },
+  { doctorSlug: "dr-nusrat-jahan", newPatientFee: 1200, returningPatientFee: 700, returningValidityValue: 6, returningValidityUnit: "MONTHS", followUpEnabled: false, followUpFee: 0, followUpValidityValue: 15, followUpValidityUnit: "DAYS" },
+  { doctorSlug: "dr-rafiul-islam", newPatientFee: 1000, returningPatientFee: 600, returningValidityValue: 3, returningValidityUnit: "MONTHS", followUpEnabled: true, followUpFee: 500, followUpValidityValue: 15, followUpValidityUnit: "DAYS" },
+  { doctorSlug: "dr-sadia-karim", newPatientFee: 900, returningPatientFee: 500, returningValidityValue: 6, returningValidityUnit: "MONTHS", followUpEnabled: false, followUpFee: 0, followUpValidityValue: 15, followUpValidityUnit: "DAYS" },
+  { doctorSlug: "dr-imran-chowdhury", newPatientFee: 1600, returningPatientFee: 900, returningValidityValue: 6, returningValidityUnit: "MONTHS", followUpEnabled: false, followUpFee: 0, followUpValidityValue: 15, followUpValidityUnit: "DAYS" },
+  { doctorSlug: "dr-mehjabin-islam", newPatientFee: 1300, returningPatientFee: 800, returningValidityValue: 6, returningValidityUnit: "MONTHS", followUpEnabled: false, followUpFee: 0, followUpValidityValue: 15, followUpValidityUnit: "DAYS" },
+  { doctorSlug: "dr-arif-hossain", newPatientFee: 700, returningPatientFee: 400, returningValidityValue: 6, returningValidityUnit: "MONTHS", followUpEnabled: false, followUpFee: 0, followUpValidityValue: 15, followUpValidityUnit: "DAYS" },
+  { doctorSlug: "dr-kamrul-hasan", newPatientFee: 800, returningPatientFee: 500, returningValidityValue: 6, returningValidityUnit: "MONTHS", followUpEnabled: false, followUpFee: 0, followUpValidityValue: 15, followUpValidityUnit: "DAYS" },
+  { doctorSlug: "dr-shireen-huq", newPatientFee: 2000, returningPatientFee: 1200, returningValidityValue: 6, returningValidityUnit: "MONTHS", followUpEnabled: false, followUpFee: 0, followUpValidityValue: 15, followUpValidityUnit: "DAYS" },
+];
+
+// ── Completed-visit history (doctor_patient_history fixtures) ──────────
+
+export type CompletedVisitSpec = {
+  referenceCode: string;
+  doctorSlug: string;
+  patientEmail: string | null;
+  patientName: string;
+  patientPhone: string;
+  patientAge: number;
+  patientGender: string;
+  /** How many days ago the visit happened (Dhaka calendar days). */
+  daysAgo: number;
+  /** Visit start, minutes from Dhaka midnight. */
+  minuteOfDay: number;
+  patientType: "NEW" | "RETURNING" | "FOLLOW_UP";
+  fee: number;
+  feeSettingsVersion: number;
+  qualifying: boolean;
+};
+
+/**
+ * Past COMPLETED visits + their doctor_patient_history rows, so the demo
+ * immediately exercises all classifications (docs/FEE_SYSTEM.md §2):
+ *
+ *  - Rahim → Dr. Ayesha, 60 days ago: inside the 6-month returning window,
+    outside the 15-day follow-up → next booking RETURNING @ 600.
+ *  - Abdul Karim → Dr. Ayesha, 240 days ago: 6-month validity expired → NEW.
+ *  - Salma → Dr. Farhana, 5 days ago: inside the 10-day follow-up window
+ *    → next booking FOLLOW_UP @ 300 (and RETURNING @ 500 until 1 month).
+ */
+export function buildCompletedVisits(): CompletedVisitSpec[] {
+  return [
+    {
+      referenceCode: "MB-PAST01",
+      doctorSlug: "dr-ayesha-rahman",
+      patientEmail: "patient@medbriq.dev",
+      patientName: "Rahim Uddin",
+      patientPhone: "+880 1811-000001",
+      patientAge: 34,
+      patientGender: "MALE",
+      daysAgo: 60,
+      minuteOfDay: 1050,
+      patientType: "RETURNING",
+      fee: 600,
+      feeSettingsVersion: 1,
+      qualifying: true,
+    },
+    {
+      referenceCode: "MB-PAST02",
+      doctorSlug: "dr-ayesha-rahman",
+      patientEmail: "patient3@medbriq.dev",
+      patientName: "Abdul Karim",
+      patientPhone: "+880 1811-000003",
+      patientAge: 51,
+      patientGender: "MALE",
+      daysAgo: 240,
+      minuteOfDay: 1080,
+      patientType: "NEW",
+      fee: 1000,
+      feeSettingsVersion: 1,
+      qualifying: true,
+    },
+    {
+      referenceCode: "MB-PAST03",
+      doctorSlug: "dr-farhana-akter",
+      patientEmail: "patient2@medbriq.dev",
+      patientName: "Salma Khatun",
+      patientPhone: "+880 1811-000002",
+      patientAge: 29,
+      patientGender: "FEMALE",
+      daysAgo: 5,
+      minuteOfDay: 1000,
+      patientType: "NEW",
+      fee: 800,
+      feeSettingsVersion: 1,
+      qualifying: true,
     },
   ];
 }

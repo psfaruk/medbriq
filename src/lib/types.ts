@@ -70,6 +70,9 @@ export type DoctorDetail = DoctorCard & {
   chamberAddress: string | null;
   verifiedAt: string | null;
   country: string;
+  /** Doctor-wise fee structure (docs/FEE_SYSTEM.md); null when the fee
+   * module is unavailable on the active store (residency gate). */
+  feeStructure?: FeeSettingsDto | null;
   hospital: { name: string; slug: string; city: string; address: string | null } | null;
   weeklySchedule: {
     dayOfWeek: number;
@@ -111,6 +114,14 @@ export type AppointmentDto = {
   notes: string | null;
   doctorNote: string | null;
   consultationNote: string | null;
+  // ── Separated status axes (docs/ARCHITECTURE_CORRECTIONS.md #12) ──
+  paymentStatus: string;
+  consultationStatus: string;
+  refundStatus: string;
+  // ── Pricing snapshot (docs/FEE_SYSTEM.md §3) ──
+  patientType: string | null;
+  feeSettingsVersion: number | null;
+  pricedAt: string | null;
   createdAt: string;
   doctor: {
     slug: string;
@@ -246,6 +257,89 @@ export type SearchFilters = {
   verifiedOnly?: boolean;
   maxFee?: number;
   availableToday?: boolean;
+};
+
+// ── Doctor-wise fee system DTOs (docs/FEE_SYSTEM.md) ────────────────────
+
+/** Current fee settings (GET/PUT /api/v1/doctor/fee-settings). */
+export type FeeSettingsDto = {
+  newPatientFee: number;
+  returningPatientFee: number;
+  returningValidityValue: number;
+  returningValidityUnit: "DAYS" | "MONTHS";
+  followUpEnabled: boolean;
+  followUpFee: number;
+  followUpValidityValue: number;
+  followUpValidityUnit: "DAYS" | "MONTHS";
+  version: number;
+  updatedAt: string;
+};
+
+/** One immutable fee-settings version (GET /api/v1/doctor/fee-settings/history). */
+export type FeeHistoryItem = {
+  id: string;
+  version: number;
+  newPatientFee: number;
+  returningPatientFee: number;
+  returningValidityValue: number;
+  returningValidityUnit: "DAYS" | "MONTHS";
+  followUpEnabled: boolean;
+  followUpFee: number;
+  followUpValidityValue: number;
+  followUpValidityUnit: "DAYS" | "MONTHS";
+  changeReason: string | null;
+  changedBy: string | null;
+  createdAt: string;
+};
+
+/** Machine-readable classification basis (snapshotted on appointments). */
+export type PricingBasis = {
+  rule:
+    | "NO_PRIOR_COMPLETED_VISIT"
+    | "VALIDITY_EXPIRED"
+    | "WITHIN_RETURNING_VALIDITY"
+    | "WITHIN_FOLLOW_UP_WINDOW";
+  doctorId: string;
+  patientId: string | null;
+  patientPhone: string;
+  latestVisitId: string | null;
+  latestVisitCompletedAt: string | null;
+  anchorDate: string | null;
+  returningExpiryDate: string | null;
+  followUpExpiryDate: string | null;
+  evaluatedDate: string;
+  evaluatedAt: string;
+  feeSettingsVersion: number;
+};
+
+/** POST /api/v1/booking/price-preview response. */
+export type PricePreviewDto = {
+  patientType: "NEW" | "RETURNING" | "FOLLOW_UP";
+  fee: number;
+  currency: string;
+  explanation: string;
+  basis: PricingBasis;
+  feeSettings: {
+    newPatientFee: number;
+    returningPatientFee: number;
+    returningValidityValue: number;
+    returningValidityUnit: "DAYS" | "MONTHS";
+    followUpEnabled: boolean;
+    followUpFee: number;
+    followUpValidityValue: number;
+    followUpValidityUnit: "DAYS" | "MONTHS";
+  };
+};
+
+/** One visit row in a doctor's patient-history lookup. */
+export type VisitHistoryItem = {
+  id: string;
+  appointmentId: string;
+  patientName: string | null;
+  slotStart: string;
+  completedAt: string;
+  qualifying: boolean;
+  paymentStatusAtCompletion: string;
 };
 
 export type ApiSuccess<T> = { ok: true; data: T };

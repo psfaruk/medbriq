@@ -141,6 +141,9 @@ model DoctorProfile {
   availabilityRules AvailabilityRule[]
   appointments      Appointment[]
   reviews           Review[]
+  feeSettings       DoctorFeeSettings?
+  feeHistory        DoctorFeeHistory[]
+  patientVisits     DoctorPatientVisit[]
 
   @@index([city])
   @@index([verificationStatus])
@@ -187,11 +190,25 @@ model Appointment {
   slotStart     DateTime // UTC
   slotEnd       DateTime // UTC
   type          String        @default("IN_PERSON") // IN_PERSON | VIDEO
-  status        String        @default("PENDING_APPROVAL") // PENDING_APPROVAL | CONFIRMED | REJECTED | CANCELLED_BY_PATIENT | CANCELLED_BY_DOCTOR | COMPLETED | EXPIRED
+  status        String        @default("PENDING_APPROVAL") // PENDING_APPROVAL | CONFIRMED | REJECTED | CANCELLED_BY_PATIENT | CANCELLED_BY_DOCTOR | COMPLETED | NO_SHOW | EXPIRED
   bookingMode   String // INSTANT | APPROVAL
   fee           Float
   currency      String        @default("BDT")
   doctorNote    String? // rejection / cancellation reason
+  // ── Separated status machine (docs/ARCHITECTURE_CORRECTIONS.md #12) ──
+  // Booking status (`status` above), payment status, consultation status and
+  // refund status evolve independently — see docs/FEE_SYSTEM.md §Status model.
+  paymentStatus      String   @default("NOT_REQUIRED") // NOT_REQUIRED | PENDING | PAID | REFUNDED
+  consultationStatus String   @default("NOT_STARTED") // NOT_STARTED | COMPLETED | NOT_HELD
+  refundStatus       String   @default("NONE") // NONE | REQUESTED | PROCESSED
+  // ── Pricing snapshot (docs/FEE_SYSTEM.md) ──
+  // Frozen at confirmation: later fee-setting changes never mutate these.
+  patientType        String? // NEW | RETURNING | FOLLOW_UP
+  feeSettingsVersion Int? // DoctorFeeSettings.version at pricing time
+  pricingBasis       String? // JSON snapshot of the classification basis
+  pricedAt           DateTime? // when the server computed the price
+  // ── Idempotency (docs/ARCHITECTURE_CORRECTIONS.md #10) ──
+  idempotencyKey     String? @unique // replay-safe duplicate-submit guard
   // Private consultation note the doctor may attach when completing an
   // appointment (Phase 5 slice). Visible to the patient on their history.
   consultationNote String?
@@ -204,6 +221,84 @@ model Appointment {
   @@index([patientId])
   @@index([doctorId, status])
   @@index([slotStart])
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Doctor-wise New & Returning Patient Fee System (docs/FEE_SYSTEM.md)
+// ────────────────────────────────────────────────────────────────────────
+
+/**
+ * Per-doctor fee configuration. `version` increments on every change so a
+ * confirmed appointment's snapshot (feeSettingsVersion) always points at an
+ * immutable DoctorFeeHistory row.
+ */
+model DoctorFeeSettings {
+  id                      String        @id @default(cuid())
+  doctorId                String        @unique
+  doctor                  DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  newPatientFee           Int           @default(1000) // BDT
+  returningPatientFee     Int           @default(600) // BDT
+  returningValidityValue  Int           @default(6)
+  returningValidityUnit   String        @default("MONTHS") // DAYS | MONTHS
+  followUpEnabled         Boolean       @default(false)
+  followUpFee             Int           @default(0) // BDT
+  followUpValidityValue   Int           @default(15)
+  followUpValidityUnit    String        @default("DAYS")
+  version                 Int           @default(1)
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  @@index([doctorId])
+}
+
+/**
+ * Immutable audit trail of every fee configuration. One row per version;
+ * version N mirrors DoctorFeeSettings exactly as published. Written in the
+ * same transaction that updates DoctorFeeSettings.
+ */
+model DoctorFeeHistory {
+  id                      String        @id @default(cuid())
+  doctorId                String
+  doctor                  DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  version                 Int
+  newPatientFee           Int
+  returningPatientFee     Int
+  returningValidityValue  Int
+  returningValidityUnit   String
+  followUpEnabled         Boolean
+  followUpFee             Int
+  followUpValidityValue   Int
+  followUpValidityUnit    String
+  changeReason            String?
+  changedBy               String? // acting user id
+  createdAt               DateTime      @default(now())
+
+  @@index([doctorId, version])
+}
+
+/**
+ * doctor_patient_history — materialized visit history per (doctor, patient).
+ * Written transactionally when an appointment is marked COMPLETED. Only
+ * qualifying visits (completed consultation + settled payment, see
+ * docs/FEE_SYSTEM.md §Eligibility) establish or renew returning-patient
+ * eligibility. `patientPhone` is stored normalized so guest bookings (no
+ * account) still attach to the patient's history.
+ */
+model DoctorPatientVisit {
+  id                        String        @id @default(cuid())
+  doctorId                  String
+  doctor                    DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  appointmentId             String        @unique
+  patientId                 String? // User.id when the booking was authenticated
+  patientPhone              String // normalized BD number
+  slotStart                 DateTime // scheduled visit time (UTC)
+  completedAt               DateTime // when the consultation was completed
+  qualifying                Boolean       @default(true)
+  paymentStatusAtCompletion String        @default("NOT_REQUIRED")
+  recordedAt                DateTime      @default(now())
+
+  @@index([doctorId, patientId, qualifying])
+  @@index([doctorId, patientPhone, qualifying])
 }
 
 model Review {

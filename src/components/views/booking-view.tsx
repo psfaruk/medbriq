@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useState, type ElementType, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type ElementType,
+  type FormEvent,
+} from "react";
 import {
   ArrowLeft,
   CalendarCheck,
@@ -14,9 +20,14 @@ import {
   Loader2,
   LogIn,
   MapPin,
+  ReceiptText,
+  RotateCw,
   ShieldCheck,
   Stethoscope,
+  TriangleAlert,
+  UsersRound,
   Video,
+  Wallet,
   Zap,
 } from "lucide-react";
 import {
@@ -36,7 +47,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -44,17 +54,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import SlotPicker from "@/components/booking/slot-picker";
+import { PatientTypeBadge } from "@/components/booking/patient-type-badge";
 import { useAppStore } from "@/lib/store";
 import { dhakaDateString, formatDhaka } from "@/lib/time";
+import { patientTypeLabel, validityLabel } from "@/lib/fee-labels";
 import type {
   ApiResult,
   AppointmentDto,
   DoctorDetail,
+  PricePreviewDto,
   SessionUser,
   SlotInfoDto,
 } from "@/lib/types";
@@ -74,6 +88,15 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
+/** One idempotency key per booking intent (8-80 chars, unique). */
+function newIdempotencyKey(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  // Fallback for older runtimes — still unique enough for one booking intent.
+  return `mbk-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 /**
  * The session user type has no phone field; if the auth payload carries one at
  * runtime, use it (minus any demo suffix) to prefill the booking form.
@@ -88,6 +111,8 @@ function sessionPhone(user: SessionUser | null): string {
 type Confirmation = {
   appointment: AppointmentDto;
   referenceCode: string;
+  /** true when a retried idempotencyKey replayed the original booking. */
+  replay: boolean;
 };
 
 export default function BookingView({ slug }: { slug: string }) {
@@ -101,12 +126,24 @@ export default function BookingView({ slug }: { slug: string }) {
   const [selectedSlot, setSelectedSlot] = useState<SlotInfoDto | null>(null);
   const [slotRefresh, setSlotRefresh] = useState(0);
 
-  const [type, setType] = useState<"IN_PERSON" | "VIDEO">("IN_PERSON");
   const [patientName, setPatientName] = useState("");
   const [patientPhone, setPatientPhone] = useState("");
   const [patientAge, setPatientAge] = useState("");
   const [patientGender, setPatientGender] = useState("");
   const [notes, setNotes] = useState("");
+
+  // ── Pricing (docs/FEE_SYSTEM.md §3: preview → confirm with expectation) ──
+  const [preview, setPreview] = useState<PricePreviewDto | null>(null);
+  const [previewStatus, setPreviewStatus] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  /** Set after a 409 PRICE_CHANGED until the patient re-confirms. */
+  const [priceChanged, setPriceChanged] = useState(false);
+  /** Idempotency key — stable across retries of the same booking intent. */
+  const [idempotencyKey, setIdempotencyKey] = useState<string>(() =>
+    newIdempotencyKey()
+  );
 
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
@@ -158,11 +195,66 @@ export default function BookingView({ slug }: { slug: string }) {
     ? dhakaDateString(new Date(selectedSlot.startIso))
     : null;
 
-  const videoFee = doctor
-    ? doctor.videoConsultFee ?? doctor.consultationFee
-    : 0;
-  const effectiveFee =
-    type === "VIDEO" && doctor?.supportsVideo ? videoFee : doctor?.consultationFee ?? 0;
+  const phoneValid = /^\+?[0-9\-() ]{8,20}$/.test(patientPhone.trim());
+
+  /** Fee shown on the confirm button: live preview price, else the listed fee. */
+  const displayFee = preview?.fee ?? doctor?.consultationFee ?? 0;
+
+  /** Fetch the server-side price breakdown for this phone number. */
+  const fetchPreview = useCallback(
+    async (docSlug: string, phone: string): Promise<PricePreviewDto | null> => {
+      setPreviewStatus("loading");
+      setPreviewError(null);
+      try {
+        const res = await fetch("/api/v1/booking/price-preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ doctorSlug: docSlug, patientPhone: phone }),
+        });
+        const json = (await res.json()) as ApiResult<{
+          preview: PricePreviewDto;
+        }>;
+        if (!res.ok || !json.ok) {
+          throw new Error(
+            json.ok === false
+              ? json.error.message
+              : "Could not load the price preview."
+          );
+        }
+        setPreview(json.data.preview);
+        setPreviewStatus("ready");
+        return json.data.preview;
+      } catch (err) {
+        setPreview(null);
+        setPreviewError(
+          err instanceof Error ? err.message : "Could not load the price preview."
+        );
+        setPreviewStatus("error");
+        return null;
+      }
+    },
+    []
+  );
+
+  // Once a slot is picked AND a phone number is entered, load the exact fee
+  // (new vs returning patient classification) before the confirm step.
+  useEffect(() => {
+    if (!doctor || !selectedSlot || !phoneValid) {
+      setPreview(null);
+      setPreviewStatus("idle");
+      setPreviewError(null);
+      setPriceChanged(false);
+      return;
+    }
+    // New phone/slot context — a stale price-changed warning no longer applies.
+    setPriceChanged(false);
+    const docSlug = doctor.slug;
+    const phone = patientPhone.trim();
+    const timer = setTimeout(() => {
+      void fetchPreview(docSlug, phone);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [doctor, selectedSlot, phoneValid, patientPhone, fetchPreview]);
 
   const goToAuth = () => {
     setAuthReturnView({ name: "booking", slug });
@@ -181,7 +273,7 @@ export default function BookingView({ slug }: { slug: string }) {
       });
       return;
     }
-    if (!/^\+?[0-9\-() ]{8,20}$/.test(patientPhone.trim())) {
+    if (!phoneValid) {
       toast({
         variant: "destructive",
         title: "Invalid phone number",
@@ -209,17 +301,23 @@ export default function BookingView({ slug }: { slug: string }) {
           doctorSlug: doctor.slug,
           date: bookingDate,
           slotStartIso: selectedSlot.startIso,
-          type,
+          type: "IN_PERSON",
           patientName: patientName.trim(),
           patientPhone: patientPhone.trim(),
           patientAge: age === "" ? undefined : Number(age),
           patientGender: patientGender || undefined,
           notes: notes.trim() || undefined,
+          // Pricing expectation (docs/FEE_SYSTEM.md §3): the server recomputes
+          // and answers 409 PRICE_CHANGED if the fee/type moved since preview.
+          expectedFee: preview?.fee,
+          expectedPatientType: preview?.patientType,
+          idempotencyKey,
         }),
       });
       const json = (await res.json()) as ApiResult<{
         appointment: AppointmentDto;
         referenceCode: string;
+        idempotentReplay?: boolean;
       }>;
 
       if (!res.ok || !json.ok) {
@@ -238,6 +336,23 @@ export default function BookingView({ slug }: { slug: string }) {
           setSlotRefresh((k) => k + 1); // refetch fresh availability
           return;
         }
+        if (code === "PRICE_CHANGED") {
+          // The doctor's fee settings changed since the preview — show the
+          // fresh breakdown and require a fresh confirm click.
+          const fresh = await fetchPreview(doctor.slug, patientPhone.trim());
+          setPriceChanged(true);
+          toast({
+            variant: "destructive",
+            title: "The price changed since the preview",
+            description: fresh
+              ? `Updated price: ${formatFee(fresh.fee)} (${patientTypeLabel(
+                  fresh.patientType
+                )}). Please review and confirm again.`
+              : "Please review the updated price and confirm again.",
+          });
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        }
         toast({
           variant: "destructive",
           title: "Booking failed",
@@ -249,8 +364,12 @@ export default function BookingView({ slug }: { slug: string }) {
       setConfirmation({
         appointment: json.data.appointment,
         referenceCode: json.data.referenceCode,
+        replay: json.data.idempotentReplay === true,
       });
       setSelectedSlot(null);
+      setPriceChanged(false);
+      // Fresh intent → fresh idempotency key for any next booking.
+      setIdempotencyKey(newIdempotencyKey());
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
       toast({
@@ -376,12 +495,6 @@ export default function BookingView({ slug }: { slug: string }) {
                     <span className="font-semibold text-foreground">
                       {formatFee(doctor.consultationFee)}
                     </span>
-                    {doctor.supportsVideo && (
-                      <span className="inline-flex items-center gap-1">
-                        <Video className="h-3.5 w-3.5" />
-                        Video consult available
-                      </span>
-                    )}
                   </p>
                   <p className="mt-1.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
                     {doctor.requiresApproval ? (
@@ -445,6 +558,13 @@ export default function BookingView({ slug }: { slug: string }) {
                       anytime with your phone number and this code.
                     </p>
                   )}
+                  {confirmation.replay && (
+                    <p className="max-w-md rounded-lg border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                      This was a retry of your previous request — the original
+                      appointment was returned, so no duplicate booking was
+                      created.
+                    </p>
+                  )}
                 </div>
 
                 <div className="mt-6 divide-y rounded-lg border">
@@ -467,12 +587,48 @@ export default function BookingView({ slug }: { slug: string }) {
                         : "In-person visit"
                     }
                   />
+                  {/* Pricing snapshot (docs/FEE_SYSTEM.md §3.3) — fixed at confirmation. */}
+                  <div className="flex items-center justify-between gap-3 px-4 py-3">
+                    <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <UsersRound className="h-4 w-4" aria-hidden="true" />
+                      Patient type
+                    </span>
+                    <span className="flex flex-wrap items-center justify-end gap-2">
+                      {confirmation.appointment.patientType ? (
+                        <>
+                          <PatientTypeBadge
+                            type={confirmation.appointment.patientType}
+                          />
+                          <span className="text-sm font-medium">
+                            {patientTypeLabel(
+                              confirmation.appointment.patientType
+                            )}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-sm font-medium">—</span>
+                      )}
+                    </span>
+                  </div>
                   <DetailRow
                     icon={Hash}
                     label="Consultation fee"
                     value={formatFee(confirmation.appointment.fee)}
                   />
+                  {confirmation.appointment.paymentStatus === "NOT_REQUIRED" && (
+                    <DetailRow
+                      icon={Wallet}
+                      label="Payment"
+                      value={`Pay ${formatFee(
+                        confirmation.appointment.fee
+                      )} at the chamber`}
+                    />
+                  )}
                 </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  This fee was fixed at confirmation — later fee changes never
+                  affect a booked appointment.
+                </p>
 
                 <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
                   <Button
@@ -533,50 +689,21 @@ export default function BookingView({ slug }: { slug: string }) {
                       >
                         <div className="space-y-2">
                           <Label>Appointment type</Label>
-                          <RadioGroup
-                            value={type}
-                            onValueChange={(v) =>
-                              setType(v === "VIDEO" ? "VIDEO" : "IN_PERSON")
-                            }
-                            className="gap-2"
-                          >
-                            <label
-                              className={cn(
-                                "flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors",
-                                type === "IN_PERSON"
-                                  ? "border-primary bg-primary/5"
-                                  : "hover:bg-muted/50"
-                              )}
-                            >
-                              <RadioGroupItem value="IN_PERSON" />
-                              <MapPin className="h-4 w-4 text-muted-foreground" />
-                              <span className="flex-1 text-sm font-medium">
-                                In-person visit
-                              </span>
-                              <span className="text-sm font-semibold">
-                                {formatFee(doctor.consultationFee)}
-                              </span>
-                            </label>
-                            {doctor.supportsVideo && (
-                              <label
-                                className={cn(
-                                  "flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors",
-                                  type === "VIDEO"
-                                    ? "border-primary bg-primary/5"
-                                    : "hover:bg-muted/50"
-                                )}
-                              >
-                                <RadioGroupItem value="VIDEO" />
-                                <Video className="h-4 w-4 text-muted-foreground" />
-                                <span className="flex-1 text-sm font-medium">
-                                  Video consultation
-                                </span>
-                                <span className="text-sm font-semibold">
-                                  {formatFee(videoFee)}
-                                </span>
-                              </label>
-                            )}
-                          </RadioGroup>
+                          {/* Telehealth is disabled pending regulatory review —
+                              only in-person visits can be booked (Phase 0 gate). */}
+                          <div className="flex items-center gap-3 rounded-lg border border-primary bg-primary/5 p-3">
+                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                            <span className="flex-1 text-sm font-medium">
+                              In-person visit
+                            </span>
+                            <span className="text-sm font-semibold">
+                              {formatFee(doctor.consultationFee)}
+                            </span>
+                          </div>
+                          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Video className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            Video consultations coming after regulatory approval
+                          </p>
                         </div>
 
                         {selectedSlot && (
@@ -584,10 +711,6 @@ export default function BookingView({ slug }: { slug: string }) {
                             <CalendarCheck className="h-4 w-4 shrink-0 text-primary" />
                             <span className="font-medium">
                               {formatDhaka(new Date(selectedSlot.startIso))}
-                            </span>
-                            <span className="text-muted-foreground">·</span>
-                            <span className="text-muted-foreground">
-                              {formatFee(effectiveFee)}
                             </span>
                           </p>
                         )}
@@ -616,7 +739,104 @@ export default function BookingView({ slug }: { slug: string }) {
                             autoComplete="tel"
                             required
                           />
+                          <p className="text-xs text-muted-foreground">
+                            We use this number to check whether you are a new or
+                            returning patient of this doctor.
+                          </p>
                         </div>
+
+                        {/* ── Price breakdown (docs/FEE_SYSTEM.md §3.2) ── */}
+                        {selectedSlot && (
+                          <div className="space-y-3 rounded-lg border border-emerald-300/70 bg-emerald-50/60 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <p className="flex items-center gap-1.5 text-sm font-semibold">
+                                <ReceiptText
+                                  className="h-4 w-4 text-emerald-700 dark:text-emerald-400"
+                                  aria-hidden="true"
+                                />
+                                Price breakdown
+                              </p>
+                              {previewStatus === "ready" && preview && (
+                                <PatientTypeBadge type={preview.patientType} />
+                              )}
+                            </div>
+
+                            {previewStatus === "loading" ? (
+                              <div className="space-y-2" aria-busy="true">
+                                <Skeleton className="h-8 w-36" />
+                                <Skeleton className="h-4 w-full" />
+                                <Skeleton className="h-4 w-3/4" />
+                              </div>
+                            ) : previewStatus === "error" ? (
+                              <div className="space-y-2 text-sm text-muted-foreground">
+                                <p role="alert">{previewError}</p>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-1.5"
+                                  onClick={() =>
+                                    void fetchPreview(
+                                      doctor.slug,
+                                      patientPhone.trim()
+                                    )
+                                  }
+                                >
+                                  <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
+                                  Retry
+                                </Button>
+                              </div>
+                            ) : previewStatus === "idle" ? (
+                              <p className="text-sm text-muted-foreground">
+                                {phoneValid
+                                  ? "Checking your fee…"
+                                  : "Enter the patient's phone number to see the exact fee (new vs returning patient)."}
+                              </p>
+                            ) : preview ? (
+                              <>
+                                <p className="flex flex-wrap items-baseline gap-x-2">
+                                  <span className="text-2xl font-bold">
+                                    {formatFee(preview.fee)}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    for this visit ·{" "}
+                                    {patientTypeLabel(preview.patientType)}
+                                  </span>
+                                </p>
+                                <p className="text-sm leading-relaxed text-muted-foreground">
+                                  {preview.explanation}
+                                </p>
+                                <Separator className="bg-emerald-200 dark:bg-emerald-900" />
+                                <p className="text-xs text-muted-foreground">
+                                  Doctor&apos;s fee structure — New{" "}
+                                  {formatFee(preview.feeSettings.newPatientFee)} ·
+                                  Returning{" "}
+                                  {formatFee(
+                                    preview.feeSettings.returningPatientFee
+                                  )}{" "}
+                                  (valid{" "}
+                                  {validityLabel(
+                                    preview.feeSettings.returningValidityValue,
+                                    preview.feeSettings.returningValidityUnit
+                                  )}
+                                  )
+                                  {preview.feeSettings.followUpEnabled
+                                    ? ` · Follow-up ${formatFee(
+                                        preview.feeSettings.followUpFee
+                                      )} (${validityLabel(
+                                        preview.feeSettings.followUpValidityValue,
+                                        preview.feeSettings.followUpValidityUnit
+                                      )})`
+                                    : ""}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  The fee is fixed when you confirm — payment is
+                                  made at the chamber.
+                                </p>
+                              </>
+                            ) : null}
+                          </div>
+                        )}
 
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-2">
@@ -667,6 +887,20 @@ export default function BookingView({ slug }: { slug: string }) {
                         </div>
                       </fieldset>
 
+                      {priceChanged && (
+                        <Alert className="border-warning/50 bg-warning/10">
+                          <TriangleAlert className="h-4 w-4 text-warning" />
+                          <AlertTitle>
+                            The price changed since the preview
+                          </AlertTitle>
+                          <AlertDescription>
+                            The doctor&apos;s fee settings were updated while you
+                            were booking. Review the new price above and click
+                            confirm again to continue.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
                       {!selectedSlot && (
                         <p className="flex items-center gap-2 text-sm text-muted-foreground">
                           <CalendarClock className="h-4 w-4" />
@@ -677,7 +911,9 @@ export default function BookingView({ slug }: { slug: string }) {
                       <Button
                         type="submit"
                         className="w-full gap-2"
-                        disabled={!selectedSlot || submitting}
+                        disabled={
+                          !selectedSlot || submitting || previewStatus === "loading"
+                        }
                       >
                         {submitting ? (
                           <>
@@ -685,7 +921,7 @@ export default function BookingView({ slug }: { slug: string }) {
                             Booking...
                           </>
                         ) : (
-                          <>Confirm booking · {formatFee(effectiveFee)}</>
+                          <>Confirm booking · {formatFee(displayFee)}</>
                         )}
                       </Button>
                     </form>

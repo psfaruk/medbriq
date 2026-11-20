@@ -157,6 +157,13 @@ export async function GET() {
       // (the Firestore store already returns it), so read it defensively.
       consultationNote:
         (appt as { consultationNote?: string | null }).consultationNote ?? null,
+      // ── Fee system (docs/FEE_SYSTEM.md §3) + separated status axes ──
+      patientType: appt.patientType ?? null,
+      feeSettingsVersion: appt.feeSettingsVersion ?? null,
+      pricedAt: appt.pricedAt ?? null,
+      paymentStatus: appt.paymentStatus ?? "NOT_REQUIRED",
+      consultationStatus: appt.consultationStatus ?? "NOT_STARTED",
+      refundStatus: appt.refundStatus ?? "NONE",
       createdAt: appt.createdAt,
       doctor: doctorCardInfo,
       patientId: appt.patientId,

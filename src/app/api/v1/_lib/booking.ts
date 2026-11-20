@@ -57,6 +57,20 @@ export function toAppointmentDto(row: AppointmentRecord): AppointmentDto {
     // own response so the immediate feedback is always accurate.
     consultationNote:
       (row as { consultationNote?: string | null }).consultationNote ?? null,
+    // Separated status axes (docs/ARCHITECTURE_CORRECTIONS.md #12) + the
+    // pricing snapshot (docs/FEE_SYSTEM.md §3) — read defensively so older
+    // store records without these fields still map.
+    paymentStatus:
+      (row as { paymentStatus?: string }).paymentStatus ?? "NOT_REQUIRED",
+    consultationStatus:
+      (row as { consultationStatus?: string }).consultationStatus ??
+      "NOT_STARTED",
+    refundStatus: (row as { refundStatus?: string }).refundStatus ?? "NONE",
+    patientType: (row as { patientType?: string | null }).patientType ?? null,
+    feeSettingsVersion:
+      (row as { feeSettingsVersion?: number | null }).feeSettingsVersion ??
+      null,
+    pricedAt: (row as { pricedAt?: string | null }).pricedAt ?? null,
     createdAt: row.createdAt,
     doctor: {
       slug: row.doctor.slug,

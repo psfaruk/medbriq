@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { ModuleDisabledError } from "@/lib/modules";
+import { FeeModuleUnavailableError } from "@/lib/data/types";
 
 /**
  * Standard Medbriq API response helpers.
@@ -19,6 +21,14 @@ export function fail(message: string, status = 400, code?: string) {
 }
 
 export function handleRouteError(err: unknown) {
+  // Module eligibility gates (docs/ARCHITECTURE_CORRECTIONS.md #2/#18):
+  // disabled modules answer 503 with the gate reason, never a silent 404/500.
+  if (err instanceof ModuleDisabledError) {
+    return fail(err.message, 503, "MODULE_DISABLED");
+  }
+  if (err instanceof FeeModuleUnavailableError) {
+    return fail(err.message, 503, "MODULE_DISABLED");
+  }
   console.error("[medbriq-api]", err);
   const message =
     err instanceof Error ? err.message : "Unexpected server error";

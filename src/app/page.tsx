@@ -46,6 +46,7 @@ import DoctorDashboardView from "@/components/views/doctor-dashboard-view";
 import AdminView from "@/components/views/admin-view";
 import SettingsView from "@/components/views/settings-view";
 import AuthView from "@/components/views/auth-view";
+import ComplianceView from "@/components/views/compliance-view";
 
 function initials(name: string) {
   return name
@@ -61,6 +62,7 @@ const NAV_ITEMS: { label: string; view: ViewName; icon: React.ElementType }[] = 
   { label: "Home", view: "home", icon: HeartPulse },
   { label: "Find Doctors", view: "search", icon: Search },
   { label: "My Appointments", view: "appointments", icon: CalendarCheck },
+  { label: "Compliance", view: "compliance", icon: ShieldCheck },
 ];
 
 export default function MedbriqApp() {
@@ -317,6 +319,7 @@ export default function MedbriqApp() {
         {view.name === "admin" && <AdminView />}
         {view.name === "settings" && <SettingsView />}
         {view.name === "auth" && <AuthView />}
+        {view.name === "compliance" && <ComplianceView />}
       </main>
 
       {/* ---------------------------------------------------------------- */}
@@ -393,6 +396,16 @@ export default function MedbriqApp() {
                 Medbriq is a discovery & booking platform — it does not provide
                 medical advice, diagnosis, or prescriptions.
               </p>
+              <ul className="mt-3 space-y-2 text-sm">
+                <li>
+                  <button
+                    className="hover:text-foreground transition-colors"
+                    onClick={() => navigate({ name: "compliance" })}
+                  >
+                    Architecture & compliance review
+                  </button>
+                </li>
+              </ul>
               <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5 font-semibold text-foreground">
                   <PhoneCall className="h-3.5 w-3.5 text-destructive" />

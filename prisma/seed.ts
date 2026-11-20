@@ -17,22 +17,38 @@
 
 import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "../src/lib/password";
+import { normalizePhone } from "../src/lib/phone";
 import {
   SEED_ADMIN,
   SEED_DOCTORS,
+  SEED_FEE_SETTINGS,
   SEED_HOSPITALS,
   SEED_PATIENTS,
   SEED_REVIEWS,
   SEED_SPECIALTIES,
+  buildCompletedVisits,
   buildDemoAppointments,
+  dhakaToUtc,
 } from "../src/lib/data/seed-data";
 
 const db = new PrismaClient();
+
+/** Dhaka calendar date `daysAgo` days before today, as YYYY-MM-DD. */
+function dhakaDateDaysAgo(daysAgo: number): string {
+  const now = new Date(Date.now() + 6 * 60 * 60 * 1000);
+  const d = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysAgo)
+  );
+  return d.toISOString().slice(0, 10);
+}
 
 async function main() {
   console.log("🌱 Seeding Medbriq demo data ...");
 
   // Wipe existing data (demo database only).
+  await db.doctorPatientVisit.deleteMany();
+  await db.doctorFeeHistory.deleteMany();
+  await db.doctorFeeSettings.deleteMany();
   await db.auditLog.deleteMany();
   await db.review.deleteMany();
   await db.appointment.deleteMany();
@@ -160,7 +176,43 @@ async function main() {
     doctorMap.set(d.slug, { id: profile.id, requiresApproval: d.requiresApproval });
   }
 
-  // Demo appointments (future slots, shared spec) -----------------------------
+  // Doctor-wise fee settings (docs/FEE_SYSTEM.md) ────────────────────────
+  // One DoctorFeeSettings row + immutable v1 history row per doctor.
+  for (const spec of SEED_FEE_SETTINGS) {
+    const doctor = doctorMap.get(spec.doctorSlug)!;
+    const created = await db.doctorFeeSettings.create({
+      data: {
+        doctorId: doctor.id,
+        newPatientFee: spec.newPatientFee,
+        returningPatientFee: spec.returningPatientFee,
+        returningValidityValue: spec.returningValidityValue,
+        returningValidityUnit: spec.returningValidityUnit,
+        followUpEnabled: spec.followUpEnabled,
+        followUpFee: spec.followUpFee,
+        followUpValidityValue: spec.followUpValidityValue,
+        followUpValidityUnit: spec.followUpValidityUnit,
+        version: 1,
+      },
+    });
+    await db.doctorFeeHistory.create({
+      data: {
+        doctorId: doctor.id,
+        version: 1,
+        newPatientFee: created.newPatientFee,
+        returningPatientFee: created.returningPatientFee,
+        returningValidityValue: created.returningValidityValue,
+        returningValidityUnit: created.returningValidityUnit,
+        followUpEnabled: created.followUpEnabled,
+        followUpFee: created.followUpFee,
+        followUpValidityValue: created.followUpValidityValue,
+        followUpValidityUnit: created.followUpValidityUnit,
+        changeReason: "Initial demo configuration (seed)",
+        changedBy: admin.id,
+      },
+    });
+  }
+
+  // Demo appointments (future slots, shared spec) ──────────────────────
   for (const spec of buildDemoAppointments()) {
     const doctor = doctorMap.get(spec.doctorSlug)!;
     await db.appointment.create({
@@ -181,6 +233,75 @@ async function main() {
         status: spec.status,
         bookingMode: spec.bookingMode,
         fee: spec.fee,
+        patientType: spec.patientType ?? null,
+        feeSettingsVersion: spec.feeSettingsVersion ?? null,
+        pricingBasis: spec.patientType
+          ? JSON.stringify({
+              rule:
+                spec.patientType === "RETURNING"
+                  ? "WITHIN_RETURNING_VALIDITY"
+                  : "NO_PRIOR_COMPLETED_VISIT",
+              doctorId: doctor.id,
+              patientPhone: normalizePhone(spec.patientPhone),
+              seed: true,
+            })
+          : null,
+        pricedAt: new Date(Date.now() - 60_000),
+      },
+    });
+  }
+
+  // Past completed visits + doctor_patient_history rows ─────────────────
+  // (demonstrates NEW / RETURNING / FOLLOW_UP classification immediately)
+  for (const spec of buildCompletedVisits()) {
+    const doctor = doctorMap.get(spec.doctorSlug)!;
+    const patientId = spec.patientEmail
+      ? (patientIdByEmail.get(spec.patientEmail) ?? null)
+      : null;
+    const dateStr = dhakaDateDaysAgo(spec.daysAgo);
+    const slotStart = dhakaToUtc(dateStr, spec.minuteOfDay);
+    const slotEnd = new Date(slotStart.getTime() + 30 * 60_000);
+    const appointment = await db.appointment.create({
+      data: {
+        referenceCode: spec.referenceCode,
+        doctorId: doctor.id,
+        patientId,
+        patientName: spec.patientName,
+        patientPhone: spec.patientPhone,
+        patientAge: spec.patientAge,
+        patientGender: spec.patientGender,
+        notes: null,
+        slotStart,
+        slotEnd,
+        type: "IN_PERSON",
+        status: "COMPLETED",
+        bookingMode: "APPROVAL",
+        fee: spec.fee,
+        paymentStatus: "NOT_REQUIRED",
+        consultationStatus: "COMPLETED",
+        patientType: spec.patientType,
+        feeSettingsVersion: spec.feeSettingsVersion,
+        pricingBasis: JSON.stringify({
+          rule: "NO_PRIOR_COMPLETED_VISIT",
+          doctorId: doctor.id,
+          patientId,
+          patientPhone: normalizePhone(spec.patientPhone),
+          seed: true,
+        }),
+        pricedAt: slotStart,
+        consultationNote: null,
+      },
+    });
+    await db.doctorPatientVisit.create({
+      data: {
+        doctorId: doctor.id,
+        appointmentId: appointment.id,
+        patientId,
+        patientPhone: normalizePhone(spec.patientPhone),
+        slotStart,
+        completedAt: slotEnd,
+        qualifying: spec.qualifying,
+        paymentStatusAtCompletion: "NOT_REQUIRED",
       },
     });
   }
@@ -203,14 +324,19 @@ async function main() {
     specialties: await db.specialty.count(),
     hospitals: await db.hospital.count(),
     doctors: await db.doctorProfile.count(),
+    feeSettings: await db.doctorFeeSettings.count(),
+    feeHistory: await db.doctorFeeHistory.count(),
     appointments: await db.appointment.count(),
+    visits: await db.doctorPatientVisit.count(),
     reviews: await db.review.count(),
   };
   console.log("✅ Seed complete:", counts);
   console.log("   Demo logins (DEV ONLY — see README):");
   console.log("   admin@medbriq.dev / Admin@Medbriq123");
   console.log("   doctor@medbriq.dev / Doctor@123   (Dr. Ayesha Rahman, VERIFIED)");
-  console.log("   patient@medbriq.dev / Patient@123 (Rahim Uddin)");
+  console.log("   patient@medbriq.dev / Patient@123 (Rahim Uddin — RETURNING with Dr. Ayesha)");
+  console.log("   patient2@medbriq.dev / Patient@123 (Salma Khatun — FOLLOW_UP with Dr. Farhana)");
+  console.log("   patient3@medbriq.dev / Patient@123 (Abdul Karim — expired validity → NEW)");
 }
 
 main()

@@ -34,6 +34,7 @@ export const APPOINTMENT_STATUS = {
   CANCELLED_BY_PATIENT: "CANCELLED_BY_PATIENT",
   CANCELLED_BY_DOCTOR: "CANCELLED_BY_DOCTOR",
   COMPLETED: "COMPLETED",
+  NO_SHOW: "NO_SHOW",
   EXPIRED: "EXPIRED",
 } as const;
 export type AppointmentStatus =
@@ -90,6 +91,7 @@ export const NOTIFICATION_TYPES = {
   APPOINTMENT_CANCELLED_BY_PATIENT: "APPOINTMENT_CANCELLED_BY_PATIENT",
   APPOINTMENT_CANCELLED_BY_DOCTOR: "APPOINTMENT_CANCELLED_BY_DOCTOR",
   APPOINTMENT_COMPLETED: "APPOINTMENT_COMPLETED",
+  APPOINTMENT_NO_SHOW: "APPOINTMENT_NO_SHOW",
   APPOINTMENT_RESCHEDULED: "APPOINTMENT_RESCHEDULED",
   REVIEW_RECEIVED: "REVIEW_RECEIVED",
 } as const;
@@ -117,3 +119,65 @@ export const GENDERS = ["MALE", "FEMALE", "OTHER"] as const;
 
 /** Bangladesh emergency number — must stay visible in the UI. */
 export const BD_EMERGENCY_NUMBER = "999";
+
+// ── Doctor-wise fee system (docs/FEE_SYSTEM.md) ────────────────────────
+
+/** Patient classification types — per doctor, never global. */
+export const PATIENT_TYPE = {
+  NEW: "NEW",
+  RETURNING: "RETURNING",
+  FOLLOW_UP: "FOLLOW_UP",
+} as const;
+export type PatientType = (typeof PATIENT_TYPE)[keyof typeof PATIENT_TYPE];
+
+/** Validity duration units. */
+export const VALIDITY_UNIT = {
+  DAYS: "DAYS",
+  MONTHS: "MONTHS",
+} as const;
+export type ValidityUnit = (typeof VALIDITY_UNIT)[keyof typeof VALIDITY_UNIT];
+
+/** Platform defaults when a doctor has no explicit fee settings yet. */
+export const FEE_DEFAULTS = {
+  NEW_PATIENT_FEE: 1000,
+  RETURNING_PATIENT_FEE: 600,
+  RETURNING_VALIDITY_VALUE: 6,
+  RETURNING_VALIDITY_UNIT: VALIDITY_UNIT.MONTHS,
+  FOLLOW_UP_ENABLED: false,
+  FOLLOW_UP_FEE: 0,
+  FOLLOW_UP_VALIDITY_VALUE: 15,
+  FOLLOW_UP_VALIDITY_UNIT: VALIDITY_UNIT.DAYS,
+} as const;
+
+/** Server-side validation limits for fee settings. */
+export const FEE_LIMITS = {
+  MIN_FEE: 0,
+  MAX_FEE: 100000,
+  RETURNING_DAYS: { MIN: 1, MAX: 365 },
+  RETURNING_MONTHS: { MIN: 1, MAX: 36 },
+  FOLLOW_UP_DAYS: { MIN: 1, MAX: 90 },
+  FOLLOW_UP_MONTHS: { MIN: 1, MAX: 12 },
+} as const;
+
+/** UI preset durations for the returning-validity selector (months). */
+export const RETURNING_VALIDITY_PRESETS_MONTHS = [1, 2, 3, 6, 12] as const;
+
+/** Separated status axes (docs/ARCHITECTURE_CORRECTIONS.md #12). */
+export const PAYMENT_STATUS = {
+  NOT_REQUIRED: "NOT_REQUIRED",
+  PENDING: "PENDING",
+  PAID: "PAID",
+  REFUNDED: "REFUNDED",
+} as const;
+
+export const CONSULTATION_STATUS = {
+  NOT_STARTED: "NOT_STARTED",
+  COMPLETED: "COMPLETED",
+  NOT_HELD: "NOT_HELD",
+} as const;
+
+export const REFUND_STATUS = {
+  NONE: "NONE",
+  REQUESTED: "REQUESTED",
+  PROCESSED: "PROCESSED",
+} as const;

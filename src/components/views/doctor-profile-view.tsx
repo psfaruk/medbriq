@@ -30,6 +30,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VerificationBadge } from "@/components/doctors/verification-badge";
 import { formatFee, getInitials } from "@/components/doctors/doctor-card";
+import { validityLabel } from "@/lib/fee-labels";
 import { useAppStore } from "@/lib/store";
 import { LANGUAGES } from "@/lib/constants";
 import { DAY_SHORT, formatDhaka, minutesToLabel } from "@/lib/time";
@@ -459,31 +460,73 @@ export default function DoctorProfileView({ slug }: { slug: string }) {
             </Alert>
           ) : null}
 
-          {/* 2. Fees */}
+          {/* 2. Fees — doctor-wise fee structure when available (docs/FEE_SYSTEM.md),
+              legacy single-fee display otherwise. */}
           <Card>
             <CardContent className="p-6">
-              <div className="grid grid-cols-3 divide-x text-center">
-                <div>
-                  <p className="text-xs text-muted-foreground">Consultation</p>
-                  <p className="mt-1 text-lg font-bold text-primary">
-                    {formatFee(doctor.consultationFee)}
-                  </p>
+              {doctor.feeStructure ? (
+                <div className="grid gap-4 text-center sm:grid-cols-3 sm:divide-x">
+                  <div>
+                    <p className="text-xs text-muted-foreground">New patient</p>
+                    <p className="mt-1 text-lg font-bold text-primary">
+                      {formatFee(doctor.feeStructure.newPatientFee)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">নতুন রোগী</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Returning</p>
+                    <p className="mt-1 text-lg font-bold">
+                      {formatFee(doctor.feeStructure.returningPatientFee)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      valid{" "}
+                      {validityLabel(
+                        doctor.feeStructure.returningValidityValue,
+                        doctor.feeStructure.returningValidityUnit
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Follow-up</p>
+                    <p className="mt-1 text-lg font-bold">
+                      {doctor.feeStructure.followUpEnabled
+                        ? formatFee(doctor.feeStructure.followUpFee)
+                        : "—"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {doctor.feeStructure.followUpEnabled
+                        ? validityLabel(
+                            doctor.feeStructure.followUpValidityValue,
+                            doctor.feeStructure.followUpValidityUnit
+                          )
+                        : "Not offered"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Follow-up</p>
-                  <p className="mt-1 text-lg font-bold">
-                    {formatFee(doctor.followUpFee)}
-                  </p>
+              ) : (
+                <div className="grid grid-cols-3 divide-x text-center">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Consultation</p>
+                    <p className="mt-1 text-lg font-bold text-primary">
+                      {formatFee(doctor.consultationFee)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Follow-up</p>
+                    <p className="mt-1 text-lg font-bold">
+                      {formatFee(doctor.followUpFee)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Video</p>
+                    <p className="mt-1 text-lg font-bold">
+                      {doctor.supportsVideo && doctor.videoConsultFee !== null
+                        ? formatFee(doctor.videoConsultFee)
+                        : "—"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Video</p>
-                  <p className="mt-1 text-lg font-bold">
-                    {doctor.supportsVideo && doctor.videoConsultFee !== null
-                      ? formatFee(doctor.videoConsultFee)
-                      : "—"}
-                  </p>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
@@ -639,7 +682,7 @@ export default function DoctorProfileView({ slug }: { slug: string }) {
                   {formatFee(doctor.consultationFee)}
                 </p>
                 <p className="text-xs text-primary-foreground/85">
-                  per consultation
+                  {doctor.feeStructure ? "new patient visit" : "per consultation"}
                 </p>
               </div>
               <Button
@@ -668,14 +711,46 @@ export default function DoctorProfileView({ slug }: { slug: string }) {
                 Next available:{" "}
                 {doctor.nextAvailableLabel ?? "See full schedule"}
               </p>
-              <p className="mt-4 flex flex-wrap items-baseline gap-x-2">
-                <span className="text-3xl font-bold text-primary">
-                  {formatFee(doctor.consultationFee)}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  per consultation
-                </span>
-              </p>
+              {doctor.feeStructure ? (
+                <div className="mt-4 space-y-1.5">
+                  <p className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="text-3xl font-bold text-primary">
+                      {formatFee(doctor.feeStructure.newPatientFee)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      new patient visit
+                    </span>
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Returning patients pay{" "}
+                    {formatFee(doctor.feeStructure.returningPatientFee)} — valid{" "}
+                    {validityLabel(
+                      doctor.feeStructure.returningValidityValue,
+                      doctor.feeStructure.returningValidityUnit
+                    )}
+                    .
+                  </p>
+                  {doctor.feeStructure.followUpEnabled && (
+                    <p className="text-sm text-muted-foreground">
+                      Follow-up {formatFee(doctor.feeStructure.followUpFee)} within{" "}
+                      {validityLabel(
+                        doctor.feeStructure.followUpValidityValue,
+                        doctor.feeStructure.followUpValidityUnit
+                      )}
+                      .
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-4 flex flex-wrap items-baseline gap-x-2">
+                  <span className="text-3xl font-bold text-primary">
+                    {formatFee(doctor.consultationFee)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    per consultation
+                  </span>
+                </p>
+              )}
 
               {isVerified ? (
                 <Button

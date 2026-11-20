@@ -4,15 +4,18 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { useAppStore } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
 import { DAY_NAMES, formatDhaka, minutesToLabel } from "@/lib/time";
-import { LANGUAGES } from "@/lib/constants";
+import { LANGUAGES, RETURNING_VALIDITY_PRESETS_MONTHS } from "@/lib/constants";
 import type {
   AppointmentDto,
   DoctorDashboardData,
+  FeeHistoryItem,
+  FeeSettingsDto,
   SessionUser,
+  VisitHistoryItem,
 } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -21,6 +24,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -41,18 +54,26 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
+  History,
   Hourglass,
   Loader2,
   LockKeyhole,
   Phone,
   Plus,
   RotateCw,
+  Search,
   Star,
   Trash2,
+  UserX,
   Wallet,
   X,
 } from "lucide-react";
 import { formatFee } from "@/components/doctors/doctor-card";
+import { PatientTypeBadge } from "@/components/booking/patient-type-badge";
+import {
+  paymentStatusLabel,
+  validityLabel,
+} from "@/lib/fee-labels";
 
 /**
  * DoctorDashboardView — the doctor workspace: verification banner, stats,
@@ -296,6 +317,46 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
   const [requiresApproval, setRequiresApproval] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
 
+  // ── Fee settings & patients (docs/FEE_SYSTEM.md §5-§6) ──
+  const [feeSettings, setFeeSettings] = useState<FeeSettingsDto | null>(null);
+  const [feeStatus, setFeeStatus] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+  const [feeError, setFeeError] = useState<string | null>(null);
+  const [newPatientFee, setNewPatientFee] = useState("");
+  const [returningPatientFee, setReturningPatientFee] = useState("");
+  const [returningValidityValue, setReturningValidityValue] = useState("");
+  const [returningValidityUnit, setReturningValidityUnit] = useState<
+    "DAYS" | "MONTHS"
+  >("MONTHS");
+  const [followUpEnabled, setFollowUpEnabled] = useState(false);
+  const [followUpFeeValue, setFollowUpFeeValue] = useState("");
+  const [followUpValidityValue, setFollowUpValidityValue] = useState("");
+  const [followUpValidityUnit, setFollowUpValidityUnit] = useState<
+    "DAYS" | "MONTHS"
+  >("DAYS");
+  const [changeReason, setChangeReason] = useState("");
+  const [savingFees, setSavingFees] = useState(false);
+  const [feeFormError, setFeeFormError] = useState<string | null>(null);
+  const [feeHistory, setFeeHistory] = useState<FeeHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [feesLoaded, setFeesLoaded] = useState(false);
+
+  // Patient visit-history lookup (own visits only, by phone)
+  const [visitPhone, setVisitPhone] = useState("");
+  const [visitResult, setVisitResult] = useState<{
+    patientName: string | null;
+    phone: string;
+    items: VisitHistoryItem[];
+  } | null>(null);
+  const [visitStatus, setVisitStatus] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+  const [visitError, setVisitError] = useState<string | null>(null);
+
+  // No-show confirmation dialog
+  const [noShowTarget, setNoShowTarget] = useState<AppointmentDto | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     const result = await jsonFetch("/api/v1/doctor/dashboard");
@@ -311,6 +372,47 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  /** Load the doctor's own fee settings and mirror them into the form. */
+  const loadFeeSettings = useCallback(async () => {
+    setFeeStatus("loading");
+    const result = await jsonFetch("/api/v1/doctor/fee-settings");
+    if (result.ok) {
+      const settings = (result.data as { settings: FeeSettingsDto }).settings;
+      setFeeSettings(settings);
+      setNewPatientFee(String(settings.newPatientFee));
+      setReturningPatientFee(String(settings.returningPatientFee));
+      setReturningValidityValue(String(settings.returningValidityValue));
+      setReturningValidityUnit(settings.returningValidityUnit);
+      setFollowUpEnabled(settings.followUpEnabled);
+      setFollowUpFeeValue(String(settings.followUpFee));
+      setFollowUpValidityValue(String(settings.followUpValidityValue));
+      setFollowUpValidityUnit(settings.followUpValidityUnit);
+      setFeeStatus("ready");
+    } else {
+      setFeeError(result.message);
+      setFeeStatus("error");
+    }
+  }, []);
+
+  const loadFeeHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    const result = await jsonFetch(
+      "/api/v1/doctor/fee-settings/history?limit=20"
+    );
+    setHistoryLoading(false);
+    if (result.ok) {
+      setFeeHistory((result.data as { items: FeeHistoryItem[] }).items);
+    }
+  }, []);
+
+  // Fee data is fetched once, when the Fees & Patients tab is first opened.
+  useEffect(() => {
+    if (tab !== "fees" || feesLoaded) return;
+    setFeesLoaded(true);
+    void loadFeeSettings();
+    void loadFeeHistory();
+  }, [tab, feesLoaded, loadFeeSettings, loadFeeHistory]);
 
   // Mirror the server availability into local editor state on each load.
   const serverRules = useMemo<LocalRule[]>(
@@ -363,7 +465,7 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
 
   async function actOnAppointment(
     appt: AppointmentDto,
-    action: "approve" | "reject" | "complete",
+    action: "approve" | "reject" | "complete" | "no-show",
     body?: Record<string, unknown>
   ) {
     const busyKey = `${appt.id}:${action}`;
@@ -381,8 +483,13 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
             ? "Request approved"
             : action === "reject"
               ? "Request rejected"
-              : "Appointment completed",
-        description: `Reference ${appt.referenceCode}`,
+              : action === "no-show"
+                ? "Marked as no-show"
+                : "Appointment completed",
+        description:
+          action === "no-show"
+            ? `Reference ${appt.referenceCode} — no visit recorded, so it does not count toward returning status.`
+            : `Reference ${appt.referenceCode}`,
       });
       // Optimistic local removal, then refetch to sync stats and lists.
       setData((prev) =>
@@ -394,7 +501,7 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
                   ? prev.pending.filter((a) => a.id !== appt.id)
                   : prev.pending,
               upcoming:
-                action === "complete"
+                action === "complete" || action === "no-show"
                   ? prev.upcoming.filter((a) => a.id !== appt.id)
                   : prev.upcoming,
             }
@@ -437,6 +544,106 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
     );
     setCompleteTarget(null);
     setCompleteNote("");
+  }
+
+  async function confirmNoShow() {
+    if (!noShowTarget) return;
+    const target = noShowTarget;
+    setNoShowTarget(null);
+    await actOnAppointment(target, "no-show");
+  }
+
+  // ---------------------------- fee settings -----------------------------
+
+  async function saveFeeSettings(e: FormEvent) {
+    e.preventDefault();
+    setFeeFormError(null);
+    const newFee = Number(newPatientFee);
+    const retFee = Number(returningPatientFee);
+    const retVal = Number(returningValidityValue);
+    const fuFee = followUpFeeValue.trim() === "" ? 0 : Number(followUpFeeValue);
+    const fuVal = followUpValidityValue.trim() === "" ? 0 : Number(followUpValidityValue);
+    if (![newFee, retFee, retVal, fuFee, fuVal].every(Number.isFinite)) {
+      setFeeFormError("All fee and validity fields must be numbers.");
+      return;
+    }
+    setSavingFees(true);
+    const result = await jsonFetch("/api/v1/doctor/fee-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        newPatientFee: newFee,
+        returningPatientFee: retFee,
+        returningValidityValue: retVal,
+        returningValidityUnit: returningValidityUnit,
+        followUpEnabled,
+        followUpFee: fuFee,
+        followUpValidityValue: fuVal,
+        followUpValidityUnit: followUpValidityUnit,
+        changeReason: changeReason.trim() === "" ? undefined : changeReason.trim(),
+      }),
+    });
+    setSavingFees(false);
+    if (result.ok) {
+      const settings = (result.data as { settings: FeeSettingsDto }).settings;
+      setFeeSettings(settings);
+      setNewPatientFee(String(settings.newPatientFee));
+      setReturningPatientFee(String(settings.returningPatientFee));
+      setReturningValidityValue(String(settings.returningValidityValue));
+      setReturningValidityUnit(settings.returningValidityUnit);
+      setFollowUpEnabled(settings.followUpEnabled);
+      setFollowUpFeeValue(String(settings.followUpFee));
+      setFollowUpValidityValue(String(settings.followUpValidityValue));
+      setFollowUpValidityUnit(settings.followUpValidityUnit);
+      setChangeReason("");
+      toast({
+        title: "Fee settings saved",
+        description: `Version ${settings.version} is live — new bookings are priced with it immediately.`,
+      });
+      void loadFeeHistory();
+    } else {
+      // Validation errors carry a human message from the API.
+      setFeeFormError(result.message);
+      toast({
+        title: "Could not save fee settings",
+        description: result.message,
+        variant: "destructive",
+      });
+    }
+  }
+
+  // -------------------------- visit history lookup ------------------------
+
+  async function searchVisits(e: FormEvent) {
+    e.preventDefault();
+    const phone = visitPhone.trim();
+    if (!phone) {
+      toast({
+        title: "Enter a phone number",
+        description:
+          "Type the patient's phone number to look up their visit history with you.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setVisitStatus("loading");
+    setVisitError(null);
+    const result = await jsonFetch(
+      `/api/v1/doctor/patients/visits?phone=${encodeURIComponent(phone)}`
+    );
+    if (result.ok) {
+      setVisitResult(
+        result.data as {
+          patientName: string | null;
+          phone: string;
+          items: VisitHistoryItem[];
+        }
+      );
+      setVisitStatus("ready");
+    } else {
+      setVisitError(result.message);
+      setVisitStatus("error");
+    }
   }
 
   // --------------------------- availability ------------------------------
@@ -735,6 +942,9 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
             <TabsTrigger value="upcoming" className="h-9 flex-1 sm:flex-none">
               Upcoming
             </TabsTrigger>
+            <TabsTrigger value="fees" className="h-9 flex-1 sm:flex-none">
+              Fees &amp; Patients
+            </TabsTrigger>
             <TabsTrigger value="availability" className="h-9 flex-1 sm:flex-none">
               Availability
             </TabsTrigger>
@@ -763,6 +973,7 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
+                        <PatientTypeBadge type={appt.patientType} />
                         {appt.patientAge !== null && (
                           <Badge variant="secondary">{appt.patientAge} yrs</Badge>
                         )}
@@ -846,6 +1057,7 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
                           </p>
                         </div>
                         <div className="flex flex-wrap gap-1.5">
+                          <PatientTypeBadge type={appt.patientType} />
                           <Badge className="bg-success text-success-foreground hover:bg-success">
                             Confirmed
                           </Badge>
@@ -880,29 +1092,465 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
                         </blockquote>
                       )}
                       {slotEnded && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-success/50 text-success hover:bg-success/10 hover:text-success"
-                          disabled={actionBusy !== null}
-                          onClick={() => {
-                            setCompleteTarget(appt);
-                            setCompleteNote("");
-                          }}
-                        >
-                          {actionBusy === `${appt.id}:complete` ? (
-                            <Loader2 className="animate-spin" />
-                          ) : (
-                            <CheckCircle2 />
-                          )}
-                          Mark completed
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-success/50 text-success hover:bg-success/10 hover:text-success"
+                            disabled={actionBusy !== null}
+                            onClick={() => {
+                              setCompleteTarget(appt);
+                              setCompleteNote("");
+                            }}
+                          >
+                            {actionBusy === `${appt.id}:complete` ? (
+                              <Loader2 className="animate-spin" />
+                            ) : (
+                              <CheckCircle2 />
+                            )}
+                            Mark completed
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-warning/50 text-warning hover:bg-warning/10 hover:text-warning"
+                            disabled={actionBusy !== null}
+                            onClick={() => setNoShowTarget(appt)}
+                          >
+                            {actionBusy === `${appt.id}:no-show` ? (
+                              <Loader2 className="animate-spin" />
+                            ) : (
+                              <UserX />
+                            )}
+                            Mark no-show
+                          </Button>
+                        </div>
                       )}
                     </CardContent>
                   </Card>
                 );
               })
             )}
+          </TabsContent>
+
+          {/* ------------------------ Fees & Patients ------------------------ */}
+          <TabsContent value="fees" className="mt-4 space-y-4">
+            {/* 1. Fee settings form (docs/FEE_SYSTEM.md §1) */}
+            {feeStatus === "loading" ? (
+              <Card>
+                <CardContent className="space-y-3 p-4 sm:p-6">
+                  <Skeleton className="h-6 w-44" />
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-2/3" />
+                </CardContent>
+              </Card>
+            ) : feeStatus === "error" ? (
+              <Alert variant="destructive">
+                <X />
+                <AlertTitle>Could not load your fee settings</AlertTitle>
+                <AlertDescription className="flex flex-wrap items-center gap-2">
+                  <span>{feeError}</span>
+                  <Button size="sm" variant="outline" onClick={() => void loadFeeSettings()}>
+                    Retry
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Card>
+                <CardContent className="p-4 sm:p-6">
+                  <form onSubmit={saveFeeSettings} className="space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-4">
+                      <div>
+                        <h3 className="font-semibold">Fee structure</h3>
+                        <p className="text-xs text-muted-foreground">
+                          New vs returning patient pricing for your chamber.
+                          Fees are whole taka (৳), 0–100,000.
+                        </p>
+                      </div>
+                      {feeSettings && (
+                        <Badge
+                          variant="outline"
+                          className="border-primary/40 text-primary"
+                          aria-label={`Current fee settings version ${feeSettings.version}`}
+                        >
+                          v{feeSettings.version}
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="fee-new">New patient fee (৳)</Label>
+                        <Input
+                          id="fee-new"
+                          type="number"
+                          min={0}
+                          max={100000}
+                          step={1}
+                          inputMode="numeric"
+                          value={newPatientFee}
+                          onChange={(e) => setNewPatientFee(e.target.value)}
+                          required
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          First visit or after validity expires · নতুন রোগী
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="fee-returning">Returning patient fee (৳)</Label>
+                        <Input
+                          id="fee-returning"
+                          type="number"
+                          min={0}
+                          max={100000}
+                          step={1}
+                          inputMode="numeric"
+                          value={returningPatientFee}
+                          onChange={(e) => setReturningPatientFee(e.target.value)}
+                          required
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Must not exceed the new-patient fee · পুরাতন রোগী
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="fee-returning-value">Returning validity</Label>
+                      <div className="flex max-w-sm gap-2">
+                        <Input
+                          id="fee-returning-value"
+                          type="number"
+                          min={1}
+                          step={1}
+                          inputMode="numeric"
+                          value={returningValidityValue}
+                          onChange={(e) => setReturningValidityValue(e.target.value)}
+                          className="w-24"
+                          required
+                        />
+                        <Select
+                          value={returningValidityUnit}
+                          onValueChange={(v) =>
+                            setReturningValidityUnit(v === "DAYS" ? "DAYS" : "MONTHS")
+                          }
+                        >
+                          <SelectTrigger
+                            id="fee-returning-unit"
+                            className="w-32"
+                            aria-label="Returning validity unit"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="DAYS">Days</SelectItem>
+                            <SelectItem value="MONTHS">Months</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {returningValidityUnit === "MONTHS" && (
+                        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Validity presets">
+                          {RETURNING_VALIDITY_PRESETS_MONTHS.map((months) => (
+                            <Button
+                              key={months}
+                              type="button"
+                              size="sm"
+                              variant={
+                                returningValidityValue === String(months)
+                                  ? "secondary"
+                                  : "outline"
+                              }
+                              className="h-8"
+                              onClick={() => setReturningValidityValue(String(months))}
+                            >
+                              {months} {months === 1 ? "month" : "months"}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        A completed visit keeps the returning fee for this long —
+                        1–365 days or 1–36 months.
+                      </p>
+                    </div>
+
+                    <div className="space-y-3 rounded-lg border p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <Label
+                            htmlFor="fee-followup-enabled"
+                            className="cursor-pointer text-sm font-medium"
+                          >
+                            Offer a follow-up fee
+                          </Label>
+                          <p className="text-xs text-muted-foreground">
+                            A lower fee for a short window after a visit, before
+                            the returning fee applies. Must not exceed the
+                            new-patient fee.
+                          </p>
+                        </div>
+                        <Switch
+                          id="fee-followup-enabled"
+                          checked={followUpEnabled}
+                          onCheckedChange={setFollowUpEnabled}
+                        />
+                      </div>
+                      {followUpEnabled && (
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="fee-followup">Follow-up fee (৳)</Label>
+                            <Input
+                              id="fee-followup"
+                              type="number"
+                              min={0}
+                              max={100000}
+                              step={1}
+                              inputMode="numeric"
+                              value={followUpFeeValue}
+                              onChange={(e) => setFollowUpFeeValue(e.target.value)}
+                              required
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="fee-followup-value">Follow-up validity</Label>
+                            <div className="flex gap-2">
+                              <Input
+                                id="fee-followup-value"
+                                type="number"
+                                min={1}
+                                step={1}
+                                inputMode="numeric"
+                                value={followUpValidityValue}
+                                onChange={(e) =>
+                                  setFollowUpValidityValue(e.target.value)
+                                }
+                                className="w-20"
+                                required
+                              />
+                              <Select
+                                value={followUpValidityUnit}
+                                onValueChange={(v) =>
+                                  setFollowUpValidityUnit(v === "DAYS" ? "DAYS" : "MONTHS")
+                                }
+                              >
+                                <SelectTrigger
+                                  id="fee-followup-unit"
+                                  className="flex-1"
+                                  aria-label="Follow-up validity unit"
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="DAYS">Days</SelectItem>
+                                  <SelectItem value="MONTHS">Months</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              1–90 days or 1–12 months.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="fee-reason">Change reason (optional)</Label>
+                      <Input
+                        id="fee-reason"
+                        maxLength={200}
+                        value={changeReason}
+                        onChange={(e) => setChangeReason(e.target.value)}
+                        placeholder="e.g. Adjusting for chamber rent increase"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Recorded in the immutable fee history for transparency.
+                      </p>
+                    </div>
+
+                    {feeFormError && (
+                      <p className="text-sm text-destructive" role="alert">
+                        {feeFormError}
+                      </p>
+                    )}
+
+                    <Button type="submit" disabled={savingFees}>
+                      {savingFees && <Loader2 className="animate-spin" />}
+                      Save fee settings
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 2. Fee history + 3. patient visit lookup */}
+            <div className="grid items-start gap-4 lg:grid-cols-2">
+              <Card>
+                <CardContent className="p-4 sm:p-6">
+                  <h3 className="flex items-center gap-2 font-semibold">
+                    <History className="h-4 w-4 text-primary" aria-hidden="true" />
+                    Fee history
+                  </h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Review previous fee settings and changes — every version is
+                    kept immutable.
+                  </p>
+                  {historyLoading ? (
+                    <div className="mt-4 space-y-3" aria-busy="true">
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <Skeleton key={i} className="h-20" />
+                      ))}
+                    </div>
+                  ) : feeHistory.length === 0 ? (
+                    <p className="mt-4 text-sm text-muted-foreground">
+                      No fee changes recorded yet.
+                    </p>
+                  ) : (
+                    <ul className="medbriq-scroll mt-4 max-h-96 space-y-3 overflow-y-auto pr-1">
+                      {feeHistory.map((item) => (
+                        <li key={item.id} className="rounded-lg border p-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <Badge
+                              variant="outline"
+                              className="border-primary/40 text-primary"
+                            >
+                              v{item.version}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {formatDhaka(new Date(item.createdAt))}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm">
+                            New {formatFee(item.newPatientFee)} · Returning{" "}
+                            {formatFee(item.returningPatientFee)} (valid{" "}
+                            {validityLabel(
+                              item.returningValidityValue,
+                              item.returningValidityUnit
+                            )}
+                            )
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {item.followUpEnabled
+                              ? `Follow-up ${formatFee(item.followUpFee)} (${validityLabel(
+                                  item.followUpValidityValue,
+                                  item.followUpValidityUnit
+                                )})`
+                              : "Follow-up disabled"}
+                          </p>
+                          {item.changeReason && (
+                            <p className="mt-1 text-xs italic text-muted-foreground">
+                              “{item.changeReason}”
+                            </p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4 sm:p-6">
+                  <h3 className="flex items-center gap-2 font-semibold">
+                    <Search className="h-4 w-4 text-primary" aria-hidden="true" />
+                    Patient visit history
+                  </h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Look up a patient&apos;s completed visits with you by phone
+                    number — see which ones count toward returning status.
+                  </p>
+                  <form
+                    onSubmit={searchVisits}
+                    className="mt-4 flex flex-col gap-2 sm:flex-row"
+                  >
+                    <div className="flex-1 space-y-1">
+                      <Label htmlFor="visit-phone" className="sr-only">
+                        Patient phone number
+                      </Label>
+                      <Input
+                        id="visit-phone"
+                        value={visitPhone}
+                        onChange={(e) => setVisitPhone(e.target.value)}
+                        placeholder="+880 1XXX-XXXXXX"
+                        inputMode="tel"
+                        autoComplete="off"
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      className="gap-1.5"
+                      disabled={visitStatus === "loading"}
+                    >
+                      {visitStatus === "loading" ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Search className="h-4 w-4" />
+                      )}
+                      Search
+                    </Button>
+                  </form>
+
+                  {visitStatus === "error" && (
+                    <p className="mt-3 text-sm text-destructive" role="alert">
+                      {visitError}
+                    </p>
+                  )}
+
+                  {visitStatus === "ready" && visitResult && (
+                    <div className="mt-4 space-y-3">
+                      <p className="text-sm">
+                        <span className="font-medium">
+                          {visitResult.patientName ?? "Unknown name"}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {" "}
+                          · {visitResult.phone}
+                        </span>
+                      </p>
+                      {visitResult.items.length === 0 ? (
+                        <p className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+                          No completed visits with you for this phone number — a
+                          booking now would be charged at the new-patient fee.
+                        </p>
+                      ) : (
+                        <ul className="medbriq-scroll max-h-96 space-y-2 overflow-y-auto pr-1">
+                          {visitResult.items.map((visit) => (
+                            <li key={visit.id} className="rounded-lg border p-3 text-sm">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <span className="font-medium">
+                                  {formatDhaka(new Date(visit.completedAt))}
+                                </span>
+                                {visit.qualifying ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                  >
+                                    Counts for returning status
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-border/60 text-muted-foreground"
+                                  >
+                                    Does not count (unpaid)
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {visit.patientName ?? "Unknown name"} · payment at
+                                completion:{" "}
+                                {paymentStatusLabel(visit.paymentStatusAtCompletion)}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* -------------------------- Availability ------------------------- */}
@@ -1178,6 +1826,12 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
                     </div>
                   </div>
 
+                  <p className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
+                    Booking prices come from your fee structure (Fees &amp;
+                    Patients tab) — the new/returning patient fees there are the
+                    authoritative source and are snapshotted on each booking.
+                  </p>
+
                   <div className="space-y-2">
                     <Label>Languages</Label>
                     <div className="flex flex-wrap gap-4">
@@ -1367,6 +2021,48 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* No-show confirmation dialog (docs/FEE_SYSTEM.md §4 — records no visit) */}
+      <AlertDialog
+        open={noShowTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setNoShowTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark this patient as no-show?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {noShowTarget
+                ? `${noShowTarget.patientName} · ${formatDhaka(
+                    new Date(noShowTarget.slotStart)
+                  )}. The appointment will be closed as NO_SHOW — it does not
+                  count toward returning-patient status. This cannot be undone.`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionBusy !== null}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className={buttonVariants({ variant: "destructive" })}
+              disabled={actionBusy !== null}
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmNoShow();
+              }}
+            >
+              {actionBusy?.endsWith(":no-show") ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <UserX className="h-4 w-4" />
+              )}
+              Mark no-show
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

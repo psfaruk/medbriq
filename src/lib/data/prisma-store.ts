@@ -1,6 +1,6 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import { normalizePhone } from "@/lib/phone";
-import { ROLES } from "@/lib/constants";
+import { FEE_DEFAULTS, ROLES } from "@/lib/constants";
 import type {
   ActiveOtpCode,
   AdminUserRecord,
@@ -21,16 +21,21 @@ import type {
   DataStore,
   DoctorProfilePatch,
   DoctorRecord,
+  FeeSettingsHistoryRecord,
+  FeeSettingsRecord,
   HospitalRecord,
   ListDoctorsOptions,
   ModerationReviewRecord,
   NewAvailabilityRule,
   NotificationRecord,
+  PatientLookup,
+  PatientVisitRecord,
   ReferenceMeta,
   ReviewRecord,
   SearchDoctorsFilters,
   SessionRecord,
   SpecialtyRecord,
+  UpdateFeeSettingsInput,
   UpsertGoogleUserInput,
   UserProfilePatch,
 } from "./types";
@@ -192,6 +197,14 @@ export class PrismaStore implements DataStore {
       currency: row.currency,
       doctorNote: row.doctorNote,
       consultationNote: row.consultationNote,
+      paymentStatus: row.paymentStatus,
+      consultationStatus: row.consultationStatus,
+      refundStatus: row.refundStatus,
+      patientType: row.patientType,
+      feeSettingsVersion: row.feeSettingsVersion,
+      pricingBasis: row.pricingBasis,
+      pricedAt: row.pricedAt ? row.pricedAt.toISOString() : null,
+      idempotencyKey: row.idempotencyKey,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       doctor: {
@@ -681,6 +694,12 @@ export class PrismaStore implements DataStore {
           bookingMode: input.bookingMode,
           fee: input.fee,
           currency: input.currency,
+          // ── Fee system (docs/FEE_SYSTEM.md §3) ──
+          patientType: input.patientType ?? null,
+          feeSettingsVersion: input.feeSettingsVersion ?? null,
+          pricingBasis: input.pricingBasis ?? null,
+          pricedAt: input.pricedAt ? new Date(input.pricedAt) : null,
+          idempotencyKey: input.idempotencyKey ?? null,
         },
         include: APPOINTMENT_INCLUDE,
       });
@@ -698,6 +717,14 @@ export class PrismaStore implements DataStore {
       }
       throw err;
     }
+  }
+
+  async findAppointmentByIdempotencyKey(key: string): Promise<AppointmentRecord | null> {
+    const row = await this.db.appointment.findUnique({
+      where: { idempotencyKey: key },
+      include: APPOINTMENT_INCLUDE,
+    });
+    return row ? this.toAppointmentRecord(row) : null;
   }
 
   async getAppointmentById(id: string): Promise<AppointmentRecord | null> {
@@ -808,6 +835,315 @@ export class PrismaStore implements DataStore {
       }
       throw err;
     }
+  }
+
+  // ── Doctor-wise fee system (docs/FEE_SYSTEM.md) ─────────────────────
+
+  private toFeeSettingsRecord(row: {
+    id: string;
+    doctorId: string;
+    newPatientFee: number;
+    returningPatientFee: number;
+    returningValidityValue: number;
+    returningValidityUnit: string;
+    followUpEnabled: boolean;
+    followUpFee: number;
+    followUpValidityValue: number;
+    followUpValidityUnit: string;
+    version: number;
+    updatedAt: Date;
+  }): FeeSettingsRecord {
+    return {
+      id: row.id,
+      doctorId: row.doctorId,
+      newPatientFee: row.newPatientFee,
+      returningPatientFee: row.returningPatientFee,
+      returningValidityValue: row.returningValidityValue,
+      returningValidityUnit: row.returningValidityUnit,
+      followUpEnabled: row.followUpEnabled,
+      followUpFee: row.followUpFee,
+      followUpValidityValue: row.followUpValidityValue,
+      followUpValidityUnit: row.followUpValidityUnit,
+      version: row.version,
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  private toPatientVisitRecord(row: {
+    id: string;
+    doctorId: string;
+    appointmentId: string;
+    patientId: string | null;
+    patientPhone: string;
+    slotStart: Date;
+    completedAt: Date;
+    qualifying: boolean;
+    paymentStatusAtCompletion: string;
+    recordedAt: Date;
+  }): PatientVisitRecord {
+    return {
+      id: row.id,
+      doctorId: row.doctorId,
+      appointmentId: row.appointmentId,
+      patientId: row.patientId,
+      patientPhone: row.patientPhone,
+      slotStart: row.slotStart.toISOString(),
+      completedAt: row.completedAt.toISOString(),
+      qualifying: row.qualifying,
+      paymentStatusAtCompletion: row.paymentStatusAtCompletion,
+      recordedAt: row.recordedAt.toISOString(),
+    };
+  }
+
+  /** (patientId OR normalized phone) filter for visit-history queries. */
+  private patientVisitMatch(patient: PatientLookup): Prisma.DoctorPatientVisitWhereInput | null {
+    const or: Prisma.DoctorPatientVisitWhereInput[] = [];
+    if (patient.patientId) or.push({ patientId: patient.patientId });
+    if (patient.phone) or.push({ patientPhone: patient.phone });
+    if (or.length === 0) return null;
+    return { OR: or };
+  }
+
+  async getFeeSettings(doctorId: string): Promise<FeeSettingsRecord> {
+    const existing = await this.db.doctorFeeSettings.findUnique({
+      where: { doctorId },
+    });
+    if (existing) return this.toFeeSettingsRecord(existing);
+
+    // First read for this doctor — auto-create with platform defaults
+    // (spec: new BDT 1000, returning BDT 600, 6 months) and record v1 in
+    // history so even implicit defaults are auditable.
+    const created = await this.db.doctorFeeSettings.create({
+      data: {
+        doctorId,
+        newPatientFee: FEE_DEFAULTS.NEW_PATIENT_FEE,
+        returningPatientFee: FEE_DEFAULTS.RETURNING_PATIENT_FEE,
+        returningValidityValue: FEE_DEFAULTS.RETURNING_VALIDITY_VALUE,
+        returningValidityUnit: FEE_DEFAULTS.RETURNING_VALIDITY_UNIT,
+        followUpEnabled: FEE_DEFAULTS.FOLLOW_UP_ENABLED,
+        followUpFee: FEE_DEFAULTS.FOLLOW_UP_FEE,
+        followUpValidityValue: FEE_DEFAULTS.FOLLOW_UP_VALIDITY_VALUE,
+        followUpValidityUnit: FEE_DEFAULTS.FOLLOW_UP_VALIDITY_UNIT,
+        version: 1,
+      },
+    });
+    await this.db.doctorFeeHistory.create({
+      data: {
+        doctorId,
+        version: 1,
+        newPatientFee: created.newPatientFee,
+        returningPatientFee: created.returningPatientFee,
+        returningValidityValue: created.returningValidityValue,
+        returningValidityUnit: created.returningValidityUnit,
+        followUpEnabled: created.followUpEnabled,
+        followUpFee: created.followUpFee,
+        followUpValidityValue: created.followUpValidityValue,
+        followUpValidityUnit: created.followUpValidityUnit,
+        changeReason: "Auto-created with platform defaults",
+        changedBy: null,
+      },
+    });
+    return this.toFeeSettingsRecord(created);
+  }
+
+  async updateFeeSettings(
+    doctorId: string,
+    input: UpdateFeeSettingsInput,
+    actorId: string | null
+  ): Promise<FeeSettingsRecord> {
+    const updated = await this.db.$transaction(async (tx) => {
+      const current = await tx.doctorFeeSettings.findUnique({
+        where: { doctorId },
+      });
+      if (!current) {
+        throw new Error("Fee settings row missing; read settings first.");
+      }
+      const version = current.version + 1;
+      const next = await tx.doctorFeeSettings.update({
+        where: { doctorId },
+        data: {
+          newPatientFee: input.newPatientFee,
+          returningPatientFee: input.returningPatientFee,
+          returningValidityValue: input.returningValidityValue,
+          returningValidityUnit: input.returningValidityUnit,
+          followUpEnabled: input.followUpEnabled,
+          followUpFee: input.followUpFee,
+          followUpValidityValue: input.followUpValidityValue,
+          followUpValidityUnit: input.followUpValidityUnit,
+          version,
+        },
+      });
+
+      // Immutable history row — confirmed appointments keep pointing at the
+      // version they were priced under.
+      await tx.doctorFeeHistory.create({
+        data: {
+          doctorId,
+          version,
+          newPatientFee: next.newPatientFee,
+          returningPatientFee: next.returningPatientFee,
+          returningValidityValue: next.returningValidityValue,
+          returningValidityUnit: next.returningValidityUnit,
+          followUpEnabled: next.followUpEnabled,
+          followUpFee: next.followUpFee,
+          followUpValidityValue: next.followUpValidityValue,
+          followUpValidityUnit: next.followUpValidityUnit,
+          changeReason: input.changeReason,
+          changedBy: actorId,
+        },
+      });
+
+      // Keep the legacy profile fields in sync so search/cards/admin keep
+      // working unchanged (docs/FEE_SYSTEM.md §5).
+      await tx.doctorProfile.update({
+        where: { id: doctorId },
+        data: {
+          consultationFee: next.newPatientFee,
+          followUpFee: next.followUpEnabled ? next.followUpFee : 0,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId,
+          action: "FEE_SETTINGS_UPDATED",
+          entity: "DoctorFeeSettings",
+          entityId: doctorId,
+          meta: JSON.stringify({
+            version,
+            before: {
+              newPatientFee: current.newPatientFee,
+              returningPatientFee: current.returningPatientFee,
+              returningValidityValue: current.returningValidityValue,
+              returningValidityUnit: current.returningValidityUnit,
+              followUpEnabled: current.followUpEnabled,
+              followUpFee: current.followUpFee,
+              followUpValidityValue: current.followUpValidityValue,
+              followUpValidityUnit: current.followUpValidityUnit,
+            },
+            after: {
+              newPatientFee: next.newPatientFee,
+              returningPatientFee: next.returningPatientFee,
+              returningValidityValue: next.returningValidityValue,
+              returningValidityUnit: next.returningValidityUnit,
+              followUpEnabled: next.followUpEnabled,
+              followUpFee: next.followUpFee,
+              followUpValidityValue: next.followUpValidityValue,
+              followUpValidityUnit: next.followUpValidityUnit,
+            },
+            reason: input.changeReason,
+          }),
+        },
+      });
+
+      return next;
+    });
+    return this.toFeeSettingsRecord(updated);
+  }
+
+  async listFeeSettingsHistory(doctorId: string, limit: number): Promise<FeeSettingsHistoryRecord[]> {
+    const rows = await this.db.doctorFeeHistory.findMany({
+      where: { doctorId },
+      orderBy: [{ version: "desc" }],
+      take: Math.max(1, Math.min(limit, 200)),
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      doctorId: row.doctorId,
+      version: row.version,
+      newPatientFee: row.newPatientFee,
+      returningPatientFee: row.returningPatientFee,
+      returningValidityValue: row.returningValidityValue,
+      returningValidityUnit: row.returningValidityUnit,
+      followUpEnabled: row.followUpEnabled,
+      followUpFee: row.followUpFee,
+      followUpValidityValue: row.followUpValidityValue,
+      followUpValidityUnit: row.followUpValidityUnit,
+      changeReason: row.changeReason,
+      changedBy: row.changedBy,
+      createdAt: row.createdAt.toISOString(),
+    }));
+  }
+
+  async findLatestQualifyingVisit(
+    doctorId: string,
+    patient: PatientLookup
+  ): Promise<PatientVisitRecord | null> {
+    const match = this.patientVisitMatch(patient);
+    if (!match) return null;
+    const row = await this.db.doctorPatientVisit.findFirst({
+      where: { doctorId, qualifying: true, ...match },
+      orderBy: { completedAt: "desc" },
+    });
+    return row ? this.toPatientVisitRecord(row) : null;
+  }
+
+  async listPatientVisitsForDoctor(
+    doctorId: string,
+    patient: PatientLookup
+  ): Promise<PatientVisitRecord[]> {
+    const match = this.patientVisitMatch(patient);
+    if (!match) return [];
+    const rows = await this.db.doctorPatientVisit.findMany({
+      where: { doctorId, ...match },
+      orderBy: { completedAt: "desc" },
+      take: 100,
+    });
+    return rows.map((row) => this.toPatientVisitRecord(row));
+  }
+
+  async completeAppointmentWithVisit(
+    id: string,
+    input: { consultationNote: string | null }
+  ): Promise<AppointmentRecord> {
+    const updated = await this.db.$transaction(async (tx) => {
+      const current = await tx.appointment.findUnique({
+        where: { id },
+        include: APPOINTMENT_INCLUDE,
+      });
+      if (!current) throw new Error(`Appointment ${id} not found.`);
+
+      // Eligibility rule (docs/FEE_SYSTEM.md §2.2): only completed
+      // consultations with settled payment qualify.
+      const qualifying =
+        current.paymentStatus === "NOT_REQUIRED" ||
+        current.paymentStatus === "PAID";
+
+      const next = await tx.appointment.update({
+        where: { id },
+        data: {
+          status: "COMPLETED",
+          consultationStatus: "COMPLETED",
+          ...(input.consultationNote !== null
+            ? { consultationNote: input.consultationNote }
+            : {}),
+        },
+        include: APPOINTMENT_INCLUDE,
+      });
+
+      // Upsert by unique appointmentId — safe to re-run, and the qualifying
+      // flag is snapshotted (later payment changes never rewrite history).
+      await tx.doctorPatientVisit.upsert({
+        where: { appointmentId: id },
+        create: {
+          doctorId: current.doctorId,
+          appointmentId: id,
+          patientId: current.patientId,
+          patientPhone: normalizePhone(current.patientPhone),
+          slotStart: current.slotStart,
+          completedAt: next.updatedAt,
+          qualifying,
+          paymentStatusAtCompletion: current.paymentStatus,
+        },
+        update: {
+          qualifying,
+          paymentStatusAtCompletion: current.paymentStatus,
+        },
+      });
+
+      return next;
+    });
+    return this.toAppointmentRecord(updated);
   }
 
   // ── Reviews ──────────────────────────────────────────────────────────

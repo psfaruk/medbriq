@@ -21,7 +21,8 @@ export type ViewName =
   | "doctor-dashboard"
   | "admin"
   | "settings"
-  | "auth";
+  | "auth"
+  | "compliance";
 
 export type AppView = { name: ViewName; slug?: string };
 

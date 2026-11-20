@@ -35,7 +35,11 @@ import type {
   UpsertGoogleUserInput,
   UserProfilePatch,
 } from "./types";
-import { ReferenceCodeCollisionError, SlotConflictError } from "./types";
+import {
+  FeeModuleUnavailableError,
+  ReferenceCodeCollisionError,
+  SlotConflictError,
+} from "./types";
 
 /**
  * Medbriq production data store — Firebase Firestore (firebase-admin v14).
@@ -193,6 +197,16 @@ type AppointmentDoc = {
   currency: string;
   doctorNote?: string | null;
   consultationNote?: string | null;
+  // ── Separated status axes (docs/ARCHITECTURE_CORRECTIONS.md #12) ──
+  paymentStatus?: string;
+  consultationStatus?: string;
+  refundStatus?: string;
+  // ── Pricing snapshot (docs/FEE_SYSTEM.md §3) ──
+  patientType?: string | null;
+  feeSettingsVersion?: number | null;
+  pricingBasis?: string | null;
+  pricedAt?: string | null;
+  idempotencyKey?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -390,6 +404,14 @@ export class FirestoreStore implements DataStore {
       currency: doc.currency,
       doctorNote: doc.doctorNote ?? null,
       consultationNote: doc.consultationNote ?? null,
+      paymentStatus: doc.paymentStatus ?? "NOT_REQUIRED",
+      consultationStatus: doc.consultationStatus ?? "NOT_STARTED",
+      refundStatus: doc.refundStatus ?? "NONE",
+      patientType: doc.patientType ?? null,
+      feeSettingsVersion: doc.feeSettingsVersion ?? null,
+      pricingBasis: doc.pricingBasis ?? null,
+      pricedAt: doc.pricedAt ?? null,
+      idempotencyKey: doc.idempotencyKey ?? null,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };
@@ -1032,6 +1054,14 @@ export class FirestoreStore implements DataStore {
       currency: input.currency,
       doctorNote: null,
       consultationNote: null,
+      paymentStatus: "NOT_REQUIRED",
+      consultationStatus: "NOT_STARTED",
+      refundStatus: "NONE",
+      patientType: input.patientType ?? null,
+      feeSettingsVersion: input.feeSettingsVersion ?? null,
+      pricingBasis: input.pricingBasis ?? null,
+      pricedAt: input.pricedAt ?? null,
+      idempotencyKey: input.idempotencyKey ?? null,
       createdAt: now,
       updatedAt: now,
     };
@@ -1072,6 +1102,44 @@ export class FirestoreStore implements DataStore {
     const doc = await this.getAppointmentDoc(id);
     if (!doc) return null;
     return this.withDoctorJoin(doc.data);
+  }
+
+  async findAppointmentByIdempotencyKey(key: string): Promise<AppointmentRecord | null> {
+    const snap = await this.fs
+      .collection("appointments")
+      .where("idempotencyKey", "==", key)
+      .limit(1)
+      .get();
+    if (snap.empty) return null;
+    return this.withDoctorJoin(snap.docs[0].data() as AppointmentDoc);
+  }
+
+  // ── Doctor-wise fee system (docs/FEE_SYSTEM.md) ─────────────────────
+  //
+  // The fee module is NOT available on the Firestore store: it stores
+  // patient visit history, which must not leave the approved region before
+  // the Phase 0 data-residency decision (docs/ARCHITECTURE_CORRECTIONS.md
+  // #5/#6). Booking routes check requireModule("appointmentBooking") first
+  // and answer 503 MODULE_DISABLED; these stubs make accidental use fail
+  // loudly instead of silently writing patient data to a foreign region.
+
+  async getFeeSettings(): Promise<never> {
+    throw new FeeModuleUnavailableError();
+  }
+  async updateFeeSettings(): Promise<never> {
+    throw new FeeModuleUnavailableError();
+  }
+  async listFeeSettingsHistory(): Promise<never> {
+    throw new FeeModuleUnavailableError();
+  }
+  async findLatestQualifyingVisit(): Promise<never> {
+    throw new FeeModuleUnavailableError();
+  }
+  async listPatientVisitsForDoctor(): Promise<never> {
+    throw new FeeModuleUnavailableError();
+  }
+  async completeAppointmentWithVisit(): Promise<never> {
+    throw new FeeModuleUnavailableError();
   }
 
   async listAppointmentsByPatient(patientId: string) {
@@ -1141,6 +1209,8 @@ export class FirestoreStore implements DataStore {
     if (patch.status !== undefined) updates.status = patch.status;
     if (patch.doctorNote !== undefined) updates.doctorNote = patch.doctorNote;
     if (patch.consultationNote !== undefined) updates.consultationNote = patch.consultationNote;
+    if (patch.consultationStatus !== undefined) updates.consultationStatus = patch.consultationStatus;
+    if (patch.paymentStatus !== undefined) updates.paymentStatus = patch.paymentStatus;
     await current.ref.update(updates);
     return this.withDoctorJoin({ ...current.data, ...(updates as Partial<AppointmentDoc>) });
   }
