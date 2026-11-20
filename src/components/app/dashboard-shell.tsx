@@ -1,0 +1,300 @@
+"use client";
+
+import { ReactNode } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import {
+  Menu,
+  LogOut,
+  Globe,
+  PhoneCall,
+  type LucideIcon,
+} from "lucide-react";
+import { useAppStore } from "@/lib/app-state";
+import { LANGS } from "@/lib/i18n";
+import { BrandLockup } from "@/components/app/shared/brand";
+import { UserAvatar, useT } from "@/components/app/shared/ui-kit";
+import NotificationBell from "@/components/app/shared/notification-bell";
+import { cn } from "@/lib/utils";
+
+/**
+ * DashboardShell — shared chrome for the Doctor, Hospital and Admin web
+ * dashboards (master prompt §4 layout: persistent left sidebar + compact
+ * top bar on desktop; top bar + drawer navigation on mobile).
+ *
+ * Each dashboard passes its nav config and renders the active section as
+ * children, keeping all three interfaces visually consistent.
+ */
+
+export type NavItem = {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  badge?: number;
+};
+
+function NavList({
+  items,
+  activeSection,
+  onSectionChange,
+  onNavigate,
+}: {
+  items: NavItem[];
+  activeSection: string;
+  onSectionChange: (key: string) => void;
+  onNavigate?: () => void;
+}) {
+  return (
+    <nav className="flex flex-col gap-1" aria-label="Dashboard">
+      {items.map((item) => {
+        const active = item.key === activeSection;
+        return (
+          <button
+            key={item.key}
+            onClick={() => {
+              onSectionChange(item.key);
+              onNavigate?.();
+            }}
+            className={cn(
+              "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all",
+              active
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-primary-soft hover:text-primary"
+            )}
+            aria-current={active ? "page" : undefined}
+          >
+            <item.icon className="h-4.5 w-4.5 shrink-0" />
+            <span className="truncate">{item.label}</span>
+            {typeof item.badge === "number" && item.badge > 0 ? (
+              <span
+                className={cn(
+                  "ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold",
+                  active
+                    ? "bg-white/20 text-white"
+                    : "bg-destructive/10 text-destructive"
+                )}
+              >
+                {item.badge}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+export default function DashboardShell({
+  roleLabel,
+  navItems,
+  activeSection,
+  onSectionChange,
+  children,
+}: {
+  roleLabel: string;
+  navItems: NavItem[];
+  activeSection: string;
+  onSectionChange: (key: string) => void;
+  children: ReactNode;
+}) {
+  const { t, lang } = useT();
+  const { user, setLang, logout } = useAppStore();
+
+  const activeItem = navItems.find((n) => n.key === activeSection);
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* ── Desktop sidebar ─────────────────────────────────────── */}
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-border bg-sidebar lg:flex">
+        <div className="flex h-16 items-center border-b border-border/70 px-5">
+          <BrandLockup size="sm" tagline={false} />
+        </div>
+        <div className="flex-1 overflow-y-auto app-scroll px-3 py-4">
+          <p className="mb-2 px-3.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
+            {roleLabel}
+          </p>
+          <NavList
+            items={navItems}
+            activeSection={activeSection}
+            onSectionChange={onSectionChange}
+          />
+        </div>
+        <div className="border-t border-border/70 p-3">
+          <div className="flex items-center gap-2.5 rounded-xl px-2 py-1.5">
+            <UserAvatar
+              name={user?.name ?? "User"}
+              photoUrl={user?.avatarUrl}
+              className="h-9 w-9"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-foreground">
+                {user?.name}
+              </p>
+              <p className="truncate text-[11px] text-muted-foreground">
+                {user?.email}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={logout}
+            className="mt-1 flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/5 hover:text-destructive"
+          >
+            <LogOut className="h-4 w-4" />
+            {t("auth.signOut")}
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Main column ─────────────────────────────────────────── */}
+      <div className="flex min-h-screen flex-col lg:pl-64">
+        {/* Top bar */}
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-border bg-card/90 px-4 backdrop-blur-lg sm:px-6 md:h-16">
+          {/* Mobile: hamburger + brand */}
+          <div className="flex items-center gap-2 lg:hidden">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 rounded-full"
+                  aria-label="Open navigation"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 p-0">
+                <SheetTitle className="sr-only">Navigation</SheetTitle>
+                <div className="flex h-16 items-center border-b border-border px-5">
+                  <BrandLockup size="sm" tagline={false} />
+                </div>
+                <div className="px-3 py-4">
+                  <p className="mb-2 px-3.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
+                    {roleLabel}
+                  </p>
+                  <NavList
+                    items={navItems}
+                    activeSection={activeSection}
+                    onSectionChange={onSectionChange}
+                  />
+                  <button
+                    onClick={logout}
+                    className="mt-4 flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/5 hover:text-destructive"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    {t("auth.signOut")}
+                  </button>
+                </div>
+              </SheetContent>
+            </Sheet>
+            <BrandLockup size="sm" tagline={false} />
+          </div>
+
+          {/* Desktop: section title */}
+          <h1 className="hidden lg:block text-lg font-bold tracking-tight text-foreground">
+            {activeItem?.label ?? roleLabel}
+          </h1>
+
+          <div className="flex items-center gap-1.5">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2 rounded-full text-muted-foreground"
+                  aria-label="Language"
+                >
+                  <Globe className="h-4 w-4" />
+                  <span className="hidden sm:inline text-xs font-semibold">
+                    {LANGS.find((l) => l.code === lang)?.native}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {LANGS.map((l) => (
+                  <DropdownMenuItem
+                    key={l.code}
+                    onClick={() => setLang(l.code)}
+                    className={cn(lang === l.code && "font-semibold text-primary")}
+                  >
+                    {l.native} — {l.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <NotificationBell onNavigate={() => onSectionChange(activeSection)} />
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label="Account menu"
+                >
+                  <UserAvatar
+                    name={user?.name ?? "User"}
+                    photoUrl={user?.avatarUrl}
+                    className="h-9 w-9"
+                  />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <p className="text-sm font-semibold">{user?.name}</p>
+                  <p className="text-xs font-normal text-muted-foreground truncate">
+                    {user?.email}
+                  </p>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() =>
+                    setLang(lang === "en" ? "bn" : "en")
+                  }
+                >
+                  <Globe className="h-4 w-4 mr-2" />
+                  {t("profile.language")}: {LANGS.find((l) => l.code !== lang)?.native}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={logout} className="text-destructive">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  {t("auth.signOut")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </header>
+
+        {/* Content */}
+        <main className="flex-1 animate-rise-in">
+          <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
+            {/* Mobile section title */}
+            <h1 className="mb-4 text-xl font-bold tracking-tight lg:hidden">
+              {activeItem?.label ?? roleLabel}
+            </h1>
+            {children}
+          </div>
+        </main>
+
+        {/* Sticky footer */}
+        <footer className="mt-auto border-t border-border bg-card px-4 py-3 sm:px-6">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+            <p>
+              © {new Date().getFullYear()} MedBricBD · {roleLabel} · Demo
+              environment — sandbox data only.
+            </p>
+            <p className="flex items-center gap-1.5 font-medium text-rose-600 dark:text-rose-400">
+              <PhoneCall className="h-3 w-3" />
+              Emergency: 999
+            </p>
+          </div>
+        </footer>
+      </div>
+    </div>
+  );
+}

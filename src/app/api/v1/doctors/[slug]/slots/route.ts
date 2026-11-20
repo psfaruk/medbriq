@@ -20,6 +20,7 @@ export async function GET(
   try {
     const { slug } = await params;
     const dateParam = new URL(req.url).searchParams.get("date") ?? "";
+    const chamberParam = new URL(req.url).searchParams.get("chamberId") ?? "";
 
     const parsed = dateStrSchema.safeParse(dateParam);
     if (!parsed.success) {
@@ -35,7 +36,13 @@ export async function GET(
       return fail("Doctor not available for booking.", 404, "NOT_FOUND");
     }
 
-    const slots = await getSlotsForDate(doctor.id, parsed.data);
+    // Optional chamber filter: rules that are chamber-specific to this
+    // chamber plus the doctor's general (chamberId = null) rules.
+    const slots = await getSlotsForDate(
+      doctor.id,
+      parsed.data,
+      chamberParam || null
+    );
 
     return ok({
       date: parsed.data,

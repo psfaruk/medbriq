@@ -46,6 +46,14 @@ async function main() {
   console.log("🌱 Seeding Medbriq demo data ...");
 
   // Wipe existing data (demo database only).
+  await db.payment.deleteMany();
+  await db.supportTicket.deleteMany();
+  await db.featureFlag.deleteMany();
+  await db.platformSetting.deleteMany();
+  await db.familyMember.deleteMany();
+  await db.chamber.deleteMany();
+  await db.hospitalBranch.deleteMany();
+  await db.hospitalDepartment.deleteMany();
   await db.doctorPatientVisit.deleteMany();
   await db.doctorFeeHistory.deleteMany();
   await db.doctorFeeSettings.deleteMany();
@@ -105,6 +113,21 @@ async function main() {
     });
     patientIdByEmail.set(p.email, created.id);
   }
+
+  // Demo Google account — sandbox fallback when real Google OAuth is not
+  // configured (GOOGLE_CLIENT_ID missing). The auth screen's "Continue with
+  // Google" button signs in here when the real provider is unavailable,
+  // clearly labelled as the demo path.
+  await db.user.create({
+    data: {
+      email: "google.demo@medbriq.dev",
+      passwordHash: hashPassword("Google@Demo123"),
+      name: "Rifat Hasan",
+      phone: "+880 1711-000010",
+      role: "PATIENT",
+      provider: "google",
+    },
+  });
 
   // Doctors ------------------------------------------------------------------
   const doctorMap = new Map<
@@ -319,6 +342,243 @@ async function main() {
     });
   }
 
+  // ── Hospital dashboard demo data (master prompt §6) ──────────────────
+  // A HOSPITAL-role user manages Greenview General Hospital (VERIFIED).
+  const hospitalManager = await db.user.create({
+    data: {
+      email: "hospital@medbriq.dev",
+      passwordHash: hashPassword("Hospital@123"),
+      name: "Greenview Admin",
+      phone: "+880 1711-000009",
+      role: "HOSPITAL",
+    },
+  });
+  const greenview = hospitalMap.get("greenview-general-hospital")!;
+  await db.hospital.update({
+    where: { id: greenview },
+    data: {
+      userId: hospitalManager.id,
+      verificationStatus: "VERIFIED",
+      verifiedAt: new Date(),
+      website: "https://greenview.example",
+    },
+  });
+  // Other hospitals stay PENDING for the admin verification queue.
+  await db.hospital.update({
+    where: { id: hospitalMap.get("lakeview-medical-center")! },
+    data: { verificationStatus: "PENDING" },
+  });
+  await db.hospital.update({
+    where: { id: hospitalMap.get("padma-city-hospital")! },
+    data: { verificationStatus: "PENDING" },
+  });
+  await db.hospital.update({
+    where: { id: hospitalMap.get("uttara-central-clinic")! },
+    data: { verificationStatus: "PENDING" },
+  });
+
+  // Branches + departments for Greenview
+  await db.hospitalBranch.createMany({
+    data: [
+      {
+        hospitalId: greenview,
+        name: "Dhanmondi Main Branch",
+        address: "House 12, Road 5, Dhanmondi, Dhaka 1205",
+        city: "Dhaka",
+        phone: "+880 2-9612xxx",
+        isMain: true,
+      },
+      {
+        hospitalId: greenview,
+        name: "Mirpur Branch",
+        address: "Plot 27, Avenue 4, Mirpur DOHS, Dhaka 1216",
+        city: "Dhaka",
+        phone: "+880 2-9002xxx",
+        isMain: false,
+      },
+    ],
+  });
+  await db.hospitalDepartment.createMany({
+    data: [
+      { hospitalId: greenview, name: "Medicine & Diabetology", about: "General medicine, diabetes and endocrine care." },
+      { hospitalId: greenview, name: "Cardiology", about: "Heart and vascular consultations, ECG and echo." },
+      { hospitalId: greenview, name: "Dermatology", about: "Skin, hair and nail care." },
+      { hospitalId: greenview, name: "Pediatrics", about: "Child health and immunization." },
+      { hospitalId: greenview, name: "Diagnostics", about: "Lab and imaging (demo department)." },
+    ],
+  });
+
+  // ── Doctor chambers (master prompt §3.17, §5) ────────────────────────
+  // Two chambers for Dr. Ayesha (multi-location doctor), one for the rest.
+  const chamberSpecs: {
+    doctorSlug: string;
+    name: string;
+    address: string;
+    city: string;
+    area: string;
+    phone: string;
+  }[] = [
+    {
+      doctorSlug: "dr-ayesha-rahman",
+      name: "Greenview Chamber (Dhanmondi)",
+      address: "Chamber 302, Greenview General Hospital, House 12, Road 5, Dhanmondi",
+      city: "Dhaka",
+      area: "Dhanmondi",
+      phone: "+880 2-9612xxx",
+    },
+    {
+      doctorSlug: "dr-ayesha-rahman",
+      name: "Mirpur Evening Chamber",
+      address: "Suite 4, Mirpur Community Center, Avenue 2, Mirpur 10",
+      city: "Dhaka",
+      area: "Mirpur",
+      phone: "+880 2-9012xxx",
+    },
+    {
+      doctorSlug: "dr-mahmudul-hasan",
+      name: "Cardiac OPD (Greenview)",
+      address: "Chamber 105, Greenview General Hospital, Dhanmondi",
+      city: "Dhaka",
+      area: "Dhanmondi",
+      phone: "+880 2-9612xxx",
+    },
+    {
+      doctorSlug: "dr-farhana-akter",
+      name: "Skin Care Chamber (Lakeview)",
+      address: "Room 210, Lakeview Medical Center, Gulshan Avenue",
+      city: "Dhaka",
+      area: "Gulshan",
+      phone: "+880 2-8835xxx",
+    },
+    {
+      doctorSlug: "dr-tanvir-ahmed",
+      name: "Uttara Central Clinic",
+      address: "Sector 7, Uttara, Dhaka 1230",
+      city: "Dhaka",
+      area: "Uttara",
+      phone: "+880 2-4891xxx",
+    },
+    {
+      doctorSlug: "dr-nusrat-jahan",
+      name: "Padma City OPD",
+      address: "OPD 2, Padma City Hospital, Sheikh Mujib Road, Kotwali",
+      city: "Chattogram",
+      area: "Kotwali",
+      phone: "+880 31-611xxx",
+    },
+    {
+      doctorSlug: "dr-rafiul-islam",
+      name: "Ortho Chamber (Lakeview)",
+      address: "Room 118, Lakeview Medical Center, Gulshan",
+      city: "Dhaka",
+      area: "Gulshan",
+      phone: "+880 2-8835xxx",
+    },
+    {
+      doctorSlug: "dr-sadia-karim",
+      name: "ENT Chamber (Greenview)",
+      address: "Chamber 8, Greenview General Hospital, Dhanmondi",
+      city: "Dhaka",
+      area: "Dhanmondi",
+      phone: "+880 2-9612xxx",
+    },
+  ];
+  for (const spec of chamberSpecs) {
+    const doctor = doctorMap.get(spec.doctorSlug)!;
+    const { doctorSlug: _omit, ...chamberData } = spec;
+    await db.chamber.create({ data: { doctorId: doctor.id, ...chamberData } });
+  }
+
+  // Family member profiles for the demo patient (master prompt §3.36)
+  const rahimId = patientIdByEmail.get("patient@medbriq.dev")!;
+  await db.familyMember.createMany({
+    data: [
+      { userId: rahimId, name: "Rehana Uddin", relation: "SPOUSE", age: 34, gender: "FEMALE", phone: "+880 1712-345678" },
+      { userId: rahimId, name: "Ayan Uddin", relation: "CHILD", age: 8, gender: "MALE" },
+      { userId: rahimId, name: "Mozammel Haque", relation: "PARENT", age: 66, gender: "MALE", phone: "+880 1713-345678" },
+    ],
+  });
+
+  // Feature flags (admin-controlled, master prompt §7). Telehealth stays
+  // OFF pending regulatory review (docs/ARCHITECTURE_CORRECTIONS.md #2/#3).
+  await db.featureFlag.createMany({
+    data: [
+      { key: "telehealth", enabled: false, description: "Video consultations — disabled until DGHS telemedicine compliance review passes." },
+      { key: "onlinePayments", enabled: true, description: "Sandbox payment simulation (bKash/Nagad/Card) at booking." },
+      { key: "patientRecords", enabled: true, description: "Patient visit history and family member profiles." },
+      { key: "reviews", enabled: true, description: "Doctor reviews and ratings." },
+    ],
+  });
+
+  // Platform settings
+  await db.platformSetting.createMany({
+    data: [
+      { key: "commissionPercent", value: "10", updatedBy: admin.id },
+      { key: "supportPhone", value: "+880 9612-000000" },
+      { key: "supportEmail", value: "support@medbriq.dev" },
+      { key: "defaultCurrency", value: "BDT" },
+      { key: "defaultCountry", value: "BD" },
+    ],
+  });
+
+  // Demo support tickets
+  await db.supportTicket.createMany({
+    data: [
+      {
+        userId: rahimId,
+        email: "patient@medbriq.dev",
+        subject: "Reschedule help needed",
+        message: "I need to move my appointment with Dr. Ayesha to next week. Can the doctor approve a new time?",
+        category: "BOOKING",
+        status: "OPEN",
+        priority: "NORMAL",
+      },
+      {
+        userId: null,
+        email: "dr.mahmudul@medbriq.dev",
+        subject: "BMDC certificate upload failed",
+        message: "The verification upload rejected my certificate PDF (too large). Please advise.",
+        category: "ACCOUNT",
+        status: "IN_PROGRESS",
+        priority: "HIGH",
+      },
+      {
+        userId: patientIdByEmail.get("patient2@medbriq.dev")!,
+        email: "patient2@medbriq.dev",
+        subject: "Refund not received",
+        message: "My cancelled booking refund has not arrived after 5 working days.",
+        category: "PAYMENT",
+        status: "RESOLVED",
+        priority: "HIGH",
+        reply: "Refund processed via sandbox gateway — please confirm receipt.",
+      },
+    ],
+  });
+
+  // Sandbox payment records for two completed visits (ledger demo).
+  const paidCompleted = await db.appointment.findMany({
+    where: { status: "COMPLETED" },
+    take: 2,
+    orderBy: { slotStart: "desc" },
+  });
+  for (const appt of paidCompleted) {
+    await db.payment.create({
+      data: {
+        appointmentId: appt.id,
+        method: "BKASH",
+        amount: appt.fee,
+        currency: appt.currency,
+        status: "SUCCEEDED",
+        txnRef: `SBX-${appt.referenceCode.replace("MB-", "")}`,
+        paidAt: appt.slotEnd,
+      },
+    });
+    await db.appointment.update({
+      where: { id: appt.id },
+      data: { paymentStatus: "PAID" },
+    });
+  }
+
   const counts = {
     users: await db.user.count(),
     specialties: await db.specialty.count(),
@@ -329,11 +589,19 @@ async function main() {
     appointments: await db.appointment.count(),
     visits: await db.doctorPatientVisit.count(),
     reviews: await db.review.count(),
+    chambers: await db.chamber.count(),
+    familyMembers: await db.familyMember.count(),
+    branches: await db.hospitalBranch.count(),
+    departments: await db.hospitalDepartment.count(),
+    payments: await db.payment.count(),
+    tickets: await db.supportTicket.count(),
+    featureFlags: await db.featureFlag.count(),
   };
   console.log("✅ Seed complete:", counts);
   console.log("   Demo logins (DEV ONLY — see README):");
   console.log("   admin@medbriq.dev / Admin@Medbriq123");
   console.log("   doctor@medbriq.dev / Doctor@123   (Dr. Ayesha Rahman, VERIFIED)");
+  console.log("   hospital@medbriq.dev / Hospital@123 (Greenview General Hospital, VERIFIED)");
   console.log("   patient@medbriq.dev / Patient@123 (Rahim Uddin — RETURNING with Dr. Ayesha)");
   console.log("   patient2@medbriq.dev / Patient@123 (Salma Khatun — FOLLOW_UP with Dr. Farhana)");
   console.log("   patient3@medbriq.dev / Patient@123 (Abdul Karim — expired validity → NEW)");

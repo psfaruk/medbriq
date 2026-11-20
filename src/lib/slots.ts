@@ -40,13 +40,19 @@ const BLOCKING_STATUSES = [
 
 export async function getSlotsForDate(
   doctorId: string,
-  dateStr: string
+  dateStr: string,
+  chamberId?: string | null
 ): Promise<SlotInfo[]> {
   const store = getStore();
-  const rules = await store.findActiveRulesForDay(
+  let rules = await store.findActiveRulesForDay(
     doctorId,
     dhakaDayOfWeek(dateStr)
   );
+  if (chamberId) {
+    // Chamber-specific view: chamber rules + the doctor's general rules
+    // (chamberId === null applies at every chamber).
+    rules = rules.filter((rule) => !rule.chamberId || rule.chamberId === chamberId);
+  }
   if (rules.length === 0) return [];
 
   const dayStartUtc = dhakaToUtc(dateStr, 0);
@@ -92,9 +98,10 @@ export async function getSlotsForDate(
 export async function validateBookableSlot(
   doctorId: string,
   dateStr: string,
-  slotIso: string
+  slotIso: string,
+  chamberId?: string | null
 ): Promise<SlotInfo | null> {
-  const slots = await getSlotsForDate(doctorId, dateStr);
+  const slots = await getSlotsForDate(doctorId, dateStr, chamberId);
   return slots.find(
     (s) => s.startIso === slotIso && !s.taken && !s.past
   ) ?? null;

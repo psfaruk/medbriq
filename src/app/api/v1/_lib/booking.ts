@@ -72,6 +72,8 @@ export function toAppointmentDto(row: AppointmentRecord): AppointmentDto {
       null,
     pricedAt: (row as { pricedAt?: string | null }).pricedAt ?? null,
     createdAt: row.createdAt,
+    chamberId: (row as { chamberId?: string | null }).chamberId ?? null,
+    chamberName: (row as { chamberName?: string | null }).chamberName ?? null,
     doctor: {
       slug: row.doctor.slug,
       name: row.doctor.name,

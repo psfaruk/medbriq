@@ -1,19 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Noto_Sans_Bengali } from "next/font/google";
+import { Inter, Noto_Sans_Bengali } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// MedBricBD typography (master prompt §2): Inter for Latin, Noto Sans
+// Bengali for বাংলা — one stack covers both scripts seamlessly.
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-// Bengali script support (initial market: Bangladesh)
 const notoBengali = Noto_Sans_Bengali({
   variable: "--font-bengali",
   subsets: ["bengali"],
@@ -22,24 +18,24 @@ const notoBengali = Noto_Sans_Bengali({
 
 export const metadata: Metadata = {
   title: {
-    default: "Medbriq — Find & Book Verified Doctors",
-    template: "%s · Medbriq",
+    default: "MedBricBD — Find & Book Verified Doctors",
+    template: "%s · MedBricBD",
   },
   description:
-    "Medbriq connects patients with verified doctors — search by specialty and city, book appointments instantly or by doctor approval. Demo MVP, initial market: Bangladesh.",
+    "MedBricBD connects patients with verified doctors — search by specialty and city, book chamber appointments with transparent new/returning patient fees. Bangladesh-first, global-ready.",
   keywords: [
-    "Medbriq",
+    "MedBricBD",
     "doctor appointment",
     "Bangladesh doctors",
     "healthcare platform",
     "verified doctors",
     "ডাক্তারের অ্যাপয়েন্টমেন্ট",
   ],
-  applicationName: "Medbriq",
+  applicationName: "MedBricBD",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#059669",
+  themeColor: "#1769AA",
   width: "device-width",
   initialScale: 1,
 };
@@ -52,7 +48,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${notoBengali.variable} antialiased bg-background text-foreground`}
+        className={`${inter.variable} ${notoBengali.variable} antialiased bg-background text-foreground`}
       >
         {children}
         <Toaster />

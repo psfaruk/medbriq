@@ -79,6 +79,15 @@ export type DoctorDetail = DoctorCard & {
     startMinute: number;
     endMinute: number;
   }[];
+  /** Active practice locations for this doctor. */
+  chambers: {
+    id: string;
+    name: string;
+    address: string;
+    city: string;
+    area: string | null;
+    phone: string | null;
+  }[];
 };
 
 export type ReviewItem = {
@@ -123,6 +132,8 @@ export type AppointmentDto = {
   feeSettingsVersion: number | null;
   pricedAt: string | null;
   createdAt: string;
+  chamberId: string | null;
+  chamberName: string | null;
   doctor: {
     slug: string;
     name: string;

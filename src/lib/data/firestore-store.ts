@@ -182,6 +182,8 @@ type AppointmentDoc = {
   id: string; // stable logical id (survives reschedule)
   referenceCode: string;
   doctorId: string;
+  chamberId?: string | null;
+  chamberName?: string | null;
   patientId?: string | null;
   patientName: string;
   patientPhone: string;
@@ -389,6 +391,8 @@ export class FirestoreStore implements DataStore {
       id: doc.id,
       referenceCode: doc.referenceCode,
       doctorId: doc.doctorId,
+      chamberId: doc.chamberId ?? null,
+      chamberName: doc.chamberName ?? null,
       patientId: doc.patientId ?? null,
       patientName: doc.patientName,
       patientPhone: doc.patientPhone,
@@ -965,6 +969,7 @@ export class FirestoreStore implements DataStore {
         startMinute: data.startMinute,
         endMinute: data.endMinute,
         isActive: data.isActive,
+        chamberId: (data as { chamberId?: string | null }).chamberId ?? null,
         createdAt: data.createdAt,
       }));
   }
@@ -988,6 +993,7 @@ export class FirestoreStore implements DataStore {
       startMinute: data.startMinute,
       endMinute: data.endMinute,
       isActive: data.isActive,
+      chamberId: (data as { chamberId?: string | null }).chamberId ?? null,
       createdAt: data.createdAt,
     }));
   }
@@ -1021,6 +1027,7 @@ export class FirestoreStore implements DataStore {
         startMinute: rule.startMinute,
         endMinute: rule.endMinute,
         isActive: rule.isActive,
+        chamberId: rule.chamberId ?? null,
         createdAt: now,
       });
     }
@@ -1039,6 +1046,8 @@ export class FirestoreStore implements DataStore {
       id: randomUUID(),
       referenceCode: input.referenceCode,
       doctorId: input.doctorId,
+      chamberId: input.chamberId ?? null,
+      chamberName: null,
       patientId: input.patientId,
       patientName: input.patientName,
       patientPhone: input.patientPhone,

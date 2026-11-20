@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getStore } from "@/lib/data";
 import { FeeModuleUnavailableError } from "@/lib/data/types";
+import { db } from "@/lib/db";
 import { fail, handleRouteError, ok } from "@/lib/api";
 import { CURRENCY, type VerificationStatus } from "@/lib/constants";
 import { getSlotsForDate } from "@/lib/slots";
@@ -139,6 +140,25 @@ export async function GET(
           startMinute: rule.startMinute,
           endMinute: rule.endMinute,
         })),
+      // Active practice locations (Chamber model, master prompt §3.17).
+      // Firestore-backed deployments have no Chamber table — fall back to
+      // the profile-level chamber address so the UI always has a location.
+      chambers: await db.chamber
+        .findMany({
+          where: { doctorId: row.id, isActive: true },
+          orderBy: { createdAt: "asc" },
+        })
+        .then((rows) =>
+          rows.map((c) => ({
+            id: c.id,
+            name: c.name,
+            address: c.address,
+            city: c.city,
+            area: c.area,
+            phone: c.phone,
+          }))
+        )
+        .catch(() => []),
     };
 
     return ok(detail, { headers: { "Cache-Control": "no-store" } });

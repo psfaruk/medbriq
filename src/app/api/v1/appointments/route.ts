@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { getStore, SlotConflictError, ReferenceCodeCollisionError } from "@/lib/data";
+import { db } from "@/lib/db";
 import type { AppointmentRecord } from "@/lib/data/types";
 import { fail, handleRouteError, ok } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
@@ -32,6 +33,7 @@ const createSchema = z.object({
   date: dateStrSchema,
   slotStartIso: z.string().min(1, "A time slot is required."),
   type: z.enum(["IN_PERSON", "VIDEO"]),
+  chamberId: z.string().trim().min(1).max(64).optional(),
   patientName: z
     .string()
     .trim()
@@ -188,10 +190,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Optional chamber: must be an ACTIVE chamber owned by this doctor.
+    let chamberId: string | null = null;
+    if (input.chamberId) {
+      const chamber = await db.chamber.findFirst({
+        where: {
+          id: input.chamberId,
+          doctorId: doctor.id,
+          isActive: true,
+        },
+      });
+      if (!chamber) {
+        return fail("Selected chamber is not available.", 404, "NOT_FOUND");
+      }
+      chamberId = chamber.id;
+    }
+
     const slot = await validateBookableSlot(
       doctor.id,
       input.date,
-      input.slotStartIso
+      input.slotStartIso,
+      chamberId
     );
     if (!slot) {
       return fail(
@@ -244,6 +263,7 @@ export async function POST(req: NextRequest) {
         created = await store.createAppointment({
           referenceCode: generateReferenceCode(),
           doctorId: doctor.id,
+          chamberId,
           patientId: user?.id ?? null,
           patientName: input.patientName,
           patientPhone: input.patientPhone,

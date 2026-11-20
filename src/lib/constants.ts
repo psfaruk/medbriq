@@ -8,6 +8,7 @@
 export const ROLES = {
   PATIENT: "PATIENT",
   DOCTOR: "DOCTOR",
+  HOSPITAL: "HOSPITAL",
   ADMIN: "ADMIN",
 } as const;
 export type Role = (typeof ROLES)[keyof typeof ROLES];
@@ -180,4 +181,62 @@ export const REFUND_STATUS = {
   NONE: "NONE",
   REQUESTED: "REQUESTED",
   PROCESSED: "PROCESSED",
+} as const;
+
+// ── Hospital dashboard (master prompt §6) ───────────────────────────────
+export const HOSPITAL_VERIFICATION_STATUS = {
+  PENDING: "PENDING",
+  UNDER_REVIEW: "UNDER_REVIEW",
+  VERIFIED: "VERIFIED",
+  REJECTED: "REJECTED",
+} as const;
+
+// ── Payments (sandbox simulation — no real money moves) ────────────────
+export const PAYMENT_METHODS = {
+  BKASH: "BKASH",
+  NAGAD: "NAGAD",
+  CARD: "CARD",
+  CASH: "CASH", // pay at the chamber
+} as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[keyof typeof PAYMENT_METHODS];
+
+export const PAYMENT_TXN_STATUS = {
+  PENDING: "PENDING",
+  SUCCEEDED: "SUCCEEDED",
+  FAILED: "FAILED",
+  REFUNDED: "REFUNDED",
+} as const;
+
+// ── Support tickets ────────────────────────────────────────────────────
+export const TICKET_STATUS = {
+  OPEN: "OPEN",
+  IN_PROGRESS: "IN_PROGRESS",
+  RESOLVED: "RESOLVED",
+  CLOSED: "CLOSED",
+} as const;
+
+export const TICKET_CATEGORY = {
+  GENERAL: "GENERAL",
+  BOOKING: "BOOKING",
+  PAYMENT: "PAYMENT",
+  ACCOUNT: "ACCOUNT",
+  REPORT: "REPORT",
+} as const;
+
+// ── Family member relations ────────────────────────────────────────────
+export const FAMILY_RELATIONS = {
+  SELF: "SELF",
+  SPOUSE: "SPOUSE",
+  CHILD: "CHILD",
+  PARENT: "PARENT",
+  SIBLING: "SIBLING",
+  OTHER: "OTHER",
+} as const;
+
+// ── Platform setting keys ──────────────────────────────────────────────
+export const PLATFORM_SETTINGS = {
+  COMMISSION_PERCENT: "commissionPercent",
+  SUPPORT_PHONE: "supportPhone",
+  SUPPORT_EMAIL: "supportEmail",
+  DEFAULT_CURRENCY: "defaultCurrency",
 } as const;

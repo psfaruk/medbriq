@@ -84,6 +84,7 @@ type DoctorRow = Prisma.DoctorProfileGetPayload<{ include: typeof DOCTOR_INCLUDE
  * doctor.requiresApproval).
  */
 const APPOINTMENT_INCLUDE = {
+  chamber: { select: { id: true, name: true, address: true, city: true } },
   doctor: {
     select: {
       userId: true,
@@ -182,6 +183,8 @@ export class PrismaStore implements DataStore {
       id: row.id,
       referenceCode: row.referenceCode,
       doctorId: row.doctorId,
+      chamberId: row.chamberId ?? null,
+      chamberName: row.chamber?.name ?? null,
       patientId: row.patientId,
       patientName: row.patientName,
       patientPhone: row.patientPhone,
@@ -636,6 +639,7 @@ export class PrismaStore implements DataStore {
       startMinute: row.startMinute,
       endMinute: row.endMinute,
       isActive: row.isActive,
+      chamberId: row.chamberId ?? null,
       createdAt: row.createdAt.toISOString(),
     };
   }
@@ -667,6 +671,7 @@ export class PrismaStore implements DataStore {
           startMinute: rule.startMinute,
           endMinute: rule.endMinute,
           isActive: rule.isActive,
+          chamberId: rule.chamberId ?? null,
         })),
       }),
     ]);
@@ -681,6 +686,7 @@ export class PrismaStore implements DataStore {
         data: {
           referenceCode: input.referenceCode,
           doctorId: input.doctorId,
+          chamberId: input.chamberId ?? null,
           patientId: input.patientId,
           patientName: input.patientName,
           patientPhone: input.patientPhone,

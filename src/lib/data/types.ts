@@ -167,6 +167,8 @@ export type AvailabilityRuleRecord = {
   startMinute: number; // minutes from Dhaka midnight
   endMinute: number;
   isActive: boolean;
+  /** null → applies at every chamber; otherwise chamber-specific. */
+  chamberId?: string | null;
   createdAt: string; // ISO
 };
 
@@ -178,6 +180,9 @@ export type AppointmentRecord = {
   id: string; // stable logical id (survives reschedule)
   referenceCode: string;
   doctorId: string;
+  /** Practice location for this booking (null → doctor default). */
+  chamberId?: string | null;
+  chamberName?: string | null;
   patientId: string | null;
   patientName: string;
   patientPhone: string;
@@ -338,11 +343,15 @@ export type NewAvailabilityRule = {
   startMinute: number;
   endMinute: number;
   isActive: boolean;
+  /** null → applies at every chamber; otherwise chamber-specific. */
+  chamberId?: string | null;
 };
 
 export type CreateAppointmentInput = {
   referenceCode: string;
   doctorId: string;
+  /** Practice location for this booking (null → doctor default). */
+  chamberId?: string | null;
   patientId: string | null;
   patientName: string;
   patientPhone: string;
