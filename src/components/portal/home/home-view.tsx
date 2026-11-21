@@ -9,6 +9,7 @@ import {
   ServiceCategories,
   FeaturedDoctors,
   HospitalsPreview,
+  CareNetworkBanner,
   Specializations,
   HealthArticles,
   SymptomsSlider,
@@ -34,6 +35,8 @@ export default function HomeView() {
       <FeaturedDoctors />
       {/* 6. Hospital directory */}
       <HospitalsPreview />
+      {/* 6.5 Care network 3D banner */}
+      <CareNetworkBanner />
       {/* 7. Medical specializations */}
       <Specializations />
       {/* 8. Health articles + awareness days */}

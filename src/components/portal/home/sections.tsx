@@ -8,6 +8,7 @@
  */
 
 import { useRef } from "react";
+import Image from "next/image";
 import {
   Stethoscope,
   Building2,
@@ -28,7 +29,6 @@ import {
   CalendarClock,
   Wallet,
   CalendarCheck2,
-  Video,
   ShieldCheck,
   FileQuestion,
   Clock,
@@ -67,17 +67,27 @@ import { DoctorCard as DoctorCardComponent } from "../doctors/doctor-card";
 
 // ── 4. Service categories ─────────────────────────────────────────────
 
+// Rotating colorful tints (blue · teal · violet · amber · emerald · rose)
+const TINTS = [
+  "bg-primary-soft text-primary",
+  "bg-[#13A89E]/10 text-[#0f8f87]",
+  "bg-violet-100 text-violet-700",
+  "bg-amber-100 text-amber-700",
+  "bg-emerald-100 text-emerald-700",
+  "bg-rose-100 text-rose-600",
+];
+
 const CATEGORIES: {
   key: string;
   icon: LucideIcon;
   view: Parameters<typeof PortalLink>[0]["view"];
   tint: string;
 }[] = [
-  { key: "portal.cat.doctors", icon: Stethoscope, view: { name: "doctors" }, tint: "bg-primary-soft text-primary" },
-  { key: "portal.cat.hospitals", icon: Building2, view: { name: "hospitals" }, tint: "bg-[#13A89E]/10 text-[#0f8f87]" },
-  { key: "portal.cat.library", icon: BookOpen, view: { name: "library" }, tint: "bg-primary-soft text-primary" },
-  { key: "portal.cat.symptoms", icon: Activity, view: { name: "symptoms" }, tint: "bg-[#13A89E]/10 text-[#0f8f87]" },
-  { key: "portal.cat.equipment", icon: Thermometer, view: { name: "equipment" }, tint: "bg-primary-soft text-primary" },
+  { key: "portal.cat.doctors", icon: Stethoscope, view: { name: "doctors" }, tint: TINTS[0] },
+  { key: "portal.cat.hospitals", icon: Building2, view: { name: "hospitals" }, tint: TINTS[1] },
+  { key: "portal.cat.library", icon: BookOpen, view: { name: "library" }, tint: TINTS[2] },
+  { key: "portal.cat.symptoms", icon: Activity, view: { name: "symptoms" }, tint: TINTS[3] },
+  { key: "portal.cat.equipment", icon: Thermometer, view: { name: "equipment" }, tint: TINTS[4] },
   { key: "portal.cat.emergency", icon: Siren, view: { name: "emergency" }, tint: "bg-red-50 text-red-700" },
 ];
 
@@ -211,9 +221,77 @@ export function HospitalsPreview() {
   );
 }
 
+// ── 6.5 Care network 3D banner (wide architectural render) ───────────
+
+export function CareNetworkBanner() {
+  const { t } = useT();
+  return (
+    <section id="care-network" aria-labelledby="care-network-title" className="py-12 sm:py-16">
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+        <div className="relative overflow-hidden rounded-3xl border border-border shadow-soft">
+          <div className="absolute inset-0" aria-hidden="true">
+            <Image
+              src="/images/banner-medical-center.png"
+              alt=""
+              fill
+              sizes="100vw"
+              className="object-cover"
+            />
+          </div>
+          {/* colorful gradient overlay for text contrast */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-gradient-to-r from-[#172B4D]/90 via-[#1769AA]/60 to-[#13A89E]/25"
+          />
+          <div className="relative flex min-h-[26rem] flex-col justify-center gap-3 p-6 sm:min-h-[24rem] sm:gap-4 sm:p-10 lg:min-h-[26rem] lg:p-14">
+            <p className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              {t("portal.hero.badge")}
+            </p>
+            <h2
+              id="care-network-title"
+              className="max-w-lg text-2xl font-extrabold leading-tight tracking-tight text-white sm:text-3xl lg:text-4xl"
+            >
+              Modern chambers, clinics &amp; hospitals across Bangladesh
+            </h2>
+            <p className="max-w-md text-sm leading-relaxed text-white/85 sm:text-base">
+              Browse verified doctors, compare chambers and book in-person visits with
+              transparent fees — all before you sign in.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-3">
+              <PortalLink
+                view={{ name: "doctors" }}
+                ctaLabel="care-network-find-doctor"
+                className="inline-flex h-11 items-center justify-center rounded-md bg-white px-5 text-sm font-bold text-[#1769AA] shadow-soft transition-colors hover:bg-white/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              >
+                {t("portal.hero.findDoctor")}
+                <ArrowRight className="ml-1.5 h-4 w-4" aria-hidden="true" />
+              </PortalLink>
+              <PortalLink
+                view={{ name: "hospitals" }}
+                ctaLabel="care-network-hospitals"
+                className="inline-flex h-11 items-center justify-center rounded-md border border-white/40 bg-white/10 px-5 text-sm font-bold text-white backdrop-blur transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              >
+                <Building2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                {t("portal.section.hospitals")}
+              </PortalLink>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ── 7. Specializations ────────────────────────────────────────────────
 
-const SPECIALTY_TINTS = ["bg-primary-soft text-primary", "bg-[#13A89E]/10 text-[#0f8f87]"];
+const SPECIALTY_TINTS = [
+  "bg-primary-soft text-primary",
+  "bg-[#13A89E]/10 text-[#0f8f87]",
+  "bg-amber-100 text-amber-700",
+  "bg-emerald-100 text-emerald-700",
+  "bg-rose-100 text-rose-600",
+];
 
 export function Specializations() {
   const { t } = useT();
@@ -497,14 +575,14 @@ export function EquipmentGallery() {
       {error && <SectionError message={error} />}
       {data && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {data.items.slice(0, 9).map((e) => (
+          {data.items.slice(0, 9).map((e, i) => (
             <PortalLink
               key={e.slug}
               view={{ name: "equipment-item", slug: e.slug }}
               ctaLabel="equipment-card"
               className="group flex flex-col items-center gap-2.5 rounded-2xl border border-border bg-card p-4 text-center shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-primary">
+              <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${TINTS[i % TINTS.length]}`}>
                 <ContentIcon name={e.icon} className="h-6 w-6" />
               </span>
               <span className="text-xs font-bold leading-snug text-foreground group-hover:text-primary sm:text-sm">
@@ -530,6 +608,17 @@ const BOOKING_STEPS: { icon: LucideIcon; key: string }[] = [
   { icon: Stethoscope, key: "Attend your appointment" },
 ];
 
+// Colorful step number chips — blue · teal · emerald · amber · rose · violet · sky
+const STEP_COLORS = [
+  "bg-primary text-primary-foreground",
+  "bg-[#13A89E] text-white",
+  "bg-emerald-600 text-white",
+  "bg-amber-500 text-white",
+  "bg-rose-500 text-white",
+  "bg-violet-600 text-white",
+  "bg-sky-600 text-white",
+];
+
 export function HowBookingWorks({ compact }: { compact?: boolean }) {
   const { t } = useT();
   return (
@@ -542,34 +631,49 @@ export function HowBookingWorks({ compact }: { compact?: boolean }) {
         <ViewAllLink view={{ name: "how-it-works" }} label={t("portal.footer.howTitle")} />
       }
     >
-      <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {BOOKING_STEPS.map((step, i) => (
-          <li
-            key={step.key}
-            className="relative flex gap-3.5 rounded-2xl border border-border bg-card p-4 shadow-soft"
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-extrabold text-primary-foreground">
-              {i + 1}
-            </span>
-            <span className="pt-1">
-              <step.icon className="mb-1.5 h-4 w-4 text-[#13A89E]" aria-hidden="true" />
-              <span className="block text-sm font-semibold leading-snug text-foreground">
-                {step.key}
+      <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-stretch">
+        {/* 3D feature wall art */}
+        <div className="relative overflow-hidden rounded-3xl border border-border shadow-soft">
+          <Image
+            src="/images/feature-3d-icons.png"
+            alt="3D illustration of a stethoscope, health shield and heartbeat monitor"
+            width={1344}
+            height={768}
+            sizes="(min-width: 1024px) 30rem, 100vw"
+            className="h-48 w-full object-cover sm:h-56 lg:h-full"
+          />
+        </div>
+        <ol className="grid gap-4 sm:grid-cols-2">
+          {BOOKING_STEPS.map((step, i) => (
+            <li
+              key={step.key}
+              className="relative flex gap-3.5 rounded-2xl border border-border bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <span
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold ${STEP_COLORS[i % STEP_COLORS.length]}`}
+              >
+                {i + 1}
               </span>
-            </span>
+              <span className="pt-1">
+                <step.icon className="mb-1.5 h-4 w-4 text-[#13A89E]" aria-hidden="true" />
+                <span className="block text-sm font-semibold leading-snug text-foreground">
+                  {step.key}
+                </span>
+              </span>
+            </li>
+          ))}
+          <li className="flex items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 p-4">
+            <PortalLink
+              view={{ name: "doctors" }}
+              ctaLabel="how-booking-cta"
+              className="inline-flex items-center gap-1.5 rounded-md text-sm font-bold text-primary hover:underline"
+            >
+              {t("portal.cta.getStarted")}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </PortalLink>
           </li>
-        ))}
-        <li className="flex items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 p-4">
-          <PortalLink
-            view={{ name: "doctors" }}
-            ctaLabel="how-booking-cta"
-            className="inline-flex items-center gap-1.5 rounded-md text-sm font-bold text-primary hover:underline"
-          >
-            {t("portal.cta.getStarted")}
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </PortalLink>
-        </li>
-      </ol>
+        </ol>
+      </div>
     </PortalSection>
   );
 }
@@ -585,9 +689,16 @@ export function OnlineConsultation() {
       subtitle={t("portal.section.telehealthSub")}
     >
       <div className="flex flex-col items-start gap-5 rounded-2xl border border-border bg-card p-6 shadow-soft sm:flex-row sm:items-center sm:p-8">
-        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-          <Video className="h-7 w-7" aria-hidden="true" />
-        </span>
+        <div className="relative w-full shrink-0 overflow-hidden rounded-2xl border border-border sm:w-72">
+          <Image
+            src="/images/telehealth-3d.png"
+            alt="3D illustration of a video consultation between a doctor and a patient"
+            width={1344}
+            height={768}
+            sizes="(min-width: 640px) 18rem, 100vw"
+            className="h-40 w-full object-cover sm:h-44"
+          />
+        </div>
         <div className="flex-1">
           <h3 className="text-base font-bold text-foreground">
             Video consultations — coming after compliance review
@@ -630,6 +741,9 @@ export function ForDoctorsBand() {
         "Free listing during the demo phase",
       ]}
       cta={{ label: t("portal.cta.joinAsDoctor"), view: { name: "for-doctors" } }}
+      image={{ src: "/images/cta-doctors-3d.png", alt: "3D render of a Bangladeshi doctor with a holographic appointment schedule" }}
+      ctaClassName="bg-[#13A89E] text-white hover:bg-[#0f8f87] focus-visible:outline-[#13A89E]"
+      chipClassName="bg-[#13A89E]/10 text-[#0f8f87]"
     />
   );
 }
@@ -649,6 +763,9 @@ export function ForHospitalsBand() {
         "Appointment and schedule oversight",
       ]}
       cta={{ label: t("portal.cta.joinAsHospital"), view: { name: "for-hospitals" } }}
+      image={{ src: "/images/cta-hospitals-3d.png", alt: "Isometric 3D render of a modern hospital building" }}
+      ctaClassName="bg-primary text-primary-foreground hover:bg-primary/90"
+      chipClassName="bg-primary-soft text-primary"
       tinted
     />
   );
@@ -662,6 +779,9 @@ function CtaBand({
   bullets,
   cta,
   tinted,
+  image,
+  ctaClassName,
+  chipClassName,
 }: {
   id: string;
   icon: LucideIcon;
@@ -670,27 +790,53 @@ function CtaBand({
   bullets: string[];
   cta: { label: string; view: Parameters<typeof PortalLink>[0]["view"] };
   tinted?: boolean;
+  image?: { src: string; alt: string };
+  ctaClassName?: string;
+  chipClassName?: string;
 }) {
   return (
     <PortalSection id={id} tinted={tinted} title={title} subtitle={subtitle}>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {bullets.map((b) => (
-          <div
-            key={b}
-            className="flex items-start gap-2.5 rounded-2xl border border-border bg-card p-4 shadow-soft"
-          >
-            <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[#13A89E]" aria-hidden="true" />
-            <p className="text-sm font-medium leading-snug text-foreground">{b}</p>
+      <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-stretch">
+        {/* 3D illustration panel */}
+        {image && (
+          <div className="relative m-1 overflow-hidden rounded-3xl border border-border shadow-soft">
+            <Image
+              src={image.src}
+              alt={image.alt}
+              width={1344}
+              height={768}
+              sizes="(min-width: 1024px) 32rem, 100vw"
+              className="h-48 w-full object-cover sm:h-60 lg:h-[calc(100%-0.5rem)]"
+            />
           </div>
-        ))}
-        <PortalLink
-          view={cta.view}
-          ctaLabel={`band-${id}`}
-          className="flex items-center justify-center rounded-2xl bg-primary p-4 text-center text-sm font-bold text-primary-foreground shadow-soft transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-        >
-          {cta.label}
-          <ArrowRight className="ml-1.5 h-4 w-4" aria-hidden="true" />
-        </PortalLink>
+        )}
+        <div>
+          <ul className="grid gap-4 sm:grid-cols-2">
+            {bullets.map((b) => (
+              <div
+                key={b}
+                className="flex items-start gap-2.5 rounded-2xl border border-border bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <span
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${chipClassName ?? "bg-primary-soft text-primary"}`}
+                >
+                  <Icon className="h-4.5 w-4.5" aria-hidden="true" />
+                </span>
+                <p className="text-sm font-medium leading-snug text-foreground">{b}</p>
+              </div>
+            ))}
+          </ul>
+          <PortalLink
+            view={cta.view}
+            ctaLabel={`band-${id}`}
+            className={`mt-4 flex w-full items-center justify-center rounded-2xl p-4 text-center text-sm font-bold shadow-soft transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 ${
+              ctaClassName ?? "bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:outline-primary"
+            }`}
+          >
+            {cta.label}
+            <ArrowRight className="ml-1.5 h-4 w-4" aria-hidden="true" />
+          </PortalLink>
+        </div>
       </div>
     </PortalSection>
   );
@@ -740,12 +886,12 @@ export function PatientBenefits() {
       subtitle={t("portal.section.benefitsSub")}
     >
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {BENEFITS.map((b) => (
+        {BENEFITS.map((b, i) => (
           <li
             key={b.title}
-            className="flex gap-3.5 rounded-2xl border border-border bg-card p-5 shadow-soft"
+            className="flex gap-3.5 rounded-2xl border border-border bg-card p-5 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md"
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${TINTS[i % TINTS.length]}`}>
               <b.icon className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
@@ -798,34 +944,49 @@ export function TrustSection() {
       subtitle={t("portal.section.trustSub")}
       action={<ViewAllLink view={{ name: "verification" }} label={t("portal.footer.verifyTitle")} />}
     >
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {TRUST_STEPS.map((s) => (
-          <div
-            key={s.title}
-            className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-soft"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#13A89E]/10 text-[#0f8f87]">
-              <s.icon className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <h3 className="mt-3 text-sm font-bold text-foreground">{s.title}</h3>
-            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{s.desc}</p>
+      <div className="grid gap-6 lg:grid-cols-[0.62fr_1.38fr] lg:items-stretch">
+        {/* 3D verification shield art */}
+        <div className="relative m-1 overflow-hidden rounded-3xl border border-border shadow-soft">
+          <Image
+            src="/images/trust-shield-3d.png"
+            alt="3D render of a medical verification shield with a checkmark"
+            width={1024}
+            height={1024}
+            sizes="(min-width: 1024px) 22rem, 100vw"
+            className="h-48 w-full object-cover sm:h-64 lg:h-[calc(100%-0.5rem)]"
+          />
+        </div>
+        <div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {TRUST_STEPS.map((s, i) => (
+              <div
+                key={s.title}
+                className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${TINTS[i % TINTS.length]}`}>
+                  <s.icon className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <h3 className="mt-3 text-sm font-bold text-foreground">{s.title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{s.desc}</p>
+              </div>
+            ))}
           </div>
-        ))}
+          <p className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5 text-[#13A89E]" aria-hidden="true" />
+              Verification statuses shown on every profile
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Star className="h-3.5 w-3.5 text-amber-500" aria-hidden="true" />
+              {ratingCount}+ patient reviews across the demo dataset
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+              Medical content carries review dates and disclaimers
+            </span>
+          </p>
+        </div>
       </div>
-      <p className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5">
-          <ShieldCheck className="h-3.5 w-3.5 text-[#13A89E]" aria-hidden="true" />
-          Verification statuses shown on every profile
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <Star className="h-3.5 w-3.5 text-amber-500" aria-hidden="true" />
-          {ratingCount}+ patient reviews across the demo dataset
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <Clock className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-          Medical content carries review dates and disclaimers
-        </span>
-      </p>
     </PortalSection>
   );
 }

@@ -37,13 +37,13 @@ import { useT } from "@/components/app/shared/ui-kit";
 import { BrandLogo, BrandWordmark } from "@/components/app/shared/brand";
 import { PortalLink } from "../shared";
 
-const NAV_ITEMS: { key: string; view: PortalView }[] = [
+const NAV_ITEMS: { key: string; view: PortalView; xlOnly?: boolean }[] = [
   { key: "portal.nav.findDoctors", view: { name: "doctors" } },
   { key: "portal.nav.hospitals", view: { name: "hospitals" } },
   { key: "portal.nav.specialties", view: { name: "specialties" } },
   { key: "portal.nav.healthLibrary", view: { name: "library" } },
-  { key: "portal.nav.forDoctors", view: { name: "for-doctors" } },
-  { key: "portal.nav.forHospitals", view: { name: "for-hospitals" } },
+  { key: "portal.nav.forDoctors", view: { name: "for-doctors" }, xlOnly: true },
+  { key: "portal.nav.forHospitals", view: { name: "for-hospitals" }, xlOnly: true },
 ];
 
 export default function PortalHeader() {
@@ -88,7 +88,9 @@ export default function PortalHeader() {
             <PortalLink
               key={item.key}
               view={item.view}
-              className={`rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+              className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                item.xlOnly ? "hidden xl:inline-flex" : ""
+              } ${
                 activeName(item.view)
                   ? "bg-primary-soft text-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"

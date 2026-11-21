@@ -118,15 +118,23 @@ export function PortalHero() {
   const stats = meta.data?.platformStats;
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-primary-soft/60 via-white to-white">
-      {/* soft decorative shapes (CSS only — no image weight) */}
+    <section className="relative overflow-hidden bg-gradient-to-b from-primary-soft/70 via-accent/50 to-white">
+      {/* colorful decorative shapes (CSS only — no image weight) */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-[#13A89E]/10 blur-3xl"
+        className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-[#13A89E]/15 blur-3xl"
       />
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -left-32 top-40 h-80 w-80 rounded-full bg-primary/10 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute right-10 top-1/3 h-64 w-64 rounded-full bg-amber-200/40 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-10 bottom-0 h-72 w-72 rounded-full bg-rose-200/30 blur-3xl"
       />
 
       <div className="relative mx-auto grid w-full max-w-6xl gap-10 px-4 pb-14 pt-12 sm:px-6 sm:pt-16 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:pb-20 lg:pt-20">
@@ -290,16 +298,17 @@ export function PortalHero() {
           </dl>
         </div>
 
-        {/* Hero illustration — eager (above the fold), fixed dimensions to prevent CLS */}
-        <div className="relative mx-auto hidden w-full max-w-md lg:block" aria-hidden="true">
-          <div className="overflow-hidden rounded-3xl border border-border bg-white shadow-soft">
+        {/* Hero 3D illustration — eager (above the fold), fixed dimensions to prevent CLS */}
+        <div className="relative mx-auto w-full max-w-sm lg:max-w-md" aria-hidden="true">
+          <div className="absolute -inset-3 rounded-[2rem] bg-gradient-to-br from-[#13A89E]/30 via-amber-200/40 to-rose-200/40 blur-md" />
+          <div className="relative overflow-hidden rounded-3xl border border-border bg-white shadow-soft">
             <Image
-              src="/images/hero-doctor.png"
+              src="/images/hero-3d-doctor.png"
               alt=""
               width={864}
               height={1152}
               priority
-              sizes="(min-width: 1024px) 28rem, 0px"
+              sizes="(min-width: 1024px) 28rem, 90vw"
               className="h-auto w-full object-cover"
             />
           </div>
@@ -307,6 +316,15 @@ export function PortalHero() {
             <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
               <ShieldCheck className="h-4 w-4 text-[#13A89E]" aria-hidden="true" />
               Credential-reviewed doctor profiles
+            </p>
+          </div>
+          <div className="absolute -right-3 top-6 rounded-2xl border border-border bg-white/95 px-3.5 py-2.5 shadow-soft backdrop-blur sm:-right-5">
+            <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
+              <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+              </span>
+              Live slot booking
             </p>
           </div>
         </div>
