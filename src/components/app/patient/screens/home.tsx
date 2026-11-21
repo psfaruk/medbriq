@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/app-state";
 import { apiGet } from "@/lib/api-client";
+import { getPreloadedBoot } from "@/lib/boot-data";
 import { searchPreset, setSearchPreset } from "../preset";
 import type { AppointmentDto, DoctorCard, SpecialtyInfo } from "@/lib/types";
 import {
@@ -56,6 +57,24 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
+    // PERF: the single bootstrap request (app.tsx) already delivered this
+    // exact data — render it instantly and skip the three-fetch waterfall.
+    // User-scoped appointments are only trusted when the payload was
+    // captured for THIS session's user (a guest→login transition must not
+    // reuse the guest's empty list). Falls back to reload() otherwise.
+    const pre = getPreloadedBoot();
+    if (
+      pre &&
+      pre.specialties &&
+      pre.homeDoctors &&
+      pre.capturedForUserId === (user?.id ?? null) &&
+      pre.appointments
+    ) {
+      setSpecialties(pre.specialties);
+      setDoctors(pre.homeDoctors);
+      setAppointments(pre.appointments);
+      return;
+    }
     reload();
   }, []);
 

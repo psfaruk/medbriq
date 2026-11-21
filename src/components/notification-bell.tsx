@@ -110,15 +110,29 @@ export default function NotificationBell() {
     // next successful poll.
   }, []);
 
-  // Fetch immediately on sign-in and then every 30 seconds. The initial fetch
-  // is deferred to a macrotask so no setState runs synchronously in the effect.
+  // Fetch immediately on sign-in and then every 30 seconds — but ONLY while
+  // the tab is visible. Each poll is a serverless invocation on Vercel, and
+  // a background tab polling forever both burns function hours and keeps
+  // hitting cold starts for data nobody sees. On returning to the tab we
+  // refresh immediately so the badge catches up without delay.
+  // The initial fetch is deferred to a macrotask so no setState runs
+  // synchronously in the effect.
   useEffect(() => {
     if (!user) return;
     const initial = setTimeout(() => void load(), 0);
-    const id = setInterval(() => void load(), 30_000);
+    const id = setInterval(() => {
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        void load();
+      }
+    }, 30_000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       clearTimeout(initial);
       clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [user, load]);
 

@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "crypto";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
+import { cached, invalidateMemoryCache } from "@/lib/cache";
 import { normalizePhone } from "@/lib/phone";
 import type {
   ActiveOtpCode,
@@ -109,8 +110,11 @@ export function getFirestoreFromEnv(): Firestore {
     : initializeApp({
         credential: cert(serviceAccount as Parameters<typeof cert>[0]),
       });
-  const databaseId = process.env.FIREBASE_DATABASE_ID || "default";
-  return getFirestore(app, databaseId);
+  // NOTE: the admin SDK names the default database "(default)" — a literal
+  // "default" targets a *different* (non-existent) database id and every
+  // query fails with NOT_FOUND. Keep the parens in the fallback.
+  const databaseId = process.env.FIREBASE_DATABASE_ID || "(default)";
+  return getFirestore(app, databaseId, { preferRest: true });
 }
 
 /** Firestore status-code classification (ALREADY_EXISTS = 6) for create() guards. */
@@ -278,31 +282,52 @@ export class FirestoreStore implements DataStore {
    * Directory context: whole small collections read once per call so doctor
    * records can be "joined" in memory (Firestore has no server-side joins and
    * this project has no composite indexes). Demo-scale tradeoff — see header.
+   *
+   * PERF: cached in-process for 30s (same cache the public API routes use).
+   * Without this, every directory/search/profile read re-fetched the entire
+   * users + specialties + hospitals + reviews collections (4 collection
+   * reads per request). Mutating methods below invalidate the entry so edits
+   * appear immediately on the same instance; cross-instance staleness is
+   * bounded by the short TTL.
    */
   private async loadDirectoryContext() {
-    const [usersSnap, specialtiesSnap, hospitalsSnap, reviewsSnap] =
-      await Promise.all([
-        this.fs.collection("users").get(),
-        this.fs.collection("specialties").get(),
-        this.fs.collection("hospitals").get(),
-        this.fs.collection("reviews").get(),
-      ]);
-    const users = new Map<string, UserDoc>();
-    for (const doc of usersSnap.docs) users.set(doc.id, doc.data() as UserDoc);
-    const specialties = new Map<string, SpecialtyDoc>();
-    for (const doc of specialtiesSnap.docs)
-      specialties.set(doc.id, doc.data() as SpecialtyDoc);
-    const hospitals = new Map<string, HospitalDoc>();
-    for (const doc of hospitalsSnap.docs)
-      hospitals.set(doc.id, doc.data() as HospitalDoc);
-    const reviewRatingsByDoctor = new Map<string, number[]>();
-    for (const doc of reviewsSnap.docs) {
-      const review = doc.data() as ReviewDoc;
-      const list = reviewRatingsByDoctor.get(review.doctorId) ?? [];
-      list.push(review.rating);
-      reviewRatingsByDoctor.set(review.doctorId, list);
-    }
-    return { users, specialties, hospitals, reviewRatingsByDoctor };
+    const ctx = await cached("store:directory-context", 30_000, async () => {
+      const [usersSnap, specialtiesSnap, hospitalsSnap, reviewsSnap] =
+        await Promise.all([
+          this.fs.collection("users").get(),
+          this.fs.collection("specialties").get(),
+          this.fs.collection("hospitals").get(),
+          this.fs.collection("reviews").get(),
+        ]);
+      const users = new Map<string, UserDoc>();
+      for (const doc of usersSnap.docs) users.set(doc.id, doc.data() as UserDoc);
+      const specialties = new Map<string, SpecialtyDoc>();
+      for (const doc of specialtiesSnap.docs)
+        specialties.set(doc.id, doc.data() as SpecialtyDoc);
+      const hospitals = new Map<string, HospitalDoc>();
+      for (const doc of hospitalsSnap.docs)
+        hospitals.set(doc.id, doc.data() as HospitalDoc);
+      const reviewRatingsByDoctor = new Map<string, number[]>();
+      for (const doc of reviewsSnap.docs) {
+        const review = doc.data() as ReviewDoc;
+        const list = reviewRatingsByDoctor.get(review.doctorId) ?? [];
+        list.push(review.rating);
+        reviewRatingsByDoctor.set(review.doctorId, list);
+      }
+      return { users, specialties, hospitals, reviewRatingsByDoctor };
+    });
+    return ctx;
+  }
+
+  /** Directory-facing data changed (users/doctors/specialties/hospitals/
+   *  reviews) — drop the cached join context and the public route caches. */
+  private invalidateDirectory(): void {
+    invalidateMemoryCache("store:directory-context");
+    invalidateMemoryCache("v1:doctors");
+    invalidateMemoryCache("v1:doctor:");
+    invalidateMemoryCache("v1:specialties");
+    invalidateMemoryCache("v1:hospitals");
+    invalidateMemoryCache("v1:meta");
   }
 
   private assembleDoctorRecord(
@@ -589,6 +614,7 @@ export class FirestoreStore implements DataStore {
       if (value !== undefined) updates[key] = value;
     }
     await ref.update(updates);
+    this.invalidateDirectory(); // name/phone/avatar surface on doctor cards
     return this.toAuthUserById(userId);
   }
 
@@ -681,6 +707,7 @@ export class FirestoreStore implements DataStore {
       updatedAt: now,
     });
     await batch.commit();
+    this.invalidateDirectory(); // new doctor appears in the public directory
     return {
       id: userId,
       email: input.email,
@@ -926,6 +953,7 @@ export class FirestoreStore implements DataStore {
       if (value !== undefined) updates[key] = value;
     }
     await ref.update(updates);
+    this.invalidateDirectory();
     return this.getDoctorById(id).then((doctor) => {
       if (!doctor) throw new Error(`Doctor profile ${id} disappeared during update.`);
       return doctor;
@@ -1032,6 +1060,7 @@ export class FirestoreStore implements DataStore {
       });
     }
     await batch.commit();
+    this.invalidateDirectory(); // availability drives nextAvailableLabel
     return this.listAvailabilityRules(doctorId);
   }
 
@@ -1574,6 +1603,7 @@ export class FirestoreStore implements DataStore {
       comment: input.comment,
       createdAt: now,
     });
+    this.invalidateDirectory(); // rating aggregates change
     const userSnap = await this.fs.collection("users").doc(input.patientId).get();
     return {
       id: ref.id,
@@ -1623,6 +1653,7 @@ export class FirestoreStore implements DataStore {
     const snap = await ref.get();
     if (!snap.exists) return false;
     await ref.delete();
+    this.invalidateDirectory();
     return true;
   }
 

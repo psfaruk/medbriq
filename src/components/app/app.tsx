@@ -4,7 +4,8 @@ import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useAppStore, hydrateLang } from "@/lib/app-state";
 import { apiGet } from "@/lib/api-client";
-import type { SessionUser } from "@/lib/types";
+import { setPreloadedBoot } from "@/lib/boot-data";
+import type { AppointmentDto, AuthConfig, DoctorCard, SessionUser, SpecialtyInfo } from "@/lib/types";
 import AuthScreen from "@/components/app/auth-screen";
 import PatientShell from "@/components/app/patient-shell";
 import PatientApp from "@/components/app/patient";
@@ -39,11 +40,23 @@ function DashboardFallback({ label }: { label: string }) {
   );
 }
 
+/** GET /api/v1/bootstrap payload (only what the client consumes). */
+type BootstrapPayload = {
+  user: SessionUser | null;
+  authConfig: AuthConfig;
+  specialties: SpecialtyInfo[];
+  homeDoctors: DoctorCard[];
+  appointments: AppointmentDto[];
+};
+
 /**
  * MedBricBD root application (single-route SPA on "/").
  *
- * Boot: resolve the session once, hydrate the stored language, then render
- * the interface matching the signed-in role:
+ * Boot: ONE /api/v1/bootstrap request resolves the session AND the public
+ * data the first screen needs (previously a 3–5 request waterfall, each
+ * paying its own serverless cold start). The public parts are stashed in
+ * src/lib/boot-data.ts so the auth screen / patient home render instantly;
+ * `boot()` then flips the shell to the matching interface:
  *   PATIENT → mobile-first patient app (bottom tabs on phones)
  *   DOCTOR  → doctor web dashboard (sidebar)
  *   HOSPITAL→ hospital web dashboard (sidebar)
@@ -55,8 +68,17 @@ export default function App() {
 
   useEffect(() => {
     hydrateLang();
-    apiGet<{ user: SessionUser | null }>("/api/v1/auth/me")
-      .then((d) => boot(d.user))
+    apiGet<BootstrapPayload>("/api/v1/bootstrap")
+      .then((d) => {
+        setPreloadedBoot({
+          capturedForUserId: d.user?.id ?? null,
+          authConfig: d.authConfig ?? null,
+          specialties: d.specialties ?? null,
+          homeDoctors: d.homeDoctors ?? null,
+          appointments: Array.isArray(d.appointments) ? d.appointments : null,
+        });
+        boot(d.user);
+      })
       .catch(() => boot(null));
   }, [boot]);
 

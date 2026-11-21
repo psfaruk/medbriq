@@ -31,12 +31,58 @@ export type SlotInfo = {
 };
 
 /** Appointment statuses that occupy a slot. */
-const BLOCKING_STATUSES = [
+export const BLOCKING_STATUSES = [
   "PENDING_APPROVAL",
   "CONFIRMED",
   "COMPLETED",
   "NO_SHOW", // the slot was consumed even though the patient did not attend
 ];
+
+/** Minimal rule shape the pure slot builder needs. */
+export type SlotRule = {
+  startMinute: number;
+  endMinute: number;
+};
+
+/**
+ * PURE slot derivation for one Dhaka-local date from pre-loaded rules and a
+ * pre-loaded set of taken slotStart ISOs. No store access — this is the
+ * shared engine behind both getSlotsForDate (single doctor/day over the
+ * wire) and the batched directory "next available" computation (many
+ * doctors × 14 days computed in memory from ONE batch of reads).
+ */
+export function buildSlotsForDate(
+  rules: SlotRule[],
+  dateStr: string,
+  takenSet: ReadonlySet<string>,
+  nowMs: number
+): SlotInfo[] {
+  const slots: SlotInfo[] = [];
+  const seen = new Set<number>();
+
+  for (const rule of rules) {
+    for (
+      let m = rule.startMinute;
+      m + DEFAULT_SLOT_MINUTES <= rule.endMinute;
+      m += DEFAULT_SLOT_MINUTES
+    ) {
+      if (seen.has(m)) continue; // overlapping rules should not duplicate slots
+      seen.add(m);
+      const start = dhakaToUtc(dateStr, m);
+      const end = dhakaToUtc(dateStr, m + DEFAULT_SLOT_MINUTES);
+      slots.push({
+        startIso: start.toISOString(),
+        endIso: end.toISOString(),
+        startMinute: m,
+        label: minutesToLabel(m),
+        taken: takenSet.has(start.toISOString()),
+        past: start.getTime() <= nowMs,
+      });
+    }
+  }
+
+  return slots.sort((a, b) => a.startMinute - b.startMinute);
+}
 
 export async function getSlotsForDate(
   doctorId: string,
@@ -64,34 +110,8 @@ export async function getSlotsForDate(
     dayEndUtc.toISOString(),
     BLOCKING_STATUSES
   );
-  const takenSet = new Set(booked);
 
-  const now = Date.now();
-  const slots: SlotInfo[] = [];
-  const seen = new Set<number>();
-
-  for (const rule of rules) {
-    for (
-      let m = rule.startMinute;
-      m + DEFAULT_SLOT_MINUTES <= rule.endMinute;
-      m += DEFAULT_SLOT_MINUTES
-    ) {
-      if (seen.has(m)) continue; // overlapping rules should not duplicate slots
-      seen.add(m);
-      const start = dhakaToUtc(dateStr, m);
-      const end = dhakaToUtc(dateStr, m + DEFAULT_SLOT_MINUTES);
-      slots.push({
-        startIso: start.toISOString(),
-        endIso: end.toISOString(),
-        startMinute: m,
-        label: minutesToLabel(m),
-        taken: takenSet.has(start.toISOString()),
-        past: start.getTime() <= now,
-      });
-    }
-  }
-
-  return slots.sort((a, b) => a.startMinute - b.startMinute);
+  return buildSlotsForDate(rules, dateStr, new Set(booked), Date.now());
 }
 
 /** Validate that a submitted slotIso matches a real, bookable slot. */

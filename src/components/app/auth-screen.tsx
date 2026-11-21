@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { useAppStore } from "@/lib/app-state";
 import { apiGet, apiPost, ApiCallError } from "@/lib/api-client";
+import { getPreloadedBoot } from "@/lib/boot-data";
 import type {
   AuthConfig,
   SessionUser,
@@ -98,19 +99,38 @@ export default function AuthScreen() {
   const [showDemo, setShowDemo] = useState(false);
 
   useEffect(() => {
-    apiGet<{ config: AuthConfig }>("/api/v1/auth/config")
-      .then((d) => setConfig(d.config))
-      .catch(() =>
-        setConfig({
-          googleEnabled: false,
-          googleClientId: null,
-          phoneOtpEnabled: true,
-          devOtpMode: true,
-        })
-      );
-    apiGet<{ items: SpecialtyInfo[] }>("/api/v1/specialties")
-      .then((d) => setSpecialties(d.items))
-      .catch(() => setSpecialties([]));
+    // PERF: the bootstrap request (app.tsx) already delivered these — only
+    // fall back to individual fetches when the preloaded payload is absent
+    // (e.g. the user sat on this screen past the freshness window).
+    //
+    // BUGFIX: /api/v1/auth/config returns the AuthConfig object directly
+    // (ok(config)), not { config } — the old d.config read was always
+    // undefined, silently disabling the Google button and OTP tab config.
+    const pre = getPreloadedBoot();
+    void (async () => {
+      await Promise.resolve();
+      if (pre?.authConfig) {
+        setConfig(pre.authConfig);
+      } else {
+        apiGet<AuthConfig>("/api/v1/auth/config")
+          .then((d) => setConfig(d))
+          .catch(() =>
+            setConfig({
+              googleEnabled: false,
+              googleClientId: null,
+              phoneOtpEnabled: true,
+              devOtpMode: true,
+            })
+          );
+      }
+      if (pre?.specialties) {
+        setSpecialties(pre.specialties);
+      } else {
+        apiGet<{ items: SpecialtyInfo[] }>("/api/v1/specialties")
+          .then((d) => setSpecialties(d.items))
+          .catch(() => setSpecialties([]));
+      }
+    })();
   }, []);
 
   const onAuthenticated = (user: SessionUser) => {
