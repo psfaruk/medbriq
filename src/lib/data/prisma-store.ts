@@ -62,7 +62,7 @@ function getClient(): PrismaClient {
     // writable /tmp target on Vercel (no-op locally / on Firestore).
     ensureSqliteFile();
     globalForPrisma.__medbriqPrismaStoreClient = new PrismaClient({
-      log: ["query"],
+      log: process.env.NODE_ENV === "production" ? ["error"] : ["query"],
     });
   }
   return globalForPrisma.__medbriqPrismaStoreClient;
@@ -1346,6 +1346,30 @@ export class PrismaStore implements DataStore {
       data: { readAt: new Date() },
     });
     return result.count;
+  }
+
+  // ── Web-push (FCM) registration tokens ─────────────────────────────
+
+  async upsertPushToken(userId: string, token: string, platform: string): Promise<void> {
+    await this.db.pushToken.upsert({
+      where: { token },
+      create: { userId, token, platform },
+      update: { userId, platform },
+    });
+  }
+
+  async removePushToken(token: string): Promise<void> {
+    await this.db.pushToken.deleteMany({ where: { token } });
+  }
+
+  async listPushTokens(userId: string): Promise<string[]> {
+    const rows = await this.db.pushToken.findMany({
+      where: { userId },
+      orderBy: { createdAt: "asc" },
+      take: 50,
+      select: { token: true },
+    });
+    return rows.map((row) => row.token);
   }
 
   // ── Reviews (write + moderation) ───────────────────────

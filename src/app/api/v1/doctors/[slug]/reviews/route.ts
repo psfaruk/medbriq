@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { getStore } from "@/lib/data";
 import { fail, handleRouteError, ok } from "@/lib/api";
+import { cached, invalidateMemoryCache } from "@/lib/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { NOTIFICATION_TYPES, ROLES } from "@/lib/constants";
 import { notifyUser } from "@/app/api/v1/_lib/booking";
@@ -53,6 +54,8 @@ export async function GET(
       return fail("Doctor not found", 404, "NOT_FOUND");
     }
 
+    // Public, per-doctor — safe to cache briefly. POST below invalidates.
+    const data = await cached(`v1:reviews:${slug}`, 30_000, async () => {
     const reviews = await store.listReviewsByDoctor(doctor.id);
 
     const items: ReviewItem[] = reviews.slice(0, 50).map((review) => ({
@@ -73,14 +76,14 @@ export async function GET(
           ) / 10
         : null;
 
-    return ok(
-      {
-        items,
-        ratingAvg,
-        ratingCount,
-      },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return {
+      items,
+      ratingAvg,
+      ratingCount,
+    };
+    });
+
+    return ok(data, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     return handleRouteError(err);
   }
@@ -173,6 +176,11 @@ export async function POST(
       `${user.name} rated you ${review.rating}/5.`,
       { doctorSlug: doctor.slug, reviewId: review.id }
     );
+
+    // Ratings feed the public doctor list/detail — drop cached copies.
+    invalidateMemoryCache("v1:reviews");
+    invalidateMemoryCache("v1:doctor");
+    invalidateMemoryCache("v1:doctors");
 
     return ok(
       {

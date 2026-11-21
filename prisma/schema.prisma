@@ -487,3 +487,19 @@ model PlatformSetting {
   updatedBy String?
   updatedAt DateTime @updatedAt
 }
+
+/**
+ * Web-push (FCM) registration tokens per user. A user may have several
+ * (multiple browsers/devices); tokens are pruned automatically when FCM
+ * reports them invalid.
+ */
+model PushToken {
+  id         String   @id @default(uuid())
+  userId     String
+  token      String   @unique
+  platform   String   @default("web") // web | android | ios
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @updatedAt
+
+  @@index([userId])
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, CheckCheck } from "lucide-react";
+import { Bell, BellRing, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -9,6 +9,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { apiGet, apiPost } from "@/lib/api-client";
+import {
+  isPushSupported,
+  listenForForegroundPush,
+  subscribeToPush,
+} from "@/lib/firebase";
 import type { NotificationItem } from "@/lib/types";
 import { useAppStore } from "@/lib/app-state";
 import { cn } from "@/lib/utils";
@@ -42,6 +47,50 @@ export default function NotificationBell({
   const [items, setItems] = useState<NotificationItem[] | null>(null);
   const [open, setOpen] = useState(false);
   const pushPatient = useAppStore((s) => s.pushPatient);
+
+  // ── Web push (FCM) ──────────────────────────────────────────────
+  // permission === "granted" already → silently keep the token
+  // registered (handles FCM token rotation) and display foreground
+  // messages. Otherwise show an inline "enable" affordance in the panel.
+  const [pushPermission, setPushPermission] = useState<NotificationPermission | "unsupported">("default");
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isPushSupported()) {
+      setPushPermission("unsupported");
+      return;
+    }
+    setPushPermission(Notification.permission);
+    if (Notification.permission === "granted") {
+      // Idempotent — refreshes the server registration (token rotation).
+      void subscribeToPush();
+      void listenForForegroundPush();
+    }
+  }, []);
+
+  const enablePush = async () => {
+    setPushBusy(true);
+    setPushError(null);
+    try {
+      const result = await subscribeToPush();
+      if (result.ok) {
+        setPushPermission("granted");
+        void listenForForegroundPush();
+      } else {
+        const messages: Record<string, string> = {
+          unsupported: "Push is not supported by this browser.",
+          "no-config": "Push is not configured on the server yet.",
+          "permission-denied": "Notification permission was blocked — allow it in browser settings.",
+          "no-token": "Could not obtain a push token. Try again.",
+          "registration-failed": "Could not save the push subscription. Try again.",
+        };
+        setPushError(messages[result.reason ?? ""] ?? "Could not enable push notifications.");
+      }
+    } finally {
+      setPushBusy(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -169,6 +218,26 @@ export default function NotificationBell({
             ))
           )}
         </div>
+        {pushPermission === "granted" ? (
+          <p className="flex items-center gap-1.5 border-t border-border px-4 py-2.5 text-[11px] text-muted-foreground">
+            <BellRing className="h-3.5 w-3.5 text-primary" />
+            Push notifications enabled
+          </p>
+        ) : pushPermission === "unsupported" ? null : (
+          <div className="border-t border-border px-4 py-3">
+            <button
+              onClick={enablePush}
+              disabled={pushBusy}
+              className="flex w-full items-center justify-center gap-1.5 rounded-md bg-primary-soft px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary-soft/70 disabled:opacity-60"
+            >
+              <BellRing className="h-3.5 w-3.5" />
+              {pushBusy ? "Enabling…" : "Enable push notifications"}
+            </button>
+            {pushError ? (
+              <p className="mt-1.5 text-center text-[11px] text-destructive">{pushError}</p>
+            ) : null}
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );

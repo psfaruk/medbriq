@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import { normalizePhone } from "@/lib/phone";
@@ -1509,6 +1509,37 @@ export class FirestoreStore implements DataStore {
     for (const doc of unread) batch.update(doc.ref, { readAt: new Date().toISOString() });
     if (unread.length > 0) await batch.commit();
     return unread.length;
+  }
+
+  // ── Web-push (FCM) registration tokens ─────────────────────────────
+  // Collection: push_tokens/{sha256(token)} — deterministic doc id keeps
+  // upserts idempotent while never putting a raw token into a doc path.
+
+  private pushTokenDocId(token: string): string {
+    return createHash("sha256").update(token).digest("hex");
+  }
+
+  async upsertPushToken(userId: string, token: string, platform: string): Promise<void> {
+    await this.fs
+      .collection("push_tokens")
+      .doc(this.pushTokenDocId(token))
+      .set(
+        { userId, token, platform, lastSeenAt: new Date().toISOString() },
+        { merge: true }
+      );
+  }
+
+  async removePushToken(token: string): Promise<void> {
+    await this.fs.collection("push_tokens").doc(this.pushTokenDocId(token)).delete();
+  }
+
+  async listPushTokens(userId: string): Promise<string[]> {
+    const snap = await this.fs
+      .collection("push_tokens")
+      .where("userId", "==", userId)
+      .limit(50)
+      .get();
+    return snap.docs.map((doc) => (doc.data() as { token: string }).token);
   }
 
   // ── Reviews (write + moderation) ────────────────────────────────────

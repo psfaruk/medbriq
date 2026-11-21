@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { getStore } from "@/lib/data";
 import { fail, handleRouteError, ok } from "@/lib/api";
+import { cached, publicCacheHeaders } from "@/lib/cache";
 import { CURRENCY, type VerificationStatus } from "@/lib/constants";
 import { getSlotsForDate } from "@/lib/slots";
 import { addDays, dhakaDateString, formatDateLabel } from "@/lib/time";
@@ -74,6 +75,14 @@ export async function GET(request: NextRequest) {
         .join("; ");
       return fail(`Invalid query parameters — ${message}`, 400, "INVALID_QUERY");
     }
+
+    // Whole-response cache (per exact query string): the "next available"
+    // N+1 below costs ~14 days × 2 reads per doctor on the page — it must
+    // not run on every request. 60s TTL + edge s-maxage keeps this cheap.
+    const data = await cached(
+      `v1:doctors:${request.nextUrl.search}`,
+      60_000,
+      async () => {
     const {
       q,
       specialty,
@@ -210,10 +219,11 @@ export async function GET(request: NextRequest) {
       }))
     );
 
-    return ok(
-      { items, total, page, pageSize },
-      { headers: { "Cache-Control": "no-store" } }
+    return { items, total, page, pageSize };
+      }
     );
+
+    return ok(data, { headers: publicCacheHeaders(60) });
   } catch (err) {
     return handleRouteError(err);
   }

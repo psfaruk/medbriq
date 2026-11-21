@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { fail, handleRouteError, ok } from "@/lib/api";
+import { invalidateMemoryCache } from "@/lib/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { getStore, SlotConflictError } from "@/lib/data";
 import type { AppointmentRecord } from "@/lib/data/types";
@@ -182,6 +183,9 @@ export async function POST(
       `Your appointment with ${doctorDisplayName(updated.doctor.name)} was rescheduled to ${newDateLabel} (${updated.referenceCode}).`,
       rescheduleMeta
     );
+
+    invalidateMemoryCache("v1:slots");
+    invalidateMemoryCache("v1:doctors");
 
     return ok({ appointment: toAppointmentDto(updated) });
   } catch (err) {

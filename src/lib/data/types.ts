@@ -589,6 +589,14 @@ export interface DataStore {
   /** Mark all owned notifications read; returns the updated count. */
   markAllNotificationsRead(userId: string): Promise<number>;
 
+  // ── Web-push (FCM) registration tokens ──────────────────────────────
+  /** Register/refresh a push token for a user (idempotent upsert). */
+  upsertPushToken(userId: string, token: string, platform: string): Promise<void>;
+  /** Remove a registration (logout / permission revoked / token invalid). */
+  removePushToken(token: string): Promise<void>;
+  /** All active tokens for a user (bounded, oldest-first). */
+  listPushTokens(userId: string): Promise<string[]>;
+
   // ── Reference data ───────────────────────────────────────────────────
   findSpecialtyBySlug(slug: string): Promise<SpecialtyRecord | null>;
   /** Specialties with doctor counts restricted to the given (public) statuses. */

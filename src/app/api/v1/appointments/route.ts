@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { getStore, SlotConflictError, ReferenceCodeCollisionError } from "@/lib/data";
 import { db } from "@/lib/db";
+import { invalidateMemoryCache } from "@/lib/cache";
 import type { AppointmentRecord } from "@/lib/data/types";
 import { fail, handleRouteError, ok } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
@@ -339,6 +340,11 @@ export async function POST(req: NextRequest) {
         notificationMeta
       );
     }
+
+    // The booked slot is now taken — drop derived slot caches so the
+    // picker reflects it immediately.
+    invalidateMemoryCache("v1:slots");
+    invalidateMemoryCache("v1:doctors");
 
     return ok({
       appointment: toAppointmentDto(created),

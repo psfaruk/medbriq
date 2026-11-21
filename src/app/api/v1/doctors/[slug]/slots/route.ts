@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { getStore } from "@/lib/data";
 import { fail, handleRouteError, ok } from "@/lib/api";
+import { cached } from "@/lib/cache";
 import { getSlotsForDate } from "@/lib/slots";
 import { dateStrSchema } from "@/app/api/v1/_lib/booking";
 
@@ -38,10 +39,13 @@ export async function GET(
 
     // Optional chamber filter: rules that are chamber-specific to this
     // chamber plus the doctor's general (chamberId = null) rules.
-    const slots = await getSlotsForDate(
-      doctor.id,
-      parsed.data,
-      chamberParam || null
+    // 10s memory cache: the date picker walks day-by-day and re-hits the
+    // same slug+date while browsing — no need to re-derive rules each time.
+    // Mutations (booking / availability) invalidate the "v1:slots:" prefix.
+    const slots = await cached(
+      `v1:slots:${slug}:${parsed.data}:${chamberParam}`,
+      10_000,
+      () => getSlotsForDate(doctor.id, parsed.data, chamberParam || null)
     );
 
     return ok({

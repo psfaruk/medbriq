@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { fail, handleRouteError, ok } from "@/lib/api";
+import { invalidateMemoryCache } from "@/lib/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { getStore } from "@/lib/data";
 import { APPOINTMENT_STATUS, NOTIFICATION_TYPES, ROLES } from "@/lib/constants";
@@ -149,6 +150,10 @@ export async function POST(
         cancelMeta
       );
     }
+
+    // Freed slot — derived slot caches must go.
+    invalidateMemoryCache("v1:slots");
+    invalidateMemoryCache("v1:doctors");
 
     return ok({ appointment: toAppointmentDto(updated) });
   } catch (err) {

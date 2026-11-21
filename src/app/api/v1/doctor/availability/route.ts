@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { getStore } from "@/lib/data";
 import { ok, fail, handleRouteError } from "@/lib/api";
+import { invalidateMemoryCache } from "@/lib/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { ROLES } from "@/lib/constants";
 import { DAY_NAMES } from "@/lib/time";
@@ -165,6 +166,11 @@ export async function PUT(req: NextRequest) {
       entityId: profile.id,
       meta: JSON.stringify({ rules: parsed.data.rules }),
     });
+
+    // Slot derivation changed wholesale.
+    invalidateMemoryCache("v1:slots");
+    invalidateMemoryCache("v1:doctor");
+    invalidateMemoryCache("v1:doctors");
 
     return ok({
       items: rules.map((rule) => ({

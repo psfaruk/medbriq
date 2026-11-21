@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getStore } from "@/lib/data";
+import { sendPushToUser } from "@/lib/push";
 import type { AppointmentRecord } from "@/lib/data/types";
 import type {
   AppointmentStatus,
@@ -141,4 +142,13 @@ export async function notifyUser(
   } catch (err) {
     console.error("[medbriq-notify]", err);
   }
+  // Best-effort web push (fire-and-forget — see src/lib/push.ts). The
+  // in-app notification above stays the source of truth.
+  let url: string | undefined;
+  try {
+    url = meta && typeof meta.url === "string" ? meta.url : undefined;
+  } catch {
+    url = undefined;
+  }
+  void sendPushToUser(userId, { title, body, url });
 }

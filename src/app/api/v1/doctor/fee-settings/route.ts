@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { fail, handleRouteError, ok } from "@/lib/api";
+import { invalidateMemoryCache } from "@/lib/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { getStore } from "@/lib/data";
 import { ROLES } from "@/lib/constants";
@@ -117,6 +118,9 @@ export async function PUT(req: NextRequest) {
       },
       user.id
     );
+
+    invalidateMemoryCache("v1:doctor");
+    invalidateMemoryCache("v1:doctors");
 
     return ok({ settings: toDto(updated) });
   } catch (err) {

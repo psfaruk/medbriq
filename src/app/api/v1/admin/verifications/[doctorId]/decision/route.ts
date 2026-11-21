@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { getStore } from "@/lib/data";
 import { ok, fail, handleRouteError } from "@/lib/api";
+import { invalidateMemoryCache } from "@/lib/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { ROLES } from "@/lib/constants";
 import type { VerificationItem } from "@/lib/types";
@@ -112,6 +113,9 @@ export async function POST(
       verificationNote: updated.verificationNote,
       submittedAt: updated.createdAt,
     };
+
+    // Visibility/verification changed — every public payload is stale.
+    invalidateMemoryCache("v1:");
 
     return ok({ item });
   } catch (err) {

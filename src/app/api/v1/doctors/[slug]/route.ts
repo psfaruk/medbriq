@@ -3,6 +3,7 @@ import { getStore } from "@/lib/data";
 import { FeeModuleUnavailableError } from "@/lib/data/types";
 import { db } from "@/lib/db";
 import { fail, handleRouteError, ok } from "@/lib/api";
+import { cached, publicCacheHeaders } from "@/lib/cache";
 import { CURRENCY, type VerificationStatus } from "@/lib/constants";
 import { getSlotsForDate } from "@/lib/slots";
 import { addDays, dhakaDateString, formatDateLabel } from "@/lib/time";
@@ -52,10 +53,13 @@ export async function GET(
     }
 
     const store = getStore();
+    // Whole-response cache per slug: detail assembly (rules + fees +
+    // next-available N+1 + chambers) is dozens of reads — cache 60s.
+    const detail = await cached(`v1:doctor:${slug}`, 60_000, async () => {
     const row = await store.getDoctorBySlug(parsedSlug.data);
 
     if (!row || HIDDEN_STATUSES.includes(row.verificationStatus)) {
-      return fail("Doctor not found", 404, "NOT_FOUND");
+      return null;
     }
 
     // Active weekly rules, sorted by day then start time (contract order).
@@ -161,7 +165,14 @@ export async function GET(
         .catch(() => []),
     };
 
-    return ok(detail, { headers: { "Cache-Control": "no-store" } });
+    return detail;
+    });
+
+    if (!detail) {
+      return fail("Doctor not found", 404, "NOT_FOUND");
+    }
+
+    return ok(detail, { headers: publicCacheHeaders(60) });
   } catch (err) {
     return handleRouteError(err);
   }

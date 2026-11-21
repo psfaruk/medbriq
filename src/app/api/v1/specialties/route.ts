@@ -1,5 +1,6 @@
 import { getStore } from "@/lib/data";
 import { handleRouteError, ok } from "@/lib/api";
+import { cached, publicCacheHeaders } from "@/lib/cache";
 import type { SpecialtyInfo } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -15,15 +16,17 @@ const PUBLIC_STATUSES = ["VERIFIED", "PENDING"];
 
 export async function GET() {
   try {
-    const items: SpecialtyInfo[] = await getStore()
-      .getSpecialtiesWithDoctorCounts(PUBLIC_STATUSES)
-      .then((rows) =>
-        rows.sort(
-          (a, b) => b.doctorCount - a.doctorCount || a.name.localeCompare(b.name)
+    const items: SpecialtyInfo[] = await cached("v1:specialties", 120_000, () =>
+      getStore()
+        .getSpecialtiesWithDoctorCounts(PUBLIC_STATUSES)
+        .then((rows) =>
+          rows.sort(
+            (a, b) => b.doctorCount - a.doctorCount || a.name.localeCompare(b.name)
+          )
         )
-      );
+    );
 
-    return ok({ items }, { headers: { "Cache-Control": "no-store" } });
+    return ok({ items }, { headers: publicCacheHeaders(60) });
   } catch (err) {
     return handleRouteError(err);
   }

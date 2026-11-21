@@ -12,7 +12,9 @@ ensureSqliteFile()
 export const db =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: ['query'],
+    // Query logging is a dev-only affordance; in production it adds stdout
+    // latency on every call and leaks query shapes into function logs.
+    log: process.env.NODE_ENV === "production" ? ["error"] : ["query"],
   })
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { getStore } from "@/lib/data";
 import { ok, fail, handleRouteError } from "@/lib/api";
+import { invalidateMemoryCache } from "@/lib/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { LANGUAGES, ROLES } from "@/lib/constants";
 
@@ -183,6 +184,10 @@ export async function PATCH(req: NextRequest) {
       entityId: profile.id,
       meta: JSON.stringify({ updatedFields }),
     });
+
+    // Public profile fields may have changed — drop cached doctor payloads.
+    invalidateMemoryCache("v1:doctor");
+    invalidateMemoryCache("v1:doctors");
 
     return ok({
       doctor: {
