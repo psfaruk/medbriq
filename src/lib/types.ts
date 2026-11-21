@@ -256,6 +256,8 @@ export type HospitalInfo = {
   address: string | null;
   phone: string | null;
   about: string | null;
+  /** Facility category: HOSPITAL | CLINIC | DIAGNOSTIC. */
+  type: string;
   doctorCount: number;
 };
 

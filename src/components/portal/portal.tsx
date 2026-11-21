@@ -31,6 +31,8 @@ const SymptomsHomeView = dynamic(() => import("./education/symptom-views").then(
 const SymptomDetailView = dynamic(() => import("./education/symptom-views").then((m) => ({ default: m.SymptomDetailView })), { loading: () => <ViewFallback /> });
 const EquipmentHomeView = dynamic(() => import("./education/equipment-views").then((m) => ({ default: m.EquipmentHomeView })), { loading: () => <ViewFallback /> });
 const EquipmentDetailView = dynamic(() => import("./education/equipment-views").then((m) => ({ default: m.EquipmentDetailView })), { loading: () => <ViewFallback /> });
+const ChildrensHealthView = dynamic(() => import("./education/gallery-views").then((m) => ({ default: m.ChildrensHealthView })), { loading: () => <ViewFallback /> });
+const FamilyHealthView = dynamic(() => import("./education/gallery-views").then((m) => ({ default: m.FamilyHealthView })), { loading: () => <ViewFallback /> });
 const ForPatientsView = dynamic(() => import("./landing/landing-views").then((m) => ({ default: m.ForPatientsView })), { loading: () => <ViewFallback /> });
 const ForDoctorsView = dynamic(() => import("./landing/landing-views").then((m) => ({ default: m.ForDoctorsView })), { loading: () => <ViewFallback /> });
 const ForHospitalsView = dynamic(() => import("./landing/landing-views").then((m) => ({ default: m.ForHospitalsView })), { loading: () => <ViewFallback /> });
@@ -70,6 +72,38 @@ export default function PublicPortal() {
      
   }, []);
 
+  // Per-view document.title (SEO/UX: the SPA shares one route, but the tab
+  // title at least reflects the current page; real per-route metadata comes
+  // when views lift into app/ routes).
+  useEffect(() => {
+    const suffix = "MedBricBD";
+    const view = portalView.name;
+    const titles: Record<string, string> = {
+      home: `${suffix} — Find & Book Verified Doctors in Bangladesh`,
+      doctors: `Find Doctors · ${suffix}`,
+      doctor: `Doctor Profile · ${suffix}`,
+      hospitals: `Hospitals & Clinics · ${suffix}`,
+      hospital: `Hospital Profile · ${suffix}`,
+      specialties: `Medical Specialties · ${suffix}`,
+      library: `Health Library · ${suffix}`,
+      article: `Health Article · ${suffix}`,
+      symptoms: `Symptoms Guide · ${suffix}`,
+      symptom: `Symptom Guide · ${suffix}`,
+      equipment: `Medical Equipment Guide · ${suffix}`,
+      "equipment-item": `Equipment Guide · ${suffix}`,
+      "childrens-health": `Children's Health · ${suffix}`,
+      "family-health": `Family Healthcare · ${suffix}`,
+      "community-health": `Community Health · ${suffix}`,
+      "how-it-works": `How Booking Works · ${suffix}`,
+      verification: `Trust & Verification · ${suffix}`,
+      emergency: `Emergency Guidance · ${suffix}`,
+      faq: `FAQ · ${suffix}`,
+      tools: `Health Tools · ${suffix}`,
+      calendar: `Health Awareness Calendar · ${suffix}`,
+    };
+    document.title = titles[view] ?? suffix;
+  }, [portalView]);
+
   // The auth view renders its own minimal chrome (AuthScreen is full-page).
   if (portalView.name === "auth") {
     return <AuthFrameView mode={portalView.mode} />;
@@ -82,7 +116,7 @@ export default function PublicPortal() {
       // reinitializes the view state from the new deep-link params.
       content = (
         <DoctorDirectoryView
-          key={`${portalView.q ?? ""}|${portalView.specialty ?? ""}|${portalView.city ?? ""}`}
+          key={`${portalView.q ?? ""}|${portalView.specialty ?? ""}|${portalView.city ?? ""}|${portalView.district ?? ""}|${portalView.division ?? ""}`}
           initial={portalView}
         />
       );
@@ -116,6 +150,15 @@ export default function PublicPortal() {
       break;
     case "equipment-item":
       content = <EquipmentDetailView slug={portalView.slug} />;
+      break;
+    case "childrens-health":
+      content = <ChildrensHealthView />;
+      break;
+    case "family-health":
+      content = <FamilyHealthView />;
+      break;
+    case "community-health":
+      content = <FamilyHealthView community />;
       break;
     case "for-patients":
       content = <ForPatientsView />;

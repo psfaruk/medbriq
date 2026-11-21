@@ -118,6 +118,7 @@ const en: Record<string, string> = {
   "home.quickActions": "Quick actions",
   "home.myBookings": "My bookings",
   "home.familyRecords": "Family records",
+  "home.healthLibrary": "Health library",
 
   // ── Search ──────────────────────────────────────────────────────
   "search.title": "Find doctors",
@@ -414,7 +415,7 @@ const en: Record<string, string> = {
   "portal.hero.badge": "Verified doctors · Transparent fees",
   "portal.hero.headline": "Find the right doctor, with confidence",
   "portal.hero.sub": "Search verified doctors and hospitals across Bangladesh, read plain-language health education, and book chamber appointments with fees shown upfront. Browsing is free — no account needed.",
-  "portal.hero.searchPlaceholder": "Doctor name, specialty, hospital or area…",
+  "portal.hero.searchPlaceholder": "Doctor, hospital or district…",
   "portal.hero.allCities": "All cities",
   "portal.hero.findDoctor": "Find a Doctor",
   "portal.hero.joinProvider": "Join as a Healthcare Provider",
@@ -794,6 +795,7 @@ const bn: Record<string, string> = {
   "home.quickActions": "দ্রুত কাজ",
   "home.myBookings": "আমার বুকিং",
   "home.familyRecords": "পরিবারের রেকর্ড",
+  "home.healthLibrary": "স্বাস্থ্য লাইব্রেরি",
 
   // ── Search ──────────────────────────────────────────────────────
   "search.title": "ডাক্তার খুঁজুন",
@@ -1090,7 +1092,7 @@ const bn: Record<string, string> = {
   "portal.hero.badge": "ভেরিফায়েড ডাক্তার · স্বচ্ছ ফি",
   "portal.hero.headline": "নিশ্চিন্তে সঠিক ডাক্তার খুঁজুন",
   "portal.hero.sub": "বাংলাদেশের ভেরিফায়েড ডাক্তার ও হাসপাতাল খুঁজুন, সহজ ভাষায় স্বাস্থ্যশিক্ষা পড়ুন, আর ফি আগেই জেনে চেম্বার অ্যাপয়েন্টমেন্ট নিন। অ্যাকাউন্ট ছাড়াই ব্রাউজ করা যায়।",
-  "portal.hero.searchPlaceholder": "ডাক্তারের নাম, বিশেষত্ব, হাসপাতাল বা এলাকা…",
+  "portal.hero.searchPlaceholder": "ডাক্তার / হাসপাতাল / জেলা লিখুন…",
   "portal.hero.allCities": "সব শহর",
   "portal.hero.findDoctor": "ডাক্তার খুঁজুন",
   "portal.hero.joinProvider": "স্বাস্থ্যসেবক হিসেবে যোগ দিন",

@@ -1461,6 +1461,7 @@ export class PrismaStore implements DataStore {
       address: hospital.address,
       phone: hospital.phone,
       about: hospital.about,
+      type: hospital.type,
       doctorCount: hospital.doctors.length,
     }));
   }

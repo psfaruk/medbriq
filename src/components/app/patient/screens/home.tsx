@@ -24,7 +24,7 @@ import {
   Search,
   CalendarCheck,
   FolderHeart,
-  LayoutGrid,
+  BookOpen,
   ArrowRight,
   Stethoscope,
 } from "lucide-react";
@@ -152,9 +152,12 @@ export default function HomeScreen() {
             onClick: () => resetPatient({ name: "records" }),
           },
           {
-            icon: LayoutGrid,
-            label: t("home.specialties"),
-            onClick: () => pushPatient({ name: "specialties" }),
+            icon: BookOpen,
+            label: t("home.healthLibrary"),
+            onClick: () => {
+              useAppStore.setState({ portalMode: true });
+              useAppStore.getState().setPortalView({ name: "library" }, { push: true });
+            },
           },
         ].map((a) => (
           <button

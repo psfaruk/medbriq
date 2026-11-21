@@ -1676,6 +1676,7 @@ export class FirestoreStore implements DataStore {
         address: data.address ?? null,
         phone: data.phone ?? null,
         about: data.about ?? null,
+        type: (data as { type?: string }).type ?? "HOSPITAL",
         doctorCount: doctors.filter(
           (d) => d.hospitalId === id && ["VERIFIED", "PENDING"].includes(d.verificationStatus)
         ).length,

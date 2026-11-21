@@ -15,6 +15,8 @@ export const SYMPTOM_GUIDES: SymptomGuide[] = [
     slug: "fever",
     title: "Understanding Fever",
     titleBn: "জ্বর কী এবং কখন চিন্তা করা দরকার",
+    category: "General Symptoms",
+    image: "/images/library/symptoms/fever.png",
     summary:
       "Fever is a rise in body temperature, usually a sign that the body is responding to an infection. Most fevers settle on their own — but certain signs mean urgent medical care is needed.",
     whatItMeans:
@@ -67,6 +69,8 @@ export const SYMPTOM_GUIDES: SymptomGuide[] = [
     slug: "headache",
     title: "Understanding Headache",
     titleBn: "মাথাব্যথা কী এবং কখন চিন্তা করা দরকার",
+    category: "General Symptoms",
+    image: "/images/library/symptoms/headache.png",
     summary:
       "Headache is one of the most common health complaints. Most headaches are not dangerous — but a sudden severe headache, or headache with certain other signs, needs urgent care.",
     whatItMeans:
@@ -118,6 +122,8 @@ export const SYMPTOM_GUIDES: SymptomGuide[] = [
     slug: "cough",
     title: "Understanding Cough",
     titleBn: "কাশি কী এবং কখন চিন্তা করা দরকার",
+    category: "Respiratory and Heart Symptoms",
+    image: "/images/library/symptoms/cough.png",
     summary:
       "Cough is a natural reflex that clears the airways. Most coughs come with common viral infections and settle within two to three weeks — persistent or worsening cough deserves assessment.",
     whatItMeans:
@@ -169,6 +175,8 @@ export const SYMPTOM_GUIDES: SymptomGuide[] = [
     slug: "chest-discomfort",
     title: "Understanding Chest Discomfort",
     titleBn: "বুকে অস্বস্তি কী এবং কখন জরুরি সাহায্য নেওয়া দরকার",
+    category: "Respiratory and Heart Symptoms",
+    image: "/images/library/symptoms/chest-discomfort.png",
     summary:
       "Chest discomfort has many causes, from muscle strain to reflux — but certain features must be treated as a possible heart emergency until proven otherwise. When in doubt, call 999.",
     whatItMeans:
@@ -218,6 +226,8 @@ export const SYMPTOM_GUIDES: SymptomGuide[] = [
     slug: "abdominal-pain",
     title: "Understanding Abdominal Pain",
     titleBn: "পেটে ব্যথা কী এবং কখন চিন্তা করা দরকার",
+    category: "Digestive Symptoms",
+    image: "/images/library/symptoms/abdominal-pain.png",
     summary:
       "Abdominal pain ranges from harmless cramping to surgical emergencies. Location, duration and accompanying signs matter more than intensity alone.",
     whatItMeans:
@@ -270,6 +280,8 @@ export const SYMPTOM_GUIDES: SymptomGuide[] = [
     slug: "high-blood-pressure",
     title: "Understanding High Blood Pressure",
     titleBn: "উচ্চ রক্তচাপ কী এবং কী করা উচিত",
+    category: "General Symptoms",
+    image: "/images/library/symptoms/high-blood-pressure.png",
     summary:
       "High blood pressure usually causes no symptoms — that is exactly why regular measurement matters. Find out what the numbers mean and when readings need urgent attention.",
     whatItMeans:
@@ -315,6 +327,8 @@ export const SYMPTOM_GUIDES: SymptomGuide[] = [
     slug: "diabetes-education",
     title: "Understanding Diabetes-Related Symptoms",
     titleBn: "ডায়াবেটিস সম্পর্কিত লক্ষণগুলো কী",
+    category: "General Symptoms",
+    image: "/images/library/symptoms/diabetes-education.png",
     summary:
       "Frequent urination, excess thirst, unexplained weight change and persistent fatigue can be features of diabetes. This guide explains what they mean — and why a simple test settles it.",
     whatItMeans:
@@ -362,6 +376,8 @@ export const SYMPTOM_GUIDES: SymptomGuide[] = [
     slug: "skin-problems",
     title: "Understanding Common Skin Problems",
     titleBn: "সাধারণ ত্বকের সমস্যা",
+    category: "Other Important Symptoms",
+    image: "/images/library/symptoms/skin-problems.png",
     summary:
       "Rashes, itching, patches and pimples are common reasons to see a doctor. Most are manageable once identified — and some signs mean the skin issue is part of something that needs prompt care.",
     whatItMeans:
@@ -413,6 +429,8 @@ export const SYMPTOM_GUIDES: SymptomGuide[] = [
     slug: "joint-pain",
     title: "Understanding Joint Pain",
     titleBn: "জয়েন্ট ব্যথা কী এবং কী করা উচিত",
+    category: "Other Important Symptoms",
+    image: "/images/library/symptoms/joint-pain.png",
     summary:
       "Joint pain becomes more common with age and has many causes, from overuse to arthritis. Persistent joint pain deserves assessment — early management protects movement.",
     whatItMeans:

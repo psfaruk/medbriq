@@ -77,18 +77,41 @@ const TINTS = [
   "bg-rose-100 text-rose-600",
 ];
 
-const CATEGORIES: {
+const EXPLORE_CARDS: {
   key: string;
-  icon: LucideIcon;
+  sub: string;
   view: Parameters<typeof PortalLink>[0]["view"];
-  tint: string;
+  image: string;
+  alt: string;
 }[] = [
-  { key: "portal.cat.doctors", icon: Stethoscope, view: { name: "doctors" }, tint: TINTS[0] },
-  { key: "portal.cat.hospitals", icon: Building2, view: { name: "hospitals" }, tint: TINTS[1] },
-  { key: "portal.cat.library", icon: BookOpen, view: { name: "library" }, tint: TINTS[2] },
-  { key: "portal.cat.symptoms", icon: Activity, view: { name: "symptoms" }, tint: TINTS[3] },
-  { key: "portal.cat.equipment", icon: Thermometer, view: { name: "equipment" }, tint: TINTS[4] },
-  { key: "portal.cat.emergency", icon: Siren, view: { name: "emergency" }, tint: "bg-red-50 text-red-700" },
+  {
+    key: "Medical Equipment",
+    sub: "\u09e9\u09e6\u099f\u09bf \u09af\u09a8\u09cd\u09a4\u09cd\u09b0\u09c7\u09b0 \u09aa\u09b0\u09bf\u099a\u09bf\u09a4\u09bf",
+    view: { name: "equipment" },
+    image: "/images/library/equipment/ultrasound-machine.png",
+    alt: "",
+  },
+  {
+    key: "Symptoms Guide",
+    sub: "\u09e9\u09e6\u099f\u09bf \u09b2\u0995\u09cd\u09b7\u09a3",
+    view: { name: "symptoms" },
+    image: "/images/library/symptoms/fever.png",
+    alt: "",
+  },
+  {
+    key: "Family Healthcare",
+    sub: "\u09aa\u09b0\u09bf\u09ac\u09be\u09b0\u09c7\u09b0 \u09b8\u09cd\u09ac\u09be\u09b8\u09cd\u09a5\u09cd\u09af\u09b6\u09bf\u0995\u09cd\u09b7\u09be",
+    view: { name: "family-health" },
+    image: "/images/library/family/nuclear-family.png",
+    alt: "",
+  },
+  {
+    key: "Children's Health",
+    sub: "\u09b6\u09bf\u09b6\u09c1\u09a6\u09c7\u09b0 \u09b8\u09cd\u09ac\u09be\u09b8\u09cd\u09a5\u09cd\u09af",
+    view: { name: "childrens-health" },
+    image: "/images/library/children/pediatric-doctor-exam.png",
+    alt: "",
+  },
 ];
 
 export function ServiceCategories() {
@@ -96,39 +119,70 @@ export function ServiceCategories() {
   return (
     <PortalSection
       id="categories"
-      title={t("portal.section.popularCategories")}
-      subtitle={t("portal.section.popularCategoriesSub")}
+      title="Explore Healthcare"
+      subtitle="Educational guides, galleries and directories \u2014 free for everyone, no sign-in needed."
     >
-      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {CATEGORIES.map((cat) => (
-          <li key={cat.key}>
+      {/* Education hubs (image-led) */}
+      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {EXPLORE_CARDS.map((card) => (
+          <li key={card.key}>
             <PortalLink
-              view={cat.view}
-              ctaLabel={`cat-${cat.key}`}
-              className="group flex h-full flex-col items-start gap-3 rounded-2xl border border-border bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              view={card.view}
+              ctaLabel={`explore-${card.key}`}
+              className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
-              <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${cat.tint}`}>
-                <cat.icon className="h-5 w-5" aria-hidden="true" />
+              <span className="relative block aspect-[16/10] w-full overflow-hidden bg-accent">
+                <Image
+                  src={card.image}
+                  alt={card.alt}
+                  fill
+                  sizes="(min-width: 1024px) 16rem, (min-width: 640px) 45vw, 92vw"
+                  className="object-cover transition-transform duration-300 group-hover:scale-105"
+                />
               </span>
-              <span>
-                <span className="block text-sm font-bold text-foreground group-hover:text-primary">
-                  {t(cat.key)}
+              <span className="flex flex-1 items-start gap-3 p-4">
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-bold text-foreground group-hover:text-primary">
+                    {card.key}
+                  </span>
+                  <span className="mt-0.5 block text-xs font-semibold text-[#0f8f87]">
+                    {card.sub}
+                  </span>
                 </span>
-                <span className="mt-1 block text-xs leading-snug text-muted-foreground">
-                  {t(`${cat.key}Desc`)}
-                </span>
+                <ArrowRight
+                  className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+                  aria-hidden="true"
+                />
               </span>
             </PortalLink>
           </li>
         ))}
       </ul>
-      <p className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Calculator className="h-3.5 w-3.5 text-[#13A89E]" aria-hidden="true" />
-        <PortalLink view={{ name: "tools" }} className="rounded font-semibold text-primary hover:underline">
-          {t("portal.footer.toolsTitle")}
-        </PortalLink>
-        — BMI and educational health tools.
-      </p>
+
+      {/* Healthcare directory quick links */}
+      <nav
+        aria-label="Healthcare directory"
+        className="mt-4 flex flex-wrap gap-2.5 rounded-2xl border border-border bg-card p-3.5 shadow-soft"
+      >
+        {[
+          { label: "Find Doctors", view: { name: "doctors" } as const, icon: Stethoscope },
+          { label: "Find Hospitals", view: { name: "hospitals" } as const, icon: Building2 },
+          { label: "Medical Specialties", view: { name: "specialties" } as const, icon: Activity },
+          { label: "Health Library", view: { name: "library" } as const, icon: BookOpen },
+          { label: "Emergency Guide", view: { name: "emergency" } as const, icon: Siren },
+          { label: "Health Tools", view: { name: "tools" } as const, icon: Calculator },
+        ].map((link) => (
+          <PortalLink
+            key={link.label}
+            view={link.view}
+            ctaLabel="directory-quicklink"
+            className="inline-flex items-center gap-2 rounded-full border border-border px-3.5 py-2 text-sm font-semibold text-foreground transition-all hover:-translate-y-0.5 hover:border-primary hover:text-primary hover:shadow-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            <link.icon className="h-4 w-4 text-[#13A89E]" aria-hidden="true" />
+            {link.label}
+          </PortalLink>
+        ))}
+      </nav>
     </PortalSection>
   );
 }
@@ -461,7 +515,7 @@ export function ArticleCard({ article }: { article: ArticleSummary }) {
 
 // ── 9. Symptoms slider ────────────────────────────────────────────────
 
-type SymptomSummary = { slug: string; title: string; titleBn: string | null; summary: string };
+type SymptomSummary = { slug: string; title: string; titleBn: string | null; summary: string; image: string | null };
 
 export function SymptomsSlider() {
   const { t, lang } = useT();
@@ -520,19 +574,33 @@ export function SymptomsSlider() {
                 <PortalLink
                   view={{ name: "symptom", slug: s.slug }}
                   ctaLabel="symptom-card"
-                  className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#13A89E]/10 text-[#0f8f87]">
-                    <Activity className="h-5 w-5" aria-hidden="true" />
-                  </span>
-                  <h3 className="mt-3 text-sm font-bold text-foreground">
-                    {lang === "bn" && s.titleBn ? s.titleBn : s.title}
-                  </h3>
-                  <p className="mt-1.5 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
-                    {s.summary}
-                  </p>
-                  <span className="mt-auto pt-3 text-xs font-semibold text-primary">
-                    {t("portal.cta.readMore")} →
+                  {s.image ? (
+                    <span className="relative block aspect-[4/3] w-full overflow-hidden bg-accent">
+                      <Image
+                        src={s.image}
+                        alt=""
+                        fill
+                        sizes="18rem"
+                        className="object-cover"
+                      />
+                    </span>
+                  ) : (
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#13A89E]/10 text-[#0f8f87]">
+                      <Activity className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                  )}
+                  <span className="flex flex-1 flex-col p-5">
+                    <h3 className="text-sm font-bold text-foreground">
+                      {lang === "bn" && s.titleBn ? s.titleBn : s.title}
+                    </h3>
+                    <p className="mt-1.5 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+                      {s.summary}
+                    </p>
+                    <span className="mt-auto pt-3 text-xs font-semibold text-primary">
+                      {t("portal.cta.readMore")} →
+                    </span>
                   </span>
                 </PortalLink>
               </li>
@@ -550,7 +618,7 @@ export function SymptomsSlider() {
 
 // ── 10. Equipment gallery ─────────────────────────────────────────────
 
-type EquipmentSummary = { slug: string; name: string; nameBn: string | null; summary: string; icon: string };
+type EquipmentSummary = { slug: string; name: string; nameBn: string | null; summary: string; icon: string; image: string | null };
 
 export function EquipmentGallery() {
   const { t, lang } = useT();
@@ -575,17 +643,29 @@ export function EquipmentGallery() {
       {error && <SectionError message={error} />}
       {data && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {data.items.slice(0, 9).map((e, i) => (
+          {data.items.slice(0, 10).map((e, i) => (
             <PortalLink
               key={e.slug}
               view={{ name: "equipment-item", slug: e.slug }}
               ctaLabel="equipment-card"
-              className="group flex flex-col items-center gap-2.5 rounded-2xl border border-border bg-card p-4 text-center shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              className="group flex flex-col items-center gap-2.5 overflow-hidden rounded-2xl border border-border bg-card text-center shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
-              <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${TINTS[i % TINTS.length]}`}>
-                <ContentIcon name={e.icon} className="h-6 w-6" />
-              </span>
-              <span className="text-xs font-bold leading-snug text-foreground group-hover:text-primary sm:text-sm">
+              {e.image ? (
+                <span className="relative block aspect-[4/3] w-full overflow-hidden bg-primary-soft">
+                  <Image
+                    src={e.image}
+                    alt=""
+                    fill
+                    sizes="(min-width: 1024px) 12rem, 45vw"
+                    className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                </span>
+              ) : (
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-primary">
+                  <ContentIcon name={e.icon} className="h-6 w-6" />
+                </span>
+              )}
+              <span className="px-3 pb-4 text-xs font-bold leading-snug text-foreground group-hover:text-primary sm:text-sm">
                 {lang === "bn" && e.nameBn ? e.nameBn : e.name}
               </span>
             </PortalLink>

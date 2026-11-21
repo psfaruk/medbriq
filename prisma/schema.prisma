@@ -124,6 +124,8 @@ model Hospital {
   address             String?
   phone               String?
   about               String?
+  // Facility category: HOSPITAL | CLINIC | DIAGNOSTIC (public directory filter).
+  type                String          @default("HOSPITAL")
   // ── Hospital dashboard (master prompt §6) ──
   // A HOSPITAL-role user account linked to this hospital profile.
   userId              String?         @unique

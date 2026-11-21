@@ -11,11 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
+  BookOpen,
   CalendarCheck,
   CalendarPlus,
   ChevronRight,
   FolderHeart,
-  LayoutGrid,
   Search,
   Stethoscope,
 } from "lucide-react";
@@ -40,11 +40,17 @@ import {
 } from "@/components/app/shared/ui-kit";
 import { setSearchPreset } from "../parts";
 
-const QUICK_ACTIONS = [
-  { key: "find", labelKey: "home.findDoctor", icon: Stethoscope, screen: { name: "doctors" } as const },
-  { key: "bookings", labelKey: "home.myBookings", icon: CalendarCheck, screen: { name: "bookings" } as const },
-  { key: "records", labelKey: "home.familyRecords", icon: FolderHeart, screen: { name: "records" } as const },
-  { key: "specialties", labelKey: "home.specialties", icon: LayoutGrid, screen: { name: "specialties" } as const },
+const QUICK_ACTIONS: {
+  key: string;
+  labelKey: string;
+  icon: typeof Stethoscope;
+  screen?: { name: "doctors" | "bookings" | "records" | "specialties" };
+  portalView?: { name: "library" | "symptoms" | "equipment" | "childrens-health" | "family-health" };
+}[] = [
+  { key: "find", labelKey: "home.findDoctor", icon: Stethoscope, screen: { name: "doctors" } },
+  { key: "bookings", labelKey: "home.myBookings", icon: CalendarCheck, screen: { name: "bookings" } },
+  { key: "records", labelKey: "home.familyRecords", icon: FolderHeart, screen: { name: "records" } },
+  { key: "library", labelKey: "home.healthLibrary", icon: BookOpen, portalView: { name: "library" } },
 ];
 
 export default function HomeScreen() {
@@ -177,7 +183,14 @@ export default function HomeScreen() {
             <button
               key={action.key}
               type="button"
-              onClick={() => resetPatient({ name: action.screen.name })}
+              onClick={() => {
+                if (action.portalView) {
+                  useAppStore.setState({ portalMode: true });
+                  useAppStore.getState().setPortalView(action.portalView, { push: true });
+                } else if (action.screen) {
+                  resetPatient({ name: action.screen.name });
+                }
+              }}
               className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-4 shadow-soft card-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-soft text-primary">

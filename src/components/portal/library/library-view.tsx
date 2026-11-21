@@ -6,7 +6,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { Search, BookOpen, Activity, Thermometer, X } from "lucide-react";
+import { Search, BookOpen, Activity, Thermometer, X, Baby, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -110,6 +110,40 @@ export default function LibraryView({
             </span>
             <span className="mt-0.5 block text-xs text-muted-foreground">
               {t("portal.library.equipmentHubDesc")}
+            </span>
+          </span>
+        </PortalLink>
+        <PortalLink
+          view={{ name: "childrens-health" }}
+          ctaLabel="library-childrens-hub"
+          className="group flex items-center gap-4 rounded-2xl border border-border bg-card p-5 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+            <Baby className="h-6 w-6" aria-hidden="true" />
+          </span>
+          <span>
+            <span className="block text-sm font-bold text-foreground group-hover:text-primary sm:text-base">
+              Children&apos;s Health
+            </span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              Age-by-age visual gallery — newborn to adolescence.
+            </span>
+          </span>
+        </PortalLink>
+        <PortalLink
+          view={{ name: "family-health" }}
+          ctaLabel="library-family-hub"
+          className="group flex items-center gap-4 rounded-2xl border border-border bg-card p-5 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+            <Users className="h-6 w-6" aria-hidden="true" />
+          </span>
+          <span>
+            <span className="block text-sm font-bold text-foreground group-hover:text-primary sm:text-base">
+              Family &amp; Community Health
+            </span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              Respectful visual education for families and communities.
             </span>
           </span>
         </PortalLink>

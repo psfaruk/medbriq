@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getStore } from "@/lib/data";
 import { cached } from "@/lib/cache";
 import { CURRENCY, type VerificationStatus } from "@/lib/constants";
+import { districtsOf } from "@/lib/geo";
 import {
   BLOCKING_STATUSES,
   buildSlotsForDate,
@@ -55,6 +56,10 @@ const querySchema = z.object({
   q: z.string().trim().max(120).optional(),
   specialty: z.string().trim().max(80).optional(),
   city: z.string().trim().max(80).optional(),
+  /** Nationwide geo filters (Bangladesh administrative hierarchy). */
+  division: z.string().trim().max(40).optional(),
+  district: z.string().trim().max(60).optional(),
+  upazila: z.string().trim().max(60).optional(),
   language: z.string().trim().max(10).optional(),
   video: z.enum(["true", "false"]).optional(),
   verified: z.enum(["true", "false"]).optional(),
@@ -208,6 +213,9 @@ async function computeDoctorsPage(
     q,
     specialty,
     city,
+    division,
+    district,
+    upazila,
     language,
     video,
     verified,
@@ -236,11 +244,22 @@ async function computeDoctorsPage(
   const cityLower = city?.toLowerCase();
   const languageCode = language?.toLowerCase();
 
+  // Nationwide geo resolution: a division means "any district inside it";
+  // a district matches the doctor's recorded city; an upazila additionally
+  // checks the chamber address text. Unknown geo values simply match nothing —
+  // the UI then shows the honest empty-state with broader-search suggestions.
+  const divisionDistricts = division
+    ? new Set(districtsOf(division).map((d) => d.name.toLowerCase()))
+    : null;
+  const districtLower = district?.toLowerCase();
+  const upazilaLower = upazila?.toLowerCase();
+
   const matched = rows.filter((row) => {
     if (qLower) {
       const haystack = [
         row.name,
         row.hospital?.name ?? "",
+        row.city,
         ...row.specialties.map((s) => s.name),
       ];
       if (!haystack.some((value) => value.toLowerCase().includes(qLower))) {
@@ -249,6 +268,18 @@ async function computeDoctorsPage(
     }
     if (cityLower && !row.city.toLowerCase().includes(cityLower)) {
       return false;
+    }
+    if (divisionDistricts && !divisionDistricts.has(row.city.toLowerCase())) {
+      return false;
+    }
+    if (districtLower && !row.city.toLowerCase().includes(districtLower)) {
+      return false;
+    }
+    if (upazilaLower) {
+      const addr = `${row.city} ${row.chamberAddress ?? ""}`.toLowerCase();
+      if (!addr.includes(upazilaLower)) {
+        return false;
+      }
     }
     if (languageCode) {
       const codes = (row.languages ?? "")

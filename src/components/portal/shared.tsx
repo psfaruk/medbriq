@@ -29,6 +29,16 @@ import {
   Thermometer,
   Scale,
   ScanLine,
+  Zap,
+  Pill,
+  Microscope,
+  Scan,
+  Waves,
+  Gauge,
+  Monitor,
+  Camera,
+  Layers,
+  Video,
   ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
@@ -250,6 +260,16 @@ const ICONS: Record<string, LucideIcon> = {
   Thermometer,
   Scale,
   ScanLine,
+  Zap,
+  Pill,
+  Microscope,
+  Scan,
+  Waves,
+  Gauge,
+  Monitor,
+  Camera,
+  Layers,
+  Video,
 };
 
 export function ContentIcon({ name, className }: { name: string; className?: string }) {

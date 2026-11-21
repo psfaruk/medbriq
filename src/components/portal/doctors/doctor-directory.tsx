@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { DoctorCard, SpecialtyInfo } from "@/lib/types";
+import type { GeoDivision } from "@/lib/geo";
 import { getPreloadedBoot } from "@/lib/boot-data";
 import { useAppStore, type PortalView } from "@/lib/app-state";
 import { track } from "@/lib/analytics";
@@ -33,6 +34,8 @@ type DoctorsPage = {
   page: number;
   pageSize: number;
 };
+
+type GeoResponse = { divisions: GeoDivision[] };
 
 const PAGE_SIZE = 12;
 const FEE_STEPS = ["300", "500", "800", "1000", "1500", "2000"];
@@ -52,15 +55,23 @@ export default function DoctorDirectoryView({
   // effect is needed — e.g. clicking a specialty chip while already here).
   const [q, setQ] = useState(initial?.q ?? "");
   const [specialty, setSpecialty] = useState(initial?.specialty ?? "all");
-  const [city, setCity] = useState(initial?.city ?? "all");
+  const [division, setDivision] = useState(initial?.division ?? "all");
+  const [district, setDistrict] = useState(
+    initial?.district ?? initial?.city ?? "all"
+  );
   const [maxFee, setMaxFee] = useState("any");
   const [verifiedOnly, setVerifiedOnly] = useState(true);
   const [availableToday, setAvailableToday] = useState(false);
   const [page, setPage] = useState(1);
 
-  // Filters initialize directly from the deep-link props. The portal shell
-  // remounts this view with a key when URL params change (e.g. clicking a
-  // specialty chip while already on this view), so no sync effect is needed.
+  // Nationwide geo reference (8 divisions → 64 districts). Reference data
+  // only — an empty result is shown honestly, never replaced with Dhaka.
+  const geo = usePortalData<GeoResponse>("/api/v1/geo");
+  const divisions = geo.data?.divisions ?? [];
+  const districtOptions = useMemo(() => {
+    if (division === "all") return [];
+    return divisions.find((d) => d.name === division)?.districts ?? [];
+  }, [divisions, division]);
 
   const specialties: SpecialtyInfo[] = preloaded?.specialties ?? [];
 
@@ -71,12 +82,13 @@ export default function DoctorDirectoryView({
     });
     if (q.trim()) p.set("q", q.trim());
     if (specialty !== "all") p.set("specialty", specialty);
-    if (city !== "all") p.set("city", city);
+    if (division !== "all") p.set("division", division);
+    if (district !== "all") p.set("district", district);
     if (verifiedOnly) p.set("verified", "true");
     if (availableToday) p.set("availableToday", "true");
     if (maxFee !== "any") p.set("maxFee", maxFee);
     return p.toString();
-  }, [q, specialty, city, verifiedOnly, availableToday, maxFee, page]);
+  }, [q, specialty, division, district, verifiedOnly, availableToday, maxFee, page]);
 
   const { data, loading, error, reload } = usePortalData<DoctorsPage>(
     `/api/v1/doctors?${query}`
@@ -93,7 +105,8 @@ export default function DoctorDirectoryView({
   function resetFilters() {
     setQ("");
     setSpecialty("all");
-    setCity("all");
+    setDivision("all");
+    setDistrict("all");
     setMaxFee("any");
     setAvailableToday(false);
     setVerifiedOnly(true);
@@ -103,10 +116,13 @@ export default function DoctorDirectoryView({
   const hasActiveFilters =
     q.trim() !== "" ||
     specialty !== "all" ||
-    city !== "all" ||
+    division !== "all" ||
+    district !== "all" ||
     maxFee !== "any" ||
     availableToday ||
     !verifiedOnly;
+
+  const locationFiltered = division !== "all" || district !== "all";
 
   return (
     <main id="main" className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
@@ -132,7 +148,7 @@ export default function DoctorDirectoryView({
           setPage(1);
         }}
       >
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <div className="sm:col-span-2">
             <Label htmlFor="doctor-q" className="sr-only">
               {t("common.search")}
@@ -180,25 +196,55 @@ export default function DoctorDirectoryView({
             </Select>
           </div>
 
+          {/* Division → District cascade (nationwide: all 8 divisions) */}
           <div>
-            <Label htmlFor="doctor-city" className="sr-only">
-              {t("portal.doctor.city")}
+            <Label htmlFor="doctor-division" className="sr-only">
+              Division
             </Label>
             <Select
-              value={city}
+              value={division}
               onValueChange={(v) => {
-                setCity(v);
+                setDivision(v);
+                setDistrict("all");
                 setPage(1);
               }}
             >
-              <SelectTrigger id="doctor-city" className="h-11">
+              <SelectTrigger id="doctor-division" className="h-11">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{t("portal.hero.allCities")}</SelectItem>
-                {["Dhaka", "Chattogram"].map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
+                <SelectItem value="all">All divisions</SelectItem>
+                {divisions.map((d) => (
+                  <SelectItem key={d.name} value={d.name}>
+                    {d.name} Division
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="doctor-district" className="sr-only">
+              District
+            </Label>
+            <Select
+              value={district}
+              onValueChange={(v) => {
+                setDistrict(v);
+                setPage(1);
+              }}
+              disabled={division === "all"}
+            >
+              <SelectTrigger id="doctor-district" className="h-11">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">
+                  {division === "all" ? "All districts" : "All districts in division"}
+                </SelectItem>
+                {districtOptions.map((d) => (
+                  <SelectItem key={d.name} value={d.name}>
+                    {d.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -293,12 +339,52 @@ export default function DoctorDirectoryView({
       {data && data.items.length === 0 && (
         <EmptyState
           icon={<Search className="h-6 w-6" />}
-          title="No doctors match your filters"
-          hint="Try clearing the filters or searching a different name, specialty or city."
+          title={
+            locationFiltered
+              ? "No verified listings match this location yet"
+              : "No doctors match your filters"
+          }
+          hint={
+            locationFiltered
+              ? `We only show real, registered listings — and there are currently none matching ${[
+                  district !== "all" ? district : "",
+                  division !== "all" ? `${division} Division` : "",
+                ]
+                  .filter(Boolean)
+                  .join(", ")}. Try a broader search, or request a new listing.`
+              : "Try clearing the filters or searching a different name, specialty or location."
+          }
           action={
-            <Button size="sm" variant="outline" onClick={resetFilters}>
-              {t("portal.doctor.clear")}
-            </Button>
+            <div className="flex flex-wrap justify-center gap-2">
+              {division !== "all" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setDistrict("all");
+                    setPage(1);
+                  }}
+                >
+                  Search all of {division} Division
+                </Button>
+              )}
+              {locationFiltered && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setDivision("all");
+                    setDistrict("all");
+                    setPage(1);
+                  }}
+                >
+                  Search all of Bangladesh
+                </Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={resetFilters}>
+                {t("portal.doctor.clear")}
+              </Button>
+            </div>
           }
         />
       )}

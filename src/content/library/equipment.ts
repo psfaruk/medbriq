@@ -15,6 +15,11 @@ export const EQUIPMENT_GUIDES: EquipmentGuide[] = [
     slug: "blood-pressure-monitor",
     name: "Blood Pressure Monitor",
     nameBn: "রক্তচাপ মাপার যন্ত্র",
+    category: "Monitoring and Basic Equipment",
+    image: "/images/library/equipment/blood-pressure-monitor.png",
+    howItWorks:
+      "An automated cuff inflates, then slowly deflates while sensors detect the vibrations of blood flowing back through the artery — the device calculates systolic and diastolic pressure from those signals.",
+    whoOperates: "Anyone can use a home monitor after reading the instructions; clinics use professional-grade versions.",
     summary:
       "A device that measures the pressure of blood in the arteries. Home monitoring can help track blood pressure over time when done correctly — but a single reading never makes a diagnosis.",
     whatItIs:
@@ -68,6 +73,11 @@ export const EQUIPMENT_GUIDES: EquipmentGuide[] = [
     slug: "glucometer",
     name: "Glucometer",
     nameBn: "রক্তে শর্করা মাপার যন্ত্র",
+    category: "Monitoring and Basic Equipment",
+    image: "/images/library/equipment/glucometer.png",
+    howItWorks:
+      "A tiny drop of blood is placed on a test strip; the strip's enzyme reacts with glucose and produces a small electrical current the meter converts into a reading.",
+    whoOperates: "Patients and carers after basic training from a nurse or diabetes educator.",
     summary:
       "A small device that measures blood glucose from a tiny finger-prick drop of blood. It helps people with diabetes track their levels — readings guide decisions made together with a doctor.",
     whatItIs:
@@ -122,6 +132,11 @@ export const EQUIPMENT_GUIDES: EquipmentGuide[] = [
     slug: "thermometer",
     name: "Thermometer",
     nameBn: "থার্মোমিটার",
+    category: "Monitoring and Basic Equipment",
+    image: "/images/library/equipment/thermometer.png",
+    howItWorks:
+      "An electronic sensor at the probe tip measures body heat and displays a stable temperature reading within seconds.",
+    whoOperates: "Anyone — follow the device instructions for under-arm, oral or forehead use.",
     summary:
       "A thermometer measures body temperature. Digital thermometers are the safe household standard today — accurate technique matters more than the exact device type.",
     whatItIs:
@@ -175,6 +190,11 @@ export const EQUIPMENT_GUIDES: EquipmentGuide[] = [
     slug: "pulse-oximeter",
     name: "Pulse Oximeter",
     nameBn: "পালস অক্সিমিটার",
+    category: "Monitoring and Basic Equipment",
+    image: "/images/library/equipment/pulse-oximeter.png",
+    howItWorks:
+      "Two wavelengths of light pass through the fingertip; oxygen-carrying blood absorbs them differently, letting the device estimate oxygen saturation and pulse rate.",
+    whoOperates: "Patients and carers can use it; readings are interpreted with clinical advice.",
     summary:
       "A clip-on device that estimates blood oxygen and pulse rate. Useful for monitoring breathing conditions — but it has real limits, and a normal reading never overrides struggling to breathe.",
     whatItIs:
@@ -226,6 +246,11 @@ export const EQUIPMENT_GUIDES: EquipmentGuide[] = [
     slug: "ecg-machine",
     name: "ECG Machine",
     nameBn: "ইসিজি মেশিন",
+    category: "Monitoring and Basic Equipment",
+    image: "/images/library/equipment/ecg-machine.png",
+    howItWorks:
+      "Electrodes on the chest, arms and legs pick up the heart's tiny electrical signals; the machine prints them as the familiar waveform tracing.",
+    whoOperates: "Trained technicians or nurses record the ECG; doctors interpret the tracing.",
     summary:
       "An electrocardiogram records the heart's electrical activity. It is a professional diagnostic test — this guide explains what it does and does not show.",
     whatItIs:
@@ -277,6 +302,11 @@ export const EQUIPMENT_GUIDES: EquipmentGuide[] = [
     slug: "nebulizer",
     name: "Nebulizer",
     nameBn: "নেবুলাইজার",
+    category: "Treatment and Life-Support Equipment",
+    image: "/images/library/equipment/nebulizer.png",
+    howItWorks:
+      "A compressor pushes air through liquid medicine, turning it into a fine mist that is inhaled through a mask or mouthpiece deep into the airways.",
+    whoOperates: "Patients and parents after instruction; the medicine and dosage are always prescribed by a doctor.",
     summary:
       "A machine that turns liquid medicine into a fine mist to inhale through a mask or mouthpiece. It is a delivery device for prescribed medicines — this guide explains safe general use.",
     whatItIs:
@@ -329,6 +359,9 @@ export const EQUIPMENT_GUIDES: EquipmentGuide[] = [
     slug: "stethoscope",
     name: "Stethoscope",
     nameBn: "স্টেথোস্কোপ",
+    category: "Monitoring and Basic Equipment",
+    image: "/images/library/equipment/stethoscope.png",
+    relatedSpecialties: ["Medicine & Diabetology", "Cardiology", "Pediatrics"],
     summary:
       "The stethoscope lets health professionals listen to the heart, lungs and other internal sounds. It is a professional assessment tool — here is what it is actually for.",
     whatItIs:
@@ -371,6 +404,11 @@ export const EQUIPMENT_GUIDES: EquipmentGuide[] = [
     slug: "weighing-scale",
     name: "Weighing Scale",
     nameBn: "ওজন মাপার যন্ত্র",
+    category: "Monitoring and Basic Equipment",
+    image: "/images/library/equipment/weighing-scale.png",
+    howItWorks:
+      "A digital load sensor converts the force of body weight into a number; growth tracking over time matters more than any single reading.",
+    whoOperates: "Anyone — used at home, in clinics and in child-growth programmes.",
     summary:
       "A weighing scale measures body weight. Simple, useful for tracking trends over time — and best interpreted as part of the bigger health picture.",
     whatItIs:
@@ -423,6 +461,9 @@ export const EQUIPMENT_GUIDES: EquipmentGuide[] = [
     slug: "medical-imaging",
     name: "Medical Imaging (X-ray, Ultrasound, CT)",
     nameBn: "মেডিকেল ইমেজিং (এক্স-রে, আল্ট্রাসাউন্ড, সিটি)",
+    category: "Diagnostic and Imaging Equipment",
+    image: "/images/library/equipment/medical-imaging.png",
+    relatedSpecialties: ["Radiology & Imaging", "Medicine & Diabetology"],
     summary:
       "X-rays, ultrasound and CT scans let doctors see inside the body in different ways. Ordered by clinicians for specific questions — here is what each one does in plain language.",
     whatItIs:

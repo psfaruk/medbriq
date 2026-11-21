@@ -39,7 +39,7 @@ export type DashboardSection = string;
 // sandbox constraint lifts, each view maps 1:1 to a real route.
 export type PortalView =
   | { name: "home" }
-  | { name: "doctors"; q?: string; specialty?: string; city?: string }
+  | { name: "doctors"; q?: string; specialty?: string; city?: string; division?: string; district?: string; upazila?: string }
   | { name: "doctor"; slug: string }
   | { name: "hospitals"; city?: string }
   | { name: "hospital"; slug: string }
@@ -50,6 +50,9 @@ export type PortalView =
   | { name: "symptom"; slug: string }
   | { name: "equipment" }
   | { name: "equipment-item"; slug: string }
+  | { name: "childrens-health" }
+  | { name: "family-health" }
+  | { name: "community-health" }
   | { name: "for-patients" }
   | { name: "for-doctors" }
   | { name: "for-hospitals" }
@@ -266,6 +269,9 @@ export function viewToUrl(view: PortalView): string {
       if (view.q) p.set("q", view.q);
       if (view.specialty) p.set("specialty", view.specialty);
       if (view.city) p.set("city", view.city);
+      if (view.division) p.set("division", view.division);
+      if (view.district) p.set("district", view.district);
+      if (view.upazila) p.set("upazila", view.upazila);
       break;
     case "hospitals":
       if (view.city) p.set("city", view.city);
@@ -294,6 +300,9 @@ export function urlToView(search: string): PortalView {
     case "specialties":
     case "symptoms":
     case "equipment":
+    case "childrens-health":
+    case "family-health":
+    case "community-health":
     case "for-patients":
     case "for-doctors":
     case "for-hospitals":
@@ -311,6 +320,9 @@ export function urlToView(search: string): PortalView {
         q: p.get("q") ?? undefined,
         specialty: p.get("specialty") ?? undefined,
         city: p.get("city") ?? undefined,
+        division: p.get("division") ?? undefined,
+        district: p.get("district") ?? undefined,
+        upazila: p.get("upazila") ?? undefined,
       };
     case "hospitals":
       return { name: "hospitals", city: p.get("city") ?? undefined };

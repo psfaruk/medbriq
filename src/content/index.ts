@@ -1,8 +1,11 @@
 import { ARTICLES as ARTICLES_CORE } from "./library/articles";
 import { ARTICLES_BATCH1 } from "./library/articles-batch1";
 import { ARTICLES_BATCH2 } from "./library/articles-batch2";
-import { SYMPTOM_GUIDES } from "./library/symptoms";
-import { EQUIPMENT_GUIDES } from "./library/equipment";
+import { SYMPTOM_GUIDES as SYMPTOM_GUIDES_CORE } from "./library/symptoms";
+import { SYMPTOM_GUIDES_BATCH2 } from "./library/symptoms-batch2";
+import { EQUIPMENT_GUIDES as EQUIPMENT_GUIDES_CORE } from "./library/equipment";
+import { EQUIPMENT_GUIDES_BATCH2 } from "./library/equipment-batch2";
+import { CHILDREN_GALLERY, FAMILY_GALLERY } from "./library/galleries";
 import { FAQ_ITEMS } from "./faq";
 import { AWARENESS_EVENTS } from "./awareness-calendar";
 import {
@@ -16,6 +19,7 @@ import {
   type EquipmentGuide,
   type FaqAudience,
   type FaqItem,
+  type GalleryItem,
   type SymptomGuide,
 } from "./types";
 
@@ -28,8 +32,22 @@ import {
 /** All library articles (core + editorial batches), single flat list. */
 const ARTICLES = [...ARTICLES_CORE, ...ARTICLES_BATCH1, ...ARTICLES_BATCH2];
 
+/** All published-eligible symptom guides (batches merged, samples kept out of listing). */
+const SYMPTOM_GUIDES = [...SYMPTOM_GUIDES_CORE, ...SYMPTOM_GUIDES_BATCH2];
+
+/** All equipment guides (batches merged). */
+const EQUIPMENT_GUIDES = [...EQUIPMENT_GUIDES_CORE, ...EQUIPMENT_GUIDES_BATCH2];
+
 export * from "./types";
-export { ARTICLES, SYMPTOM_GUIDES, EQUIPMENT_GUIDES, FAQ_ITEMS, AWARENESS_EVENTS };
+export {
+  ARTICLES,
+  SYMPTOM_GUIDES,
+  EQUIPMENT_GUIDES,
+  CHILDREN_GALLERY,
+  FAMILY_GALLERY,
+  FAQ_ITEMS,
+  AWARENESS_EVENTS,
+};
 export {
   BD_EMERGENCY_NUMBERS,
   EMERGENCY_GUIDANCE,
@@ -71,6 +89,20 @@ export function relatedArticles(article: Article, published: Set<string>): Artic
 /** Rendered key for admin publication overrides: e.g. "article:hand-hygiene-basics". */
 export function contentKey(collection: "article" | "symptom" | "equipment", slug: string): string {
   return `${collection}:${slug}`;
+}
+
+/** Children's-health gallery (age groups + care moments). */
+export function childrenGallery(category?: string): GalleryItem[] {
+  return category
+    ? CHILDREN_GALLERY.filter((g) => g.category === category)
+    : CHILDREN_GALLERY;
+}
+
+/** Family / community / accessible-care gallery. */
+export function familyGallery(category?: string): GalleryItem[] {
+  return category
+    ? FAMILY_GALLERY.filter((g) => g.category === category)
+    : FAMILY_GALLERY;
 }
 
 /** The standing medical disclaimer shown on every educational page. */

@@ -34,8 +34,8 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     audience: "general",
-    q: "Which cities are covered?",
-    a: "The current demo dataset covers Dhaka and Chattogram. The platform is built to expand to new cities as verified doctors and hospitals join.",
+    q: "Which areas of Bangladesh are covered?",
+    a: "Search covers all of Bangladesh: every division and all 64 districts can be selected. The demo dataset currently lists doctors and hospitals in Dhaka, Chattogram, Cumilla, Sylhet, Rajshahi, Rangpur and Khulna — locations without listings yet are shown honestly as empty rather than being filled with irrelevant results.",
   },
   // ── Patients ───────────────────────────────────────────────────────
   {

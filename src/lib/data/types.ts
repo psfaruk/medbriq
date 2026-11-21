@@ -273,6 +273,7 @@ export type HospitalRecord = {
   address: string | null;
   phone: string | null;
   about: string | null;
+  type: string; // HOSPITAL | CLINIC | DIAGNOSTIC
   doctorCount: number; // doctors in PUBLIC_STATUSES
 };
 

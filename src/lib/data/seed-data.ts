@@ -59,10 +59,14 @@ export const SEED_SPECIALTIES = [
 ];
 
 export const SEED_HOSPITALS = [
-  { name: "Greenview General Hospital", slug: "greenview-general-hospital", city: "Dhaka", address: "House 12, Road 5, Dhanmondi, Dhaka 1205", phone: "+880 2-9612xxx (demo)", about: "Multi-disciplinary private hospital (fictional demo data) with 24/7 emergency, diagnostics and inpatient care." },
-  { name: "Lakeview Medical Center", slug: "lakeview-medical-center", city: "Dhaka", address: "Level 4, Block C, Gulshan Avenue, Dhaka 1212", phone: "+880 2-8835xxx (demo)", about: "Modern outpatient specialist center (fictional demo data) focusing on consultations and day-care procedures." },
-  { name: "Padma City Hospital", slug: "padma-city-hospital", city: "Chattogram", address: "Sheikh Mujib Road, Kotwali, Chattogram 4000", phone: "+880 31-611xxx (demo)", about: "General and specialty hospital in Chattogram (fictional demo data)." },
-  { name: "Uttara Central Clinic", slug: "uttara-central-clinic", city: "Dhaka", address: "Sector 7, Uttara, Dhaka 1230", phone: "+880 2-4891xxx (demo)", about: "Neighborhood family clinic (fictional demo data) with evening chambers." },
+  { name: "Greenview General Hospital", slug: "greenview-general-hospital", type: "HOSPITAL", city: "Dhaka", address: "House 12, Road 5, Dhanmondi, Dhaka 1205", phone: "+880 2-9612xxx (demo)", about: "Multi-disciplinary private hospital (fictional demo data) with 24/7 emergency, diagnostics and inpatient care." },
+  { name: "Lakeview Medical Center", slug: "lakeview-medical-center", type: "HOSPITAL", city: "Dhaka", address: "Level 4, Block C, Gulshan Avenue, Dhaka 1212", phone: "+880 2-8835xxx (demo)", about: "Modern outpatient specialist center (fictional demo data) focusing on consultations and day-care procedures." },
+  { name: "Padma City Hospital", slug: "padma-city-hospital", type: "HOSPITAL", city: "Chattogram", address: "Sheikh Mujib Road, Kotwali, Chattogram 4000", phone: "+880 31-611xxx (demo)", about: "General and specialty hospital in Chattogram (fictional demo data)." },
+  { name: "Uttara Central Clinic", slug: "uttara-central-clinic", type: "CLINIC", city: "Dhaka", address: "Sector 7, Uttara, Dhaka 1230", phone: "+880 2-4891xxx (demo)", about: "Neighborhood family clinic (fictional demo data) with evening chambers." },
+  { name: "Padma Diagnostic Center", slug: "padma-diagnostic-center", type: "DIAGNOSTIC", city: "Cumilla", address: "Kandirpar Main Road, Cumilla 3500", phone: "+880 81-611xxx (demo)", about: "Diagnostic center (fictional demo data) with lab, X-ray, ultrasound and ECG." },
+  { name: "Surma View Hospital", slug: "surma-view-hospital", type: "HOSPITAL", city: "Sylhet", address: "Bandar Bazar Road, Sylhet 3100", phone: "+880 821-712xxx (demo)", about: "Regional hospital in Sylhet (fictional demo data) serving the greater Sylhet division." },
+  { name: "Varendra Health Care", slug: "varendra-health-care", type: "CLINIC", city: "Rajshahi", address: "Greater Road, Shaheb Bazar, Rajshahi 6100", phone: "+880 721-772xxx (demo)", about: "Specialist clinic in Rajshahi (fictional demo data) with morning and evening chambers." },
+  { name: "Teesta Diagnostic & Consultation Center", slug: "teesta-diagnostic-center", type: "DIAGNOSTIC", city: "Rangpur", address: "Station Road, Rangpur 5400", phone: "+880 521-622xxx (demo)", about: "Diagnostic and consultation center in Rangpur (fictional demo data)." },
 ];
 
 // ── Demo accounts ──────────────────────────────────────────────────────
@@ -270,6 +274,66 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     hours: [[0, 960, 1200], [2, 960, 1200], [4, 960, 1200]],
     password: "Doctor@123",
   },
+  {
+    name: "Dr. Rezaul Karim", email: "dr.rezaul@medbriq.dev", phone: "+880 1711-000013",
+    slug: "dr-rezaul-karim", specialtySlug: "medicine-diabetology",
+    bio: "Consultant physician in Rajshahi covering diabetes, hypertension and general medicine. MBBS, FCPS (Medicine). Fictional demo profile.",
+    experienceYears: 14, consultationFee: 800, followUpFee: 450,
+    regNumber: "BMDC-A-101013 (demo)", verificationStatus: "VERIFIED",
+    city: "Rajshahi", chamberAddress: "Chamber 4, Varendra Health Care, Shaheb Bazar, Boalia, Rajshahi",
+    hospitalSlug: "varendra-health-care", languages: "bn,en",
+    supportsVideo: false, requiresApproval: true,
+    hours: [[0, 1020, 1260], [2, 1020, 1260], [4, 1020, 1260]],
+    password: "Doctor@123",
+  },
+  {
+    name: "Dr. Ishrat Jahan", email: "dr.ishrat@medbriq.dev", phone: "+880 1711-000014",
+    slug: "dr-ishrat-jahan", specialtySlug: "gynecology-obstetrics",
+    bio: "Gynecologist and obstetrician in Sylhet focused on antenatal care, high-risk pregnancy and women's health. MBBS, FCPS (Gynae). Fictional demo profile.",
+    experienceYears: 11, consultationFee: 1000, followUpFee: 600, videoConsultFee: 900,
+    regNumber: "BMDC-A-101014 (demo)", verificationStatus: "VERIFIED",
+    city: "Sylhet", chamberAddress: "Room 208, Surma View Hospital, Bandar Bazar, Sylhet",
+    hospitalSlug: "surma-view-hospital", languages: "bn,en",
+    supportsVideo: true, requiresApproval: true,
+    hours: [[1, 960, 1200], [3, 960, 1200], [5, 960, 1200]],
+    password: "Doctor@123",
+  },
+  {
+    name: "Dr. Shahin Alam", email: "dr.shahin@medbriq.dev", phone: "+880 1711-000015",
+    slug: "dr-shahin-alam", specialtySlug: "pediatrics",
+    bio: "Child specialist in Rangpur covering newborn care, immunization and childhood nutrition. MBBS, DCH. Fictional demo profile.",
+    experienceYears: 9, consultationFee: 700, followUpFee: 400,
+    regNumber: "BMDC-A-101015 (demo)", verificationStatus: "PENDING",
+    city: "Rangpur", chamberAddress: "Chamber 2, Teesta Diagnostic & Consultation Center, Station Road, Rangpur",
+    hospitalSlug: "teesta-diagnostic-center", languages: "bn",
+    supportsVideo: false, requiresApproval: true,
+    hours: [[0, 1020, 1260], [1, 1020, 1260], [2, 1020, 1260], [3, 1020, 1260]],
+    password: "Doctor@123",
+  },
+  {
+    name: "Dr. Nusrat Siddiqua", email: "dr.nusrat-s@medbriq.dev", phone: "+880 1711-000016",
+    slug: "dr-nusrat-siddiqua", specialtySlug: "dermatology",
+    bio: "Dermatologist in Cumilla treating acne, eczema, fungal infections and hair disorders. MBBS, DDV. Fictional demo profile.",
+    experienceYears: 7, consultationFee: 700, followUpFee: 400,
+    regNumber: "BMDC-A-101016 (demo)", verificationStatus: "VERIFIED",
+    city: "Cumilla", chamberAddress: "Room 105, Padma Diagnostic Center, Kandirpar, Cumilla",
+    hospitalSlug: "padma-diagnostic-center", languages: "bn,en",
+    supportsVideo: false, requiresApproval: false,
+    hours: [[6, 960, 1200], [0, 960, 1200], [2, 960, 1200], [4, 960, 1200]],
+    password: "Doctor@123",
+  },
+  {
+    name: "Dr. Aminul Haque", email: "dr.aminul@medbriq.dev", phone: "+880 1711-000017",
+    slug: "dr-aminul-haque", specialtySlug: "orthopedics",
+    bio: "Orthopedic surgeon in Khulna managing fractures, joint pain and spine problems. MBBS, MS (Ortho). Fictional demo profile.",
+    experienceYears: 13, consultationFee: 900, followUpFee: 500,
+    regNumber: "BMDC-A-101017 (demo)", verificationStatus: "VERIFIED",
+    city: "Khulna", chamberAddress: "Chamber 3, Khulna City Care, KDA Avenue, Khulna",
+    hospitalSlug: "greenview-general-hospital", languages: "bn,en",
+    supportsVideo: false, requiresApproval: true,
+    hours: [[1, 1020, 1260], [3, 1020, 1260], [5, 1020, 1260]],
+    password: "Doctor@123",
+  },
 ];
 
 // ── Demo appointments (future slots, computed relative to today in Dhaka) ──
@@ -427,6 +491,11 @@ export const SEED_FEE_SETTINGS: FeeSettingsSpec[] = [
   { doctorSlug: "dr-arif-hossain", newPatientFee: 700, returningPatientFee: 400, returningValidityValue: 6, returningValidityUnit: "MONTHS", followUpEnabled: false, followUpFee: 0, followUpValidityValue: 15, followUpValidityUnit: "DAYS" },
   { doctorSlug: "dr-kamrul-hasan", newPatientFee: 800, returningPatientFee: 500, returningValidityValue: 6, returningValidityUnit: "MONTHS", followUpEnabled: false, followUpFee: 0, followUpValidityValue: 15, followUpValidityUnit: "DAYS" },
   { doctorSlug: "dr-shireen-huq", newPatientFee: 2000, returningPatientFee: 1200, returningValidityValue: 6, returningValidityUnit: "MONTHS", followUpEnabled: false, followUpFee: 0, followUpValidityValue: 15, followUpValidityUnit: "DAYS" },
+  { doctorSlug: "dr-rezaul-karim", newPatientFee: 800, returningPatientFee: 450, returningValidityValue: 6, returningValidityUnit: "MONTHS", followUpEnabled: true, followUpFee: 300, followUpValidityValue: 15, followUpValidityUnit: "DAYS" },
+  { doctorSlug: "dr-ishrat-jahan", newPatientFee: 1000, returningPatientFee: 600, returningValidityValue: 6, returningValidityUnit: "MONTHS", followUpEnabled: false, followUpFee: 0, followUpValidityValue: 15, followUpValidityUnit: "DAYS" },
+  { doctorSlug: "dr-shahin-alam", newPatientFee: 700, returningPatientFee: 400, returningValidityValue: 1, returningValidityUnit: "MONTHS", followUpEnabled: false, followUpFee: 0, followUpValidityValue: 15, followUpValidityUnit: "DAYS" },
+  { doctorSlug: "dr-nusrat-siddiqua", newPatientFee: 700, returningPatientFee: 400, returningValidityValue: 6, returningValidityUnit: "MONTHS", followUpEnabled: true, followUpFee: 250, followUpValidityValue: 10, followUpValidityUnit: "DAYS" },
+  { doctorSlug: "dr-aminul-haque", newPatientFee: 900, returningPatientFee: 500, returningValidityValue: 6, returningValidityUnit: "MONTHS", followUpEnabled: false, followUpFee: 0, followUpValidityValue: 15, followUpValidityUnit: "DAYS" },
 ];
 
 // ── Completed-visit history (doctor_patient_history fixtures) ──────────

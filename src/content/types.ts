@@ -123,6 +123,10 @@ export type SymptomGuide = {
   title: string;
   titleBn: string | null;
   summary: string;
+  /** Broad educational grouping shown as filter chips (optional). */
+  category?: SymptomCategory;
+  /** Library illustration path under /images/library/symptoms/ (optional). */
+  image?: string | null;
   /** General, non-diagnostic meaning of the symptom. */
   whatItMeans: string;
   /** Commonly associated causes — framed as possibilities, never a diagnosis. */
@@ -147,15 +151,27 @@ export type EquipmentGuide = {
   name: string;
   nameBn: string | null;
   summary: string;
+  /** Broad educational grouping shown as filter chips (optional). */
+  category?: EquipmentCategory;
+  /** Library illustration path under /images/library/equipment/ (optional). */
+  image?: string | null;
   whatItIs: string;
   whatItMeasures: string;
+  /** Plain-language description of the working principle (optional). */
+  howItWorks?: string;
   commonUses: string[];
+  /** Who generally operates the device (optional). */
+  whoOperates?: string;
   /** Basic safe-use pointers. */
   safeUse: string[];
   /** What the device cannot tell you. */
   limitations: string[];
+  /** Professional maintenance / calibration notes, when relevant. */
+  maintenance?: string | null;
   /** Situations where professional help is needed. */
   whenProfessionalHelp: string[];
+  /** Platform specialty names that use this equipment (optional). */
+  relatedSpecialties?: string[];
   /** lucide icon name used by the gallery card. */
   icon: string;
   author: ContentPerson;
@@ -165,6 +181,32 @@ export type EquipmentGuide = {
   updatedAt: string;
   reviewedAt: string | null;
   sources: ContentSource[];
+};
+
+export type EquipmentCategory =
+  | "Monitoring and Basic Equipment"
+  | "Diagnostic and Imaging Equipment"
+  | "Treatment and Life-Support Equipment";
+
+export type SymptomCategory =
+  | "General Symptoms"
+  | "Respiratory and Heart Symptoms"
+  | "Digestive Symptoms"
+  | "Other Important Symptoms";
+
+/** Curated gallery visual (children / family / community education). */
+export type GalleryItem = {
+  slug: string;
+  /** Gallery grouping, e.g. "Age gallery", "Care moments", "Family", ... */
+  category: string;
+  caption: string;
+  captionBn: string | null;
+  description: string;
+  ageGroup?: string | null;
+  image: string;
+  alt: string;
+  /** Related in-library guide, when one exists. */
+  related?: { view: "article" | "symptom" | "equipment-item"; slug: string } | null;
 };
 
 export type FaqAudience = "general" | "patients" | "doctors" | "hospitals";

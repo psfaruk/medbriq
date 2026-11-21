@@ -16,7 +16,7 @@ import { PortalLink } from "../shared";
 
 type FooterColumn = {
   titleKey: string;
-  links: { labelKey: string; view: PortalView }[];
+  links: { labelKey?: string; label?: string; view: PortalView }[];
 };
 
 const COLUMNS: FooterColumn[] = [
@@ -29,6 +29,8 @@ const COLUMNS: FooterColumn[] = [
       { labelKey: "portal.footer.libraryTitle", view: { name: "library" } },
       { labelKey: "portal.footer.symptomsTitle", view: { name: "symptoms" } },
       { labelKey: "portal.footer.equipmentTitle", view: { name: "equipment" } },
+      { label: "Children's Health", view: { name: "childrens-health" } },
+      { label: "Family & Community Health", view: { name: "family-health" } },
       { labelKey: "portal.footer.emergencyTitle", view: { name: "emergency" } },
     ],
   },
@@ -102,12 +104,12 @@ export default function PortalFooter() {
               </h3>
               <ul className="mt-3 space-y-2">
                 {col.links.map((link) => (
-                  <li key={link.labelKey}>
+                  <li key={link.labelKey ?? link.label}>
                     <PortalLink
                       view={link.view}
                       className="rounded px-1 py-0.5 text-sm text-muted-foreground transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     >
-                      {t(link.labelKey)}
+                      {link.labelKey ? t(link.labelKey) : link.label}
                     </PortalLink>
                   </li>
                 ))}

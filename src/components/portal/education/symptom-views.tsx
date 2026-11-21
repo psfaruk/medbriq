@@ -7,6 +7,8 @@
  * education notice. Never a diagnosis.
  */
 
+import { useMemo, useState } from "react";
+import Image from "next/image";
 import { AlertTriangle, Activity, ArrowRight, CalendarDays, ShieldCheck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,6 +17,7 @@ import type { SymptomGuide } from "@/content";
 import { useT, EmptyState, ErrorState, DemoNotice } from "@/components/app/shared/ui-kit";
 import { useAppStore } from "@/lib/app-state";
 import { track } from "@/lib/analytics";
+import { cn } from "@/lib/utils";
 import {
   Breadcrumbs,
   EducationNotice,
@@ -24,14 +27,35 @@ import {
   useTrackPageView,
 } from "../shared";
 
-type ListResponse = { items: { slug: string; title: string; titleBn: string | null; summary: string }[]; disclaimer: string };
+type ListResponse = { items: { slug: string; title: string; titleBn: string | null; summary: string; category: string | null; image: string | null }[]; disclaimer: string };
 type DetailResponse = { guide: SymptomGuide; disclaimer: string };
+
+const SYMPTOM_CATEGORIES = [
+  "General Symptoms",
+  "Respiratory and Heart Symptoms",
+  "Digestive Symptoms",
+  "Other Important Symptoms",
+] as const;
+
+function categoryShort(name: string): string {
+  return name
+    .replace("Respiratory and Heart Symptoms", "Respiratory & Heart")
+    .replace("Digestive Symptoms", "Digestive")
+    .replace("Other Important Symptoms", "Other Symptoms")
+    .replace("General Symptoms", "General");
+}
 
 export function SymptomsHomeView() {
   const { t, lang } = useT();
   useTrackPageView("symptoms");
+  const [category, setCategory] = useState<string | null>(null);
   const { data, loading, error, reload } = usePortalData<ListResponse>(
     "/api/v1/content/symptoms"
+  );
+
+  const items = useMemo(
+    () => (data ? data.items.filter((s) => !category || s.category === category) : []),
+    [data, category]
   );
 
   return (
@@ -75,29 +99,81 @@ export function SymptomsHomeView() {
         <EmptyState icon={<Activity className="h-6 w-6" />} title="No symptom guides published yet." />
       )}
       {data && data.items.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {data.items.map((s) => (
-            <PortalLink
-              key={s.slug}
-              view={{ name: "symptom", slug: s.slug }}
-              ctaLabel="symptom-card"
-              className="group flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        <>
+          {/* Category filter chips */}
+          <div className="mb-5 flex flex-wrap gap-2" role="group" aria-label="Filter by category">
+            <button
+              type="button"
+              onClick={() => setCategory(null)}
+              aria-pressed={category === null}
+              className={cn(
+                "rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                category === null
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-muted-foreground hover:bg-muted"
+              )}
             >
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#13A89E]/10 text-[#0f8f87]">
-                <Activity className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <h2 className="mt-3 text-base font-bold text-foreground group-hover:text-primary">
-                {lang === "bn" && s.titleBn ? s.titleBn : s.title}
-              </h2>
-              <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
-                {s.summary}
-              </p>
-              <span className="mt-auto pt-3 text-sm font-semibold text-primary">
-                {t("portal.cta.readMore")} →
-              </span>
-            </PortalLink>
-          ))}
-        </div>
+              All ({data.items.length})
+            </button>
+            {SYMPTOM_CATEGORIES.map((c) => {
+              const count = data.items.filter((s) => s.category === c).length;
+              if (count === 0) return null;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCategory(category === c ? null : c)}
+                  aria-pressed={category === c}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                    category === c
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  {categoryShort(c)} ({count})
+                </button>
+              );
+            })}
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {items.map((s) => (
+              <PortalLink
+                key={s.slug}
+                view={{ name: "symptom", slug: s.slug }}
+                ctaLabel="symptom-card"
+                className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                {s.image ? (
+                  <span className="relative block aspect-[4/3] w-full overflow-hidden bg-accent">
+                    <Image
+                      src={s.image}
+                      alt=""
+                      fill
+                      sizes="(min-width: 1024px) 22rem, (min-width: 640px) 45vw, 92vw"
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  </span>
+                ) : (
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#13A89E]/10 text-[#0f8f87]">
+                    <Activity className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                )}
+                <span className="flex flex-1 flex-col p-5">
+                  <h2 className="text-base font-bold text-foreground group-hover:text-primary">
+                    {lang === "bn" && s.titleBn ? s.titleBn : s.title}
+                  </h2>
+                  <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+                    {s.summary}
+                  </p>
+                  <span className="mt-auto pt-3 text-sm font-semibold text-primary">
+                    {t("portal.cta.readMore")} →
+                  </span>
+                </span>
+              </PortalLink>
+            ))}
+          </div>
+        </>
       )}
     </main>
   );
@@ -146,6 +222,20 @@ export function SymptomDetailView({ slug }: { slug: string }) {
 
       {guide && data && (
         <article>
+          {guide.image && (
+            <div className="relative mb-5 aspect-[4/3] w-full overflow-hidden rounded-2xl border border-border bg-accent shadow-soft">
+              <Image
+                src={guide.image}
+                alt=""
+                fill
+                sizes="(min-width: 768px) 48rem, 100vw"
+                className="object-cover"
+              />
+              <span className="absolute bottom-2 right-2 rounded-full bg-black/50 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur">
+                AI-generated educational illustration
+              </span>
+            </div>
+          )}
           <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-foreground sm:text-3xl">
             {lang === "bn" && guide.titleBn ? guide.titleBn : guide.title}
           </h1>

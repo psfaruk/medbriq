@@ -100,6 +100,8 @@ export type SymptomSummaryDto = {
   title: string;
   titleBn: string | null;
   summary: string;
+  category: string | null;
+  image: string | null;
 };
 
 export type EquipmentSummaryDto = {
@@ -108,6 +110,8 @@ export type EquipmentSummaryDto = {
   nameBn: string | null;
   summary: string;
   icon: string;
+  category: string | null;
+  image: string | null;
 };
 
 function readMinutes(text: string): number {
@@ -152,6 +156,8 @@ export async function publicSymptomSummaries(): Promise<SymptomSummaryDto[]> {
     title: s.title,
     titleBn: s.titleBn,
     summary: s.summary,
+    category: s.category ?? null,
+    image: s.image ?? null,
   }));
 }
 
@@ -175,6 +181,8 @@ export async function publicEquipmentSummaries(): Promise<EquipmentSummaryDto[]>
     nameBn: e.nameBn,
     summary: e.summary,
     icon: e.icon,
+    category: e.category ?? null,
+    image: e.image ?? null,
   }));
 }
 

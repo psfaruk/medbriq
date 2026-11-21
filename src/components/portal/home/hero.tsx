@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAppStore } from "@/lib/app-state";
+import type { GeoDivision } from "@/lib/geo";
 import { track } from "@/lib/analytics";
 import { useT } from "@/components/app/shared/ui-kit";
 import { cn } from "@/lib/utils";
@@ -55,13 +56,21 @@ export function PortalHero() {
   useTrackPageView("home");
 
   const [q, setQ] = useState("");
-  const [city, setCity] = useState("all");
+  const [division, setDivision] = useState("all");
+  const [district, setDistrict] = useState("all");
   const [focused, setFocused] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestions | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
 
   const meta = usePortalData<Meta>("/api/v1/meta");
+  // Nationwide geo reference: 8 divisions → 64 districts (cascade).
+  const geo = usePortalData<{ divisions: GeoDivision[] }>("/api/v1/geo");
+  const divisions = geo.data?.divisions ?? [];
+  const districtOptions =
+    division === "all"
+      ? []
+      : divisions.find((d) => d.name === division)?.districts ?? [];
 
   // Debounced suggestion fetch (>= 2 chars). Never blocks the input; state
   // updates only inside the async timeout callback (no sync setState).
@@ -109,7 +118,8 @@ export function PortalHero() {
       {
         name: "doctors",
         q: q.trim() || undefined,
-        city: city === "all" ? undefined : city,
+        division: division === "all" ? undefined : division,
+        district: district === "all" ? undefined : district,
       },
       { push: true }
     );
@@ -181,20 +191,36 @@ export function PortalHero() {
                     className="h-11 border-0 pl-9 text-base shadow-none focus-visible:ring-0"
                   />
                 </div>
-                <div className="flex gap-2">
-                  <Select value={city} onValueChange={setCity}>
+                <div className="flex flex-wrap gap-2">
+                  <Select value={division} onValueChange={(v) => { setDivision(v); setDistrict("all"); }}>
                     <SelectTrigger
-                      aria-label={t("portal.doctor.city")}
-                      className="h-11 w-[130px] shrink-0 text-sm sm:w-[150px]"
+                      aria-label="Division"
+                      className="h-11 min-w-[120px] flex-1 sm:flex-none sm:w-[150px]"
                     >
                       <MapPin className="mr-1 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">{t("portal.hero.allCities")}</SelectItem>
-                      {(meta.data?.cities ?? []).map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
+                      <SelectItem value="all">All Bangladesh</SelectItem>
+                      {divisions.map((d) => (
+                        <SelectItem key={d.name} value={d.name}>
+                          {d.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={district} onValueChange={setDistrict} disabled={division === "all"}>
+                    <SelectTrigger
+                      aria-label="District"
+                      className="h-11 min-w-[120px] flex-1 sm:flex-none sm:w-[140px]"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All districts</SelectItem>
+                      {districtOptions.map((d) => (
+                        <SelectItem key={d.name} value={d.name}>
+                          {d.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -202,7 +228,7 @@ export function PortalHero() {
                   <Button
                     type="submit"
                     size="lg"
-                    className="h-11 shrink-0 px-5 font-semibold"
+                    className="h-11 flex-1 basis-full px-5 font-semibold sm:basis-auto sm:flex-none"
                   >
                     {t("portal.hero.findDoctor")}
                   </Button>
