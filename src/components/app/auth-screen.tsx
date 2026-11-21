@@ -41,6 +41,7 @@ import type {
   SpecialtyInfo,
 } from "@/lib/types";
 import { LANGS } from "@/lib/i18n";
+import { track } from "@/lib/analytics";
 import { BrandLogo, BrandWordmark } from "@/components/app/shared/brand";
 import { useT } from "@/components/app/shared/ui-kit";
 
@@ -133,8 +134,12 @@ export default function AuthScreen() {
     })();
   }, []);
 
-  const onAuthenticated = (user: SessionUser) => {
+  const onAuthenticated = (
+    user: SessionUser,
+    opts?: { viaRegister?: boolean }
+  ) => {
     setUser(user);
+    if (opts?.viaRegister) track("registration_complete");
     toast({ title: `Welcome, ${user.name.split(" ")[0]}!` });
   };
 
@@ -504,7 +509,7 @@ function LoginView({
       >
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="email">{t("auth.email")}</TabsTrigger>
-          <TabsTrigger value="phone" disabled={config && !config.phoneOtpEnabled}>
+          <TabsTrigger value="phone" disabled={!!config && !config.phoneOtpEnabled}>
             {t("auth.phone")}
           </TabsTrigger>
         </TabsList>
@@ -822,7 +827,10 @@ function RegisterView({
   onAuthenticated,
 }: {
   specialties: SpecialtyInfo[];
-  onAuthenticated: (user: SessionUser) => void;
+  onAuthenticated: (
+    user: SessionUser,
+    opts?: { viaRegister?: boolean }
+  ) => void;
 }) {
   const { t } = useT();
   const { setAuthView } = useAppStore();
@@ -915,7 +923,7 @@ function RegisterView({
               }
         );
       }
-      onAuthenticated(data.user);
+      onAuthenticated(data.user, { viaRegister: true });
     } catch (err) {
       toast({
         title: "Registration failed",

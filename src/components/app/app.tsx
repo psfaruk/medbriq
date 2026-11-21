@@ -5,8 +5,9 @@ import dynamic from "next/dynamic";
 import { useAppStore, hydrateLang } from "@/lib/app-state";
 import { apiGet } from "@/lib/api-client";
 import { setPreloadedBoot } from "@/lib/boot-data";
+import { track } from "@/lib/analytics";
+import { useToast } from "@/hooks/use-toast";
 import type { AppointmentDto, AuthConfig, DoctorCard, SessionUser, SpecialtyInfo } from "@/lib/types";
-import AuthScreen from "@/components/app/auth-screen";
 import PatientShell from "@/components/app/patient-shell";
 import PatientApp from "@/components/app/patient";
 
@@ -21,6 +22,11 @@ const HospitalDashboard = dynamic(() => import("@/components/app/hospital"), {
 });
 const AdminDashboard = dynamic(() => import("@/components/app/admin"), {
   loading: () => <DashboardFallback label="Admin panel" />,
+});
+// Guests get the PUBLIC PORTAL (discovery + education, no login required);
+// sign-in happens only through the portal's auth gate view.
+const PublicPortal = dynamic(() => import("@/components/portal/portal"), {
+  loading: () => <DashboardFallback label="MedBricBD" />,
 });
 
 function DashboardFallback({ label }: { label: string }) {
@@ -55,16 +61,23 @@ type BootstrapPayload = {
  * Boot: ONE /api/v1/bootstrap request resolves the session AND the public
  * data the first screen needs (previously a 3–5 request waterfall, each
  * paying its own serverless cold start). The public parts are stashed in
- * src/lib/boot-data.ts so the auth screen / patient home render instantly;
- * `boot()` then flips the shell to the matching interface:
+ * src/lib/boot-data.ts so the portal home renders instantly; `boot()` then
+ * flips the shell to the matching interface:
+ *   guest   → PUBLIC PORTAL (doctor/hospital discovery, health library —
+ *             no login required; auth only when booking or managing data)
  *   PATIENT → mobile-first patient app (bottom tabs on phones)
  *   DOCTOR  → doctor web dashboard (sidebar)
  *   HOSPITAL→ hospital web dashboard (sidebar)
  *   ADMIN   → super admin panel (sidebar)
- * Guests see the auth flow.
  */
 export default function App() {
   const { booted, user, boot } = useAppStore();
+  const { toast } = useToast();
+  const portalMode = useAppStore((s) => s.portalMode);
+  const pendingBooking = useAppStore((s) => s.pendingBooking);
+  const setPendingBooking = useAppStore((s) => s.setPendingBooking);
+  const resetPatient = useAppStore((s) => s.resetPatient);
+  const setPortalMode = useAppStore((s) => s.setPortalMode);
 
   useEffect(() => {
     hydrateLang();
@@ -82,6 +95,32 @@ export default function App() {
       .catch(() => boot(null));
   }, [boot]);
 
+  // ── Booking-intent restore (spec §12) ──────────────────────────────
+  // A guest who clicked "Book appointment" saved their intent; after a
+  // successful PATIENT login the booking flow resumes immediately (the
+  // flow revalidates slot + price server-side at confirmation).
+  const pendingBookingForEffect = pendingBooking;
+  const userForEffect = user;
+  useEffect(() => {
+    if (!userForEffect || !pendingBookingForEffect) return;
+    setPendingBooking(null);
+    setPortalMode(false);
+    if (userForEffect.role === "PATIENT") {
+      track("booking_start");
+      resetPatient({ name: "booking", slug: pendingBookingForEffect.doctorSlug });
+      toast({
+        title: "Continuing your booking",
+        description: `Resuming your appointment with ${pendingBookingForEffect.doctorName}. Availability and fees will be re-checked when you confirm.`,
+      });
+    } else {
+      toast({
+        title: "Signed in as " + userForEffect.role.toLowerCase(),
+        description: `Booking is a patient feature — use a patient account to book with ${pendingBookingForEffect.doctorName}.`,
+      });
+    }
+     
+  }, [userForEffect, pendingBookingForEffect]);
+
   if (!booted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -95,8 +134,10 @@ export default function App() {
     );
   }
 
-  if (!user) {
-    return <AuthScreen />;
+  // Guests → the public discovery portal (NOT a login wall).
+  // Signed-in users in portalMode → also the portal ("Public site" toggle).
+  if (!user || portalMode) {
+    return <PublicPortal />;
   }
 
   if (user.role === "DOCTOR") {

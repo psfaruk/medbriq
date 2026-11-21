@@ -214,3 +214,45 @@ written to lift into `app/(portal)/…` route files unchanged.
 | 7 | admin CMS console + workflow + analytics | admin-only, publish toggle works |
 | 8 | SEO files + a11y/perf pass | sitemap/robots/404 verified |
 | 9 | E2E: agent-browser (mobile+desktop), lint, dev.log | acceptance criteria checklist |
+
+---
+
+## Phase completion log (implementation session)
+
+- **Phase 0** — audit done; fixed pre-existing `searchPreset` import crash
+  (patient Doctors screen); plan doc written.
+- **Phase 1** — portal state (`PortalView`, `pendingBooking`, `portalMode`),
+  URL sync (`?view=…`), header/mobile drawer/footer, EN+BN i18n (~110 keys).
+- **Phase 2** — homepage with all 18 sections + emergency strip, awareness
+  teaser, health-tools link. Zero console errors; hero eager-loaded.
+- **Phase 3** — public doctor directory (q/specialty/city/fee/today filters,
+  pagination) + doctor profile (chambers, schedule, reviews, fee sidebar) +
+  hospital directory/profile + `/api/v1/search/suggest`.
+- **Phase 4** — Health Library: 23 articles, 13 categories, library UI with
+  search + category chips; content APIs with server-side publication gate.
+- **Phase 5** — 9 symptom guides + 9 equipment guides with red-flag boxes,
+  education notices, sources, honest review-status labels.
+- **Phase 6** — booking gate verified E2E (guest Book → intent saved →
+  login → booking auto-resume → chamber/slot/details → server-side price
+  preview (New patient, classified with explanation) → confirmed
+  MB-HE6EXM). 4 landing pages, how-it-works (3 audiences), verification
+  center, emergency (999/16263/333), FAQ, awareness calendar, BMI tool.
+- **Phase 7** — admin CMS console (workflow pipeline, publish/unpublish
+  overrides persisted in PlatformSetting, verified round-trip on the public
+  API) + privacy-respecting analytics (whitelisted events only) with
+  funnel cards.
+- **Phase 8** — metadata (title/desc/OG/Twitter/canonical/metadataBase),
+  JSON-LD Organization+WebSite+SearchAction, sitemap.xml (17 entries),
+  robots.txt (allow /, disallow /api/), custom 404.
+- **Phase 9** — agent-browser E2E: all 16 public views render (h1+content),
+  doctor/hospital/article/symptom pages verified, mobile viewport (390px)
+  + drawer, language toggle (বাংলা headline), auth gate, booking funnel,
+  admin CMS toggle round-trip, 404 page. Lint 0/0. Remaining 15 TS errors
+  are pre-existing (v2 admin/hospital + push-notification work), outside
+  this upgrade's scope.
+
+**Known limitations (honest):** single-route sandbox means portal "pages"
+are query-param views (route-portable components); per-URL SSR and
+Physician/Article JSON-LD land with real routes post-sandbox; content
+publication overrides are Prisma-backed (Firestore deployments fall back
+to module defaults — documented in publications.ts).

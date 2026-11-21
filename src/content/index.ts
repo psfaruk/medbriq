@@ -1,4 +1,6 @@
-import { ARTICLES } from "./library/articles";
+import { ARTICLES as ARTICLES_CORE } from "./library/articles";
+import { ARTICLES_BATCH1 } from "./library/articles-batch1";
+import { ARTICLES_BATCH2 } from "./library/articles-batch2";
 import { SYMPTOM_GUIDES } from "./library/symptoms";
 import { EQUIPMENT_GUIDES } from "./library/equipment";
 import { FAQ_ITEMS } from "./faq";
@@ -22,6 +24,9 @@ import {
  * Publication filtering (status + admin overrides) happens server-side in
  * src/app/api/v1/content/_lib/ — never trust the client to filter.
  */
+
+/** All library articles (core + editorial batches), single flat list. */
+const ARTICLES = [...ARTICLES_CORE, ...ARTICLES_BATCH1, ...ARTICLES_BATCH2];
 
 export * from "./types";
 export { ARTICLES, SYMPTOM_GUIDES, EQUIPMENT_GUIDES, FAQ_ITEMS, AWARENESS_EVENTS };

@@ -14,6 +14,8 @@ import {
   ScrollText,
   ShieldCheck,
   Activity,
+  FileText,
+  BarChart3,
 } from "lucide-react";
 import DashboardShell, { type NavItem } from "@/components/app/dashboard-shell";
 import { useAppStore } from "@/lib/app-state";
@@ -32,6 +34,8 @@ import TicketsSection from "./sections/tickets-section";
 import AuditSection from "./sections/audit-section";
 import SecuritySection from "./sections/security-section";
 import SystemSection from "./sections/system-section";
+import ContentSection from "./sections/content-section";
+import AnalyticsSection from "./sections/analytics-section";
 import type { SupportTicketItem } from "./types";
 
 /**
@@ -94,6 +98,8 @@ export default function AdminDashboard() {
     },
     { key: "payments", label: t("adminNav.payments"), icon: CreditCard },
     { key: "platform", label: t("adminNav.platform"), icon: SlidersHorizontal },
+    { key: "content", label: "Content (CMS)", icon: FileText },
+    { key: "analytics", label: "Analytics", icon: BarChart3 },
     { key: "reviews", label: t("adminNav.reviews"), icon: Star },
     {
       key: "tickets",
@@ -128,6 +134,8 @@ export default function AdminDashboard() {
       ) : null}
       {adminSection === "payments" ? <PaymentsSection /> : null}
       {adminSection === "platform" ? <PlatformSection /> : null}
+      {adminSection === "content" ? <ContentSection /> : null}
+      {adminSection === "analytics" ? <AnalyticsSection /> : null}
       {adminSection === "reviews" ? <ReviewsSection /> : null}
       {adminSection === "tickets" ? (
         <TicketsSection onMutate={refreshBadges} />

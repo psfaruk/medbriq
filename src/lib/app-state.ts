@@ -33,6 +33,43 @@ export type AuthView = "welcome" | "login" | "register" | "otp" | "forgot";
 
 export type DashboardSection = string;
 
+// ── Public portal views (guest experience on "/") ──────────────────
+// The portal is a single-route SPA: every "page" is a view, deep-linkable
+// via ?view=…&slug=… (see components/portal/view-url.ts). When this
+// sandbox constraint lifts, each view maps 1:1 to a real route.
+export type PortalView =
+  | { name: "home" }
+  | { name: "doctors"; q?: string; specialty?: string; city?: string }
+  | { name: "doctor"; slug: string }
+  | { name: "hospitals"; city?: string }
+  | { name: "hospital"; slug: string }
+  | { name: "specialties" }
+  | { name: "library"; category?: string }
+  | { name: "article"; slug: string }
+  | { name: "symptoms" }
+  | { name: "symptom"; slug: string }
+  | { name: "equipment" }
+  | { name: "equipment-item"; slug: string }
+  | { name: "for-patients" }
+  | { name: "for-doctors" }
+  | { name: "for-hospitals" }
+  | { name: "for-providers" }
+  | { name: "how-it-works" }
+  | { name: "verification" }
+  | { name: "emergency" }
+  | { name: "tools" }
+  | { name: "calendar" }
+  | { name: "faq" }
+  | { name: "auth"; mode: "login" | "register" | "forgot" };
+
+/** A booking intent saved before login (spec §12). */
+export type PendingBooking = {
+  doctorSlug: string;
+  doctorName: string;
+  /** When the intent was saved (sessionStorage persistence). */
+  savedAt: string;
+};
+
 interface AppState {
   // ── boot / session ──────────────────────────────────────────────
   booted: boolean;
@@ -50,6 +87,20 @@ interface AppState {
   /** phone number pending OTP verification */
   otpPhone: string;
   setOtpPhone: (phone: string) => void;
+
+  // ── public portal navigation ──────────────────────────────────
+  portalView: PortalView;
+  /** Navigate the public portal; `true` pushes a history entry so the
+   *  browser Back button walks portal views like pages. */
+  setPortalView: (view: PortalView, opts?: { push?: boolean }) => void;
+  /** When true, a signed-in user browses the public portal instead of their
+   *  dashboard ("Public site" ⇄ "My dashboard" toggle). */
+  portalMode: boolean;
+  setPortalMode: (on: boolean) => void;
+
+  // ── booking intent saved across login (spec §12) ────────────────
+  pendingBooking: PendingBooking | null;
+  setPendingBooking: (intent: PendingBooking | null) => void;
 
   // ── patient app navigation ──────────────────────────────────────
   patientScreen: PatientScreen;
@@ -85,6 +136,41 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAuthView: (authView) => set({ authView }),
   otpPhone: "",
   setOtpPhone: (otpPhone) => set({ otpPhone }),
+
+  portalView: { name: "home" },
+  setPortalView: (view, opts) => {
+    set({ portalView: view });
+    if (typeof window !== "undefined") {
+      if (opts?.push) {
+        window.history.pushState(null, "", viewToUrl(view));
+      } else {
+        window.history.replaceState(null, "", viewToUrl(view));
+      }
+      window.scrollTo({ top: 0 });
+    }
+  },
+
+  portalMode: false,
+  setPortalMode: (on) => {
+    set({ portalMode: on });
+    if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+  },
+
+  pendingBooking: readPendingBooking(),
+  setPendingBooking: (intent) => {
+    set({ pendingBooking: intent });
+    if (typeof window !== "undefined") {
+      try {
+        if (intent) {
+          window.sessionStorage.setItem(PENDING_BOOKING_KEY, JSON.stringify(intent));
+        } else {
+          window.sessionStorage.removeItem(PENDING_BOOKING_KEY);
+        }
+      } catch {
+        /* storage unavailable — in-memory only */
+      }
+    }
+  },
 
   patientScreen: { name: "home" },
   patientHistory: [],
@@ -137,7 +223,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       doctorSection: "overview",
       hospitalSection: "overview",
       adminSection: "overview",
+      portalView: { name: "home" },
+      portalMode: false,
+      pendingBooking: null,
     });
+    if (typeof window !== "undefined") {
+      try {
+        window.sessionStorage.removeItem(PENDING_BOOKING_KEY);
+      } catch {
+        /* ignore */
+      }
+    }
   },
 }));
 
@@ -147,4 +243,104 @@ export function hydrateLang() {
   if (useAppStore.getState().lang !== lang) {
     useAppStore.setState({ lang });
   }
+}
+
+// ── Portal view ↔ URL (?view=…&slug=…&…) ───────────────────────────
+
+const PENDING_BOOKING_KEY = "medbricbd.pendingBooking";
+
+/** Serialize a portal view into a shareable URL on the single "/" route. */
+export function viewToUrl(view: PortalView): string {
+  const p = new URLSearchParams();
+  if (view.name !== "home") p.set("view", view.name);
+  switch (view.name) {
+    case "doctor":
+    case "hospital":
+    case "article":
+    case "symptom":
+    case "equipment-item":
+      p.set("slug", view.slug);
+      break;
+    case "doctors":
+      if (view.q) p.set("q", view.q);
+      if (view.specialty) p.set("specialty", view.specialty);
+      if (view.city) p.set("city", view.city);
+      break;
+    case "hospitals":
+      if (view.city) p.set("city", view.city);
+      break;
+    case "library":
+      if (view.category) p.set("category", view.category);
+      break;
+    case "auth":
+      if (view.mode !== "login") p.set("mode", view.mode);
+      break;
+  }
+  const qs = p.toString();
+  return qs ? `/?${qs}` : "/";
+}
+
+/** Parse a URL search string into a portal view (defensive: any garbage → home). */
+export function urlToView(search: string): PortalView {
+  const p = new URLSearchParams(search);
+  const view = p.get("view") ?? "home";
+  const slug = p.get("slug") ?? "";
+  switch (view) {
+    case "home":
+    case "specialties":
+    case "symptoms":
+    case "equipment":
+    case "for-patients":
+    case "for-doctors":
+    case "for-hospitals":
+    case "for-providers":
+    case "how-it-works":
+    case "verification":
+    case "emergency":
+    case "tools":
+    case "calendar":
+    case "faq":
+      return { name: view };
+    case "doctors":
+      return {
+        name: "doctors",
+        q: p.get("q") ?? undefined,
+        specialty: p.get("specialty") ?? undefined,
+        city: p.get("city") ?? undefined,
+      };
+    case "hospitals":
+      return { name: "hospitals", city: p.get("city") ?? undefined };
+    case "library":
+      return { name: "library", category: p.get("category") ?? undefined };
+    case "auth": {
+      const mode = p.get("mode");
+      return {
+        name: "auth",
+        mode: mode === "register" || mode === "forgot" ? mode : "login",
+      };
+    }
+    default:
+      // slug-carrying views — unknown slugs render honest not-found states
+      if (!slug) return { name: "home" };
+      if (view === "doctor") return { name: "doctor", slug };
+      if (view === "hospital") return { name: "hospital", slug };
+      if (view === "article") return { name: "article", slug };
+      if (view === "symptom") return { name: "symptom", slug };
+      if (view === "equipment-item") return { name: "equipment-item", slug };
+      return { name: "home" };
+  }
+}
+
+/** Restore a booking intent saved before login (session-scoped). */
+function readPendingBooking(): PendingBooking | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(PENDING_BOOKING_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PendingBooking;
+    if (parsed?.doctorSlug && parsed?.doctorName) return parsed;
+  } catch {
+    /* corrupted entry — ignore */
+  }
+  return null;
 }

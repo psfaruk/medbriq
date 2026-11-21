@@ -16,6 +16,7 @@ import {
   LogOut,
   Globe,
   PhoneCall,
+  ExternalLink,
   type LucideIcon,
 } from "lucide-react";
 import { useAppStore } from "@/lib/app-state";
@@ -203,6 +204,16 @@ export default function DashboardShell({
           </h1>
 
           <div className="flex items-center gap-1.5">
+            {/* Back to the public portal (spec: dashboards link to the site) */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => useAppStore.getState().setPortalMode(true)}
+              className="hidden gap-1.5 rounded-full text-muted-foreground sm:inline-flex"
+            >
+              <ExternalLink className="h-4 w-4" aria-hidden="true" />
+              Public site
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
