@@ -43,7 +43,7 @@ import {
   addDaysStr,
   DAY_LABELS,
 } from "@/components/app/shared/ui-kit";
-import { searchPreset } from "./index";
+import { searchPreset } from "./preset";
 
 // ── small pure helpers ──────────────────────────────────────────────
 

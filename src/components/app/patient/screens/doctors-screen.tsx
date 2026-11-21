@@ -29,7 +29,7 @@ import {
   useT,
 } from "@/components/app/shared/ui-kit";
 import { DoctorCardRow } from "../parts";
-import { searchPreset } from "../index";
+import { searchPreset } from "../preset";
 
 const PAGE_SIZE = 12;
 const FEE_STEPS = ["300", "500", "800", "1000", "1500", "2000"];
