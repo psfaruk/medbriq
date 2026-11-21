@@ -30,6 +30,11 @@ const nextConfig: NextConfig = {
   outputFileTracingExcludes: {
     "*": ["./upload/**", "./docs/**", "./tool-results/**"],
   },
+  // Ship the bundled demo SQLite database inside the serverless function so
+  // the /tmp bootstrap (src/lib/ensure-db.ts) can copy it on cold starts.
+  outputFileTracingIncludes: {
+    "*": ["./prisma/seed.db"],
+  },
   webpack: (config, { dev }) => {
     if (dev) {
       // The sandbox is memory-constrained (4GB): the default

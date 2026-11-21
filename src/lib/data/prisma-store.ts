@@ -1,5 +1,6 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import { normalizePhone } from "@/lib/phone";
+import { ensureSqliteFile } from "@/lib/ensure-db";
 import { FEE_DEFAULTS, ROLES } from "@/lib/constants";
 import type {
   ActiveOtpCode,
@@ -57,6 +58,9 @@ const globalForPrisma = globalThis as unknown as {
 
 function getClient(): PrismaClient {
   if (!globalForPrisma.__medbriqPrismaStoreClient) {
+    // Serverless bootstrap: copy the bundled demo SQLite file to the
+    // writable /tmp target on Vercel (no-op locally / on Firestore).
+    ensureSqliteFile();
     globalForPrisma.__medbriqPrismaStoreClient = new PrismaClient({
       log: ["query"],
     });

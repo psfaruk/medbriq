@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Idempotent patch for next/dist/compiled/watchpack/watchpack.js
  *
