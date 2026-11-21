@@ -41,6 +41,7 @@ const EmergencyView = dynamic(() => import("./info/info-views").then((m) => ({ d
 const FaqView = dynamic(() => import("./info/info-views").then((m) => ({ default: m.FaqView })), { loading: () => <ViewFallback /> });
 const CalendarView = dynamic(() => import("./info/info-views").then((m) => ({ default: m.CalendarView })), { loading: () => <ViewFallback /> });
 const ToolsView = dynamic(() => import("./tools/tools-view").then((m) => ({ default: m.ToolsView })), { loading: () => <ViewFallback /> });
+const PortalVerifyView = dynamic(() => import("./vvs/verify-view"), { loading: () => <ViewFallback /> });
 const AuthFrameView = dynamic(() => import("./auth/auth-frame"), { loading: () => <ViewFallback /> });
 
 function ViewFallback() {
@@ -145,6 +146,9 @@ export default function PublicPortal() {
       break;
     case "tools":
       content = <ToolsView />;
+      break;
+    case "verify":
+      content = <PortalVerifyView payload={portalView.d} />;
       break;
     case "home":
     default:

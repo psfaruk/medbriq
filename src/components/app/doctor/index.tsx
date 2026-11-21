@@ -22,6 +22,7 @@ import {
   MessageSquareQuote,
   UserRound,
   Settings,
+  ShieldCheck,
 } from "lucide-react";
 import DashboardShell, { type NavItem } from "@/components/app/dashboard-shell";
 import { useAppStore } from "@/lib/app-state";
@@ -32,6 +33,7 @@ import {
 } from "./context";
 import OverviewSection from "./sections/overview";
 import QueueSection from "./sections/queue";
+import VvsSection from "./sections/vvs";
 import AppointmentsSection from "./sections/appointments";
 import PatientsSection from "./sections/patients";
 import FeesSection from "./sections/fees";
@@ -45,6 +47,7 @@ import SettingsSection from "./sections/settings";
 const SECTION_KEYS = [
   "overview",
   "queue",
+  "vvs",
   "appointments",
   "patients",
   "fees",
@@ -90,6 +93,7 @@ function DoctorDashboardInner({
   const navItems: NavItem[] = [
     { key: "overview", label: t("doctorNav.overview"), icon: LayoutDashboard },
     { key: "queue", label: t("doctorNav.queue"), icon: ClipboardList },
+    { key: "vvs", label: t("doctorNav.vvs"), icon: ShieldCheck },
     {
       key: "appointments",
       label: t("doctorNav.appointments"),
@@ -116,6 +120,7 @@ function DoctorDashboardInner({
       <div key={activeSection} className="animate-rise-in">
         {activeSection === "overview" ? <OverviewSection /> : null}
         {activeSection === "queue" ? <QueueSection /> : null}
+        {activeSection === "vvs" ? <VvsSection /> : null}
         {activeSection === "appointments" ? <AppointmentsSection /> : null}
         {activeSection === "patients" ? <PatientsSection /> : null}
         {activeSection === "fees" ? <FeesSection /> : null}

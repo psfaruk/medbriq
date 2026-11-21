@@ -12,10 +12,11 @@ import {
   Star,
   LifeBuoy,
   ScrollText,
-  ShieldCheck,
   Activity,
   FileText,
   BarChart3,
+  ShieldCheck,
+  ScanLine,
 } from "lucide-react";
 import DashboardShell, { type NavItem } from "@/components/app/dashboard-shell";
 import { useAppStore } from "@/lib/app-state";
@@ -36,6 +37,7 @@ import SecuritySection from "./sections/security-section";
 import SystemSection from "./sections/system-section";
 import ContentSection from "./sections/content-section";
 import AnalyticsSection from "./sections/analytics-section";
+import VvsAdminSection from "./sections/vvs-section";
 import type { SupportTicketItem } from "./types";
 
 /**
@@ -98,6 +100,7 @@ export default function AdminDashboard() {
     },
     { key: "payments", label: t("adminNav.payments"), icon: CreditCard },
     { key: "platform", label: t("adminNav.platform"), icon: SlidersHorizontal },
+    { key: "vvs", label: t("adminNav.vvs"), icon: ScanLine },
     { key: "content", label: "Content (CMS)", icon: FileText },
     { key: "analytics", label: "Analytics", icon: BarChart3 },
     { key: "reviews", label: t("adminNav.reviews"), icon: Star },
@@ -134,6 +137,7 @@ export default function AdminDashboard() {
       ) : null}
       {adminSection === "payments" ? <PaymentsSection /> : null}
       {adminSection === "platform" ? <PlatformSection /> : null}
+      {adminSection === "vvs" ? <VvsAdminSection /> : null}
       {adminSection === "content" ? <ContentSection /> : null}
       {adminSection === "analytics" ? <AnalyticsSection /> : null}
       {adminSection === "reviews" ? <ReviewsSection /> : null}

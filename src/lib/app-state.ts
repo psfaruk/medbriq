@@ -60,6 +60,7 @@ export type PortalView =
   | { name: "tools" }
   | { name: "calendar" }
   | { name: "faq" }
+  | { name: "verify"; d: string }
   | { name: "auth"; mode: "login" | "register" | "forgot" };
 
 /** A booking intent saved before login (spec §12). */
@@ -272,6 +273,9 @@ export function viewToUrl(view: PortalView): string {
     case "library":
       if (view.category) p.set("category", view.category);
       break;
+    case "verify":
+      if (view.d) p.set("d", view.d);
+      break;
     case "auth":
       if (view.mode !== "login") p.set("mode", view.mode);
       break;
@@ -312,6 +316,8 @@ export function urlToView(search: string): PortalView {
       return { name: "hospitals", city: p.get("city") ?? undefined };
     case "library":
       return { name: "library", category: p.get("category") ?? undefined };
+    case "verify":
+      return { name: "verify", d: p.get("d") ?? "" };
     case "auth": {
       const mode = p.get("mode");
       return {

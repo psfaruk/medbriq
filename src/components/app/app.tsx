@@ -134,9 +134,15 @@ export default function App() {
     );
   }
 
+  // A scanned VVS QR (?view=verify&d=…) opens the public verification page
+  // even for signed-in users — the doctor/patient then continues from there.
+  const verifyDeepLink =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("view") === "verify";
+
   // Guests → the public discovery portal (NOT a login wall).
   // Signed-in users in portalMode → also the portal ("Public site" toggle).
-  if (!user || portalMode) {
+  if (!user || portalMode || verifyDeepLink) {
     return <PublicPortal />;
   }
 

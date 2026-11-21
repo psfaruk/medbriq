@@ -572,6 +572,125 @@ const en: Record<string, string> = {
   "portal.notFound.title": "Page not found",
   "portal.notFound.desc": "The page you are looking for does not exist or has moved.",
   "portal.notFound.cta": "Go to homepage",
+
+  // ── Verified Visit System (VVS) ─────────────────────────────────
+  "doctorNav.vvs": "Verified Visits",
+  "adminNav.vvs": "Verified Visits",
+  "vvs.serial": "Serial",
+  "vvs.form.title": "Two-part appointment form",
+  "vvs.form.subtitle":
+    "Print the A4 form and cut along the dotted line. Keep the Patient Copy; hand the Doctor Copy to the chamber.",
+  "vvs.form.preparing": "Preparing your form…",
+  "vvs.form.print": "Print form",
+  "vvs.form.download": "Download PDF",
+  "vvs.form.hint":
+    "Both parts carry the same appointment ID and QR. Re-download any time — the QR stays valid until your visit is recorded.",
+  "vvs.form.usedNotice":
+    "This form's QR was already used to record a visit. Reprints are for your records only.",
+  "vvs.form.paperNote":
+    "A4 · the printed form is a chamber convenience; the digital record on MedBricBD is the authoritative proof of your visit.",
+  "vvs.form.previewLabel": "A4 form preview",
+  "vvs.receipt.title": "Digital visit receipt",
+  "vvs.receipt.subtitle":
+    "The authoritative record of your consultation — issued by the Verified Visit System.",
+  "vvs.receipt.download": "Download receipt",
+  "vvs.card.formTitle": "Appointment form",
+  "vvs.card.formHint":
+    "Two-part A4 form with a verifiable QR — print it or save the PDF and bring it to your appointment.",
+  "vvs.card.viewForm": "View / print form",
+  "vvs.card.visitTitle": "Verified visit",
+  "vvs.card.visitPending": "Not recorded yet",
+  "vvs.card.visitRecorded": "Visit recorded",
+  "vvs.card.receipt": "Visit receipt",
+  "vvs.card.viewReceipt": "View receipt",
+  "vvs.card.confirmTitle": "Confirm your visit",
+  "vvs.card.confirmHint":
+    "Your doctor marked this visit as completed. Confirm it, or report a problem if this is wrong.",
+  "vvs.card.confirmBtn": "Confirm visit",
+  "vvs.card.confirmed": "Visit confirmed",
+  "vvs.card.confirmedVia": "Confirmed ({via})",
+  "vvs.card.report": "Report a problem",
+  "vvs.card.reportTitle": "Report a verification issue",
+  "vvs.card.reportHint":
+    "Tell us what went wrong. Our team reviews every report — the visit record is never silently changed.",
+  "vvs.card.reportReason": "What is the issue?",
+  "vvs.card.reportSubmit": "Submit report",
+  "vvs.card.reported": "Report submitted",
+  "vvs.card.reportedHint":
+    "Thank you. An administrator will review your report and the doctor has been notified.",
+  "vvs.card.checkIn": "Checked in",
+  "vvs.card.expired": "Confirmation window expired",
+  "vvs.card.disputed": "Under review",
+  "vvs.card.corrected": "Corrected",
+  "vvs.card.noCredential":
+    "The verification form becomes available once the appointment is confirmed.",
+  "vvs.doctor.title": "Verified Visits (VVS)",
+  "vvs.doctor.subtitle":
+    "Verify patients with QR and record completed visits. Every action is audited.",
+  "vvs.doctor.queue": "Today's queue",
+  "vvs.doctor.scanner": "QR scanner",
+  "vvs.doctor.history": "Visit history",
+  "vvs.doctor.scanTitle": "Scan the patient's form",
+  "vvs.doctor.scanHint":
+    "Point the camera at the QR on the patient's printed form (either copy), or enter the reference + manual code below.",
+  "vvs.doctor.cameraStart": "Start camera",
+  "vvs.doctor.cameraStop": "Stop camera",
+  "vvs.doctor.cameraDenied":
+    "Camera unavailable — use manual verification below.",
+  "vvs.doctor.manualTitle": "Manual verification",
+  "vvs.doctor.manualHint":
+    "For a damaged QR: type the Appointment ID and the manual code printed under the QR.",
+  "vvs.doctor.reference": "Appointment ID (MB-…)",
+  "vvs.doctor.manualCode": "Manual code",
+  "vvs.doctor.verifyBtn": "Verify appointment",
+  "vvs.doctor.scanning": "Scanning…",
+  "vvs.doctor.verified": "Appointment verified",
+  "vvs.doctor.verifyFail": "Verification failed",
+  "vvs.doctor.checkIn": "Check in",
+  "vvs.doctor.checkedIn": "Checked in",
+  "vvs.doctor.complete": "Mark visit completed",
+  "vvs.doctor.completeByRef": "Complete without form",
+  "vvs.doctor.completeByRefHint":
+    "Use only when the patient forgot the printed form and you verified their identity against the booking details.",
+  "vvs.doctor.consultNote": "Consultation note (private, optional)",
+  "vvs.doctor.patientCodeTitle": "Patient confirmation code",
+  "vvs.doctor.patientCodeHint":
+    "Policy B: the patient confirms in their app, or reads you the 6-digit code from their notification. Enter it here.",
+  "vvs.doctor.patientCodeBtn": "Submit code",
+  "vvs.doctor.confirmPending": "Awaiting patient confirmation",
+  "vvs.doctor.confirmConfirmed": "Patient confirmed",
+  "vvs.doctor.queueEmpty": "No appointments today",
+  "vvs.doctor.queueHint":
+    "Confirmed appointments appear here on the day. Verify patients as they arrive and record completed visits.",
+  "vvs.doctor.historyEmpty": "No recorded visits yet",
+  "vvs.doctor.historyHint":
+    "Completed visits with receipts, confirmation status and corrections appear here.",
+  "vvs.doctor.receiptNo": "Receipt",
+  "vvs.doctor.method": "Method",
+  "vvs.doctor.printForm": "Form",
+  "vvs.doctor.policy": "Policy",
+  "vvs.doctor.verifyState": "Verification",
+  "vvs.doctor.visitCompletedToast": "Visit recorded — receipt {receipt}",
+  "vvs.doctor.alreadyCompleted": "This visit was already recorded.",
+  "vvs.admin.policyTitle": "Verification policy",
+  "vvs.admin.policyHint": "Applies to every visit completion platform-wide.",
+  "vvs.admin.disputesTitle": "Visit disputes",
+  "vvs.admin.disputesEmpty": "No open disputes",
+  "vvs.admin.resolve": "Resolve",
+  "vvs.admin.dismiss": "Dismiss",
+  "vvs.admin.correct": "Correct visit",
+  "vvs.admin.resolutionNote": "Resolution note",
+  "vvs.admin.reportedBy": "Reported by",
+  "vvs.admin.correctHint":
+    "Correcting reverts the appointment to confirmed so the doctor can re-complete it. The original record is preserved.",
+  "vvs.verify.title": "Appointment verification",
+  "vvs.verify.checking": "Checking this code…",
+  "vvs.verify.validTitle": "Valid MedBricBD appointment",
+  "vvs.verify.invalidTitle": "Not a valid appointment form",
+  "vvs.verify.visitRecorded": "A completed visit is recorded for this form.",
+  "vvs.verify.noVisit": "No visit recorded yet for this form.",
+  "vvs.verify.doctorAction":
+    "Doctor? Sign in and scan this QR from your dashboard to record the visit.",
 };
 
 const bn: Record<string, string> = {
@@ -1129,6 +1248,125 @@ const bn: Record<string, string> = {
   "portal.notFound.title": "পাতাটি পাওয়া যায়নি",
   "portal.notFound.desc": "আপনি যে পাতাটি খুঁজছেন সেটি নেই বা সরিয়ে ফেলা হয়েছে।",
   "portal.notFound.cta": "হোমপেজে যান",
+
+  // ── Verified Visit System (VVS) ─────────────────────────────────
+  "doctorNav.vvs": "ভেরিফায়েড ভিজিট",
+  "adminNav.vvs": "ভেরিফায়েড ভিজিট",
+  "vvs.serial": "সিরিয়াল",
+  "vvs.form.title": "দুই-খণ্ড অ্যাপয়েন্টমেন্ট ফরম",
+  "vvs.form.subtitle":
+    "A4 ফরমটি প্রিন্ট করে ডটেড লাইনে কাটুন। রোগীর কপি নিজে রাখুন, ডাক্তারের কপি চেম্বারে দিন।",
+  "vvs.form.preparing": "ফরম তৈরি হচ্ছে…",
+  "vvs.form.print": "ফরম প্রিন্ট করুন",
+  "vvs.form.download": "PDF ডাউনলোড",
+  "vvs.form.hint":
+    "দুই কপিতেই একই অ্যাপয়েন্টমেন্ট আইডি ও QR আছে। যেকোনো সময় আবার ডাউনলোড করা যায় — ভিজিট রেকর্ড হওয়া পর্যন্ত QR বৈধ থাকে।",
+  "vvs.form.usedNotice":
+    "এই ফরমের QR দিয়ে ইতিমধ্যে ভিজিট রেকর্ড হয়েছে। পুনঃপ্রিন্ট শুধু রেকর্ডের জন্য।",
+  "vvs.form.paperNote":
+    "A4 · কাগজের ফরম চেম্বারের সুবিধার্থে; আপনার ভিজিটের নির্ভরযোগ্য প্রমাণ হলো MedBricBD-র ডিজিটাল রেকর্ড।",
+  "vvs.form.previewLabel": "A4 ফরম প্রিভিউ",
+  "vvs.receipt.title": "ডিজিটাল ভিজিট রসিদ",
+  "vvs.receipt.subtitle":
+    "আপনার কনসালটেশনের নির্ভরযোগ্য রেকর্ড — Verified Visit System থেকে ইস্যু করা।",
+  "vvs.receipt.download": "রসিদ ডাউনলোড",
+  "vvs.card.formTitle": "অ্যাপয়েন্টমেন্ট ফরম",
+  "vvs.card.formHint":
+    "যাচাইযোগ্য QR-সহ দুই-খণ্ড A4 ফরম — প্রিন্ট করে বা PDF সেভ করে অ্যাপয়েন্টমেন্টে নিয়ে আসুন।",
+  "vvs.card.viewForm": "ফরম দেখুন / প্রিন্ট",
+  "vvs.card.visitTitle": "ভেরিফায়েড ভিজিট",
+  "vvs.card.visitPending": "এখনো রেকর্ড হয়নি",
+  "vvs.card.visitRecorded": "ভিজিট রেকর্ড হয়েছে",
+  "vvs.card.receipt": "ভিজিট রসিদ",
+  "vvs.card.viewReceipt": "রসিদ দেখুন",
+  "vvs.card.confirmTitle": "আপনার ভিজিট নিশ্চিত করুন",
+  "vvs.card.confirmHint":
+    "ডাক্তার এই ভিজিট সম্পন্ন হিসেবে চিহ্নিত করেছেন। নিশ্চিত করুন, অথবা ভুল হলে রিপোর্ট করুন।",
+  "vvs.card.confirmBtn": "ভিজিট নিশ্চিত করুন",
+  "vvs.card.confirmed": "ভিজিট নিশ্চিত হয়েছে",
+  "vvs.card.confirmedVia": "নিশ্চিত ({via})",
+  "vvs.card.report": "সমস্যা রিপোর্ট করুন",
+  "vvs.card.reportTitle": "ভেরিফিকেশন সমস্যা রিপোর্ট",
+  "vvs.card.reportHint":
+    "কী ভুল হয়েছে জানান। আমাদের টিম প্রতিটি রিপোর্ট দেখে — ভিজিট রেকর্ড নীরবে পরিবর্তন করা হয় না।",
+  "vvs.card.reportReason": "সমস্যাটি কী?",
+  "vvs.card.reportSubmit": "রিপোর্ট জমা দিন",
+  "vvs.card.reported": "রিপোর্ট জমা হয়েছে",
+  "vvs.card.reportedHint":
+    "ধন্যবাদ। একজন অ্যাডমিন আপনার রিপোর্ট দেখবেন এবং ডাক্তারকে জানানো হয়েছে।",
+  "vvs.card.checkIn": "চেক-ইন হয়েছে",
+  "vvs.card.expired": "নিশ্চিতকরণের সময় শেষ",
+  "vvs.card.disputed": "রিভিউ চলছে",
+  "vvs.card.corrected": "সংশোধিত",
+  "vvs.card.noCredential":
+    "অ্যাপয়েন্টমেন্ট নিশ্চিত হলে ভেরিফিকেশন ফরম পাওয়া যাবে।",
+  "vvs.doctor.title": "ভেরিফায়েড ভিজিট (VVS)",
+  "vvs.doctor.subtitle":
+    "QR দিয়ে রোগী যাচাই করুন এবং সম্পন্ন ভিজিট রেকর্ড করুন। প্রতিটি কাজ অডিট হয়।",
+  "vvs.doctor.queue": "আজকের কিউ",
+  "vvs.doctor.scanner": "QR স্ক্যানার",
+  "vvs.doctor.history": "ভিজিট ইতিহাস",
+  "vvs.doctor.scanTitle": "রোগীর ফরম স্ক্যান করুন",
+  "vvs.doctor.scanHint":
+    "রোগীর প্রিন্ট করা ফরমের QR-এ ক্যামেরা ধরুন (যেকোনো কপি), অথবা নিচে রেফারেন্স + ম্যানুয়াল কোড লিখুন।",
+  "vvs.doctor.cameraStart": "ক্যামেরা চালু",
+  "vvs.doctor.cameraStop": "ক্যামেরা বন্ধ",
+  "vvs.doctor.cameraDenied":
+    "ক্যামেরা ব্যবহারযোগ্য নয় — নিচের ম্যানুয়াল যাচাই ব্যবহার করুন।",
+  "vvs.doctor.manualTitle": "ম্যানুয়াল যাচাই",
+  "vvs.doctor.manualHint":
+    "QR নষ্ট হলে: অ্যাপয়েন্টমেন্ট আইডি ও QR-এর নিচে ছাপা ম্যানুয়াল কোড লিখুন।",
+  "vvs.doctor.reference": "অ্যাপয়েন্টমেন্ট আইডি (MB-…)",
+  "vvs.doctor.manualCode": "ম্যানুয়াল কোড",
+  "vvs.doctor.verifyBtn": "যাচাই করুন",
+  "vvs.doctor.scanning": "স্ক্যান হচ্ছে…",
+  "vvs.doctor.verified": "অ্যাপয়েন্টমেন্ট যাচাই হয়েছে",
+  "vvs.doctor.verifyFail": "যাচাই ব্যর্থ",
+  "vvs.doctor.checkIn": "চেক-ইন",
+  "vvs.doctor.checkedIn": "চেক-ইন হয়েছে",
+  "vvs.doctor.complete": "ভিজিট সম্পন্ন করুন",
+  "vvs.doctor.completeByRef": "ফরম ছাড়া সম্পন্ন করুন",
+  "vvs.doctor.completeByRefHint":
+    "শুধু তখনই ব্যবহার করুন যখন রোগী ফরম ভুলে গেছেন এবং আপনি বুকিংয়ের তথ্য মিলিয়ে পরিচয় যাচাই করেছেন।",
+  "vvs.doctor.consultNote": "কনসালটেশন নোট (প্রাইভেট, ঐচ্ছিক)",
+  "vvs.doctor.patientCodeTitle": "রোগীর নিশ্চিতকরণ কোড",
+  "vvs.doctor.patientCodeHint":
+    "পলিসি B: রোগী নিজের অ্যাপে নিশ্চিত করবেন, অথবা নোটিফিকেশনের ৬-ডিজিট কোডটি পড়ে শুনাবেন। এখানে লিখুন।",
+  "vvs.doctor.patientCodeBtn": "কোড জমা দিন",
+  "vvs.doctor.confirmPending": "রোগীর নিশ্চিতকরণের অপেক্ষায়",
+  "vvs.doctor.confirmConfirmed": "রোগী নিশ্চিত করেছেন",
+  "vvs.doctor.queueEmpty": "আজ কোনো অ্যাপয়েন্টমেন্ট নেই",
+  "vvs.doctor.queueHint":
+    "নিশ্চিত অ্যাপয়েন্টমেন্ট দিনে এখানে দেখা যাবে। রোগী এলে যাচাই করে ভিজিট রেকর্ড করুন।",
+  "vvs.doctor.historyEmpty": "এখনো কোনো ভিজিট রেকর্ড হয়নি",
+  "vvs.doctor.historyHint":
+    "রসিদ, নিশ্চিতকরণ অবস্থা ও সংশোধনসহ সম্পন্ন ভিজিটগুলো এখানে।",
+  "vvs.doctor.receiptNo": "রসিদ",
+  "vvs.doctor.method": "মাধ্যম",
+  "vvs.doctor.printForm": "ফরম",
+  "vvs.doctor.policy": "পলিসি",
+  "vvs.doctor.verifyState": "ভেরিফিকেশন",
+  "vvs.doctor.visitCompletedToast": "ভিজিট রেকর্ড হয়েছে — রসিদ {receipt}",
+  "vvs.doctor.alreadyCompleted": "এই ভিজিট আগেই রেকর্ড হয়েছে।",
+  "vvs.admin.policyTitle": "ভেরিফিকেশন পলিসি",
+  "vvs.admin.policyHint": "প্ল্যাটফর্মের সব ভিজিট সম্পন্নকরণে প্রযোজ্য।",
+  "vvs.admin.disputesTitle": "ভিজিট ডিসপিউট",
+  "vvs.admin.disputesEmpty": "কোনো খোলা ডিসপিউট নেই",
+  "vvs.admin.resolve": "নিষ্পত্তি",
+  "vvs.admin.dismiss": "খারিজ",
+  "vvs.admin.correct": "ভিজিট সংশোধন",
+  "vvs.admin.resolutionNote": "নিষ্পত্তি নোট",
+  "vvs.admin.reportedBy": "রিপোর্ট করেছেন",
+  "vvs.admin.correctHint":
+    "সংশোধন করলে অ্যাপয়েন্টমেন্ট আবার নিশ্চিত অবস্থায় ফিরে যায় যাতে ডাক্তার পুনরায় সম্পন্ন করতে পারেন। মূল রেকর্ড সংরক্ষিত থাকে।",
+  "vvs.verify.title": "অ্যাপয়েন্টমেন্ট যাচাই",
+  "vvs.verify.checking": "কোডটি যাচাই হচ্ছে…",
+  "vvs.verify.validTitle": "বৈধ MedBricBD অ্যাপয়েন্টমেন্ট",
+  "vvs.verify.invalidTitle": "বৈধ অ্যাপয়েন্টমেন্ট ফরম নয়",
+  "vvs.verify.visitRecorded": "এই ফরমের জন্য সম্পন্ন ভিজিট রেকর্ড হয়েছে।",
+  "vvs.verify.noVisit": "এই ফরমের জন্য এখনো কোনো ভিজিট রেকর্ড হয়নি।",
+  "vvs.verify.doctorAction":
+    "ডাক্তার? ভিজিট রেকর্ড করতে সাইন ইন করে ড্যাশবোর্ড থেকে এই QR স্ক্যান করুন।",
 };
 
 const dictionaries: Record<Lang, Record<string, string>> = { en, bn };

@@ -488,6 +488,157 @@ model PlatformSetting {
   updatedAt DateTime @updatedAt
 }
 
+// ────────────────────────────────────────────────────────────────────────
+// Verified Visit System (VVS) — two-part printable appointment forms,
+// QR-based visit verification and immutable digital visit records.
+//
+// Design notes (docs/VVS.md):
+// - VVS tables are intentionally NOT foreign-keyed to Appointment: the
+//   booking engine may run on the Firestore store (see src/lib/data), so
+//   VVS rows reference appointments by their stable logical id + a denormalized
+//   snapshot of the fields the printed form and receipts must preserve
+//   (fee, patient type, chamber, slot). Snapshots are frozen at issuance —
+//   later appointment edits never rewrite an issued document.
+// - Tokens and confirmation codes are stored hashed (sha256); a database
+//   leak does not yield usable QR or confirmation credentials.
+// - completed_visits are immutable: corrections append a new audited event
+//   (correctionStatus) instead of overwriting the original record.
+// ────────────────────────────────────────────────────────────────────────
+
+/** One verifiable appointment credential per appointment (QR + manual code). */
+model AppointmentVerification {
+  id             String    @id @default(cuid())
+  appointmentId  String    @unique
+  referenceCode  String    // appointment MB-XXXXXX reference (lookup aid)
+  doctorId       String
+  chamberId      String?
+  patientId      String? // User.id when booked by a logged-in patient
+  patientName    String
+  patientPhone   String
+  slotStart      DateTime // UTC
+  serialNumber   Int // per (doctor, chamber, Dhaka calendar day) rank by slotStart
+  qrTokenHash    String    @unique // sha256(qrToken) — fast constant-time lookup
+  qrTokenEnc     String? // AES-256-GCM ciphertext — re-download returns the SAME credential
+  manualCodeHash String // sha256(manualCode) — printed fallback when the QR is damaged
+  manualCodeEnc  String? // AES-256-GCM ciphertext
+  status         String    @default("ACTIVE") // ACTIVE | USED | REVOKED
+  policy         String    @default("B") // A | B | C (verification policy at issuance)
+  documentVersion Int      @default(1)
+  issueCount     Int       @default(0) // re-downloads/prints (audit-relevant)
+  lastIssuedAt   DateTime?
+  checkInAt      DateTime?
+  checkInById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  documents      AppointmentDocument[]
+
+  @@index([doctorId, slotStart])
+  @@index([referenceCode])
+}
+
+/** Append-only issuance log for the two-part A4 form (print + PDF download). */
+model AppointmentDocument {
+  id             String   @id @default(cuid())
+  verificationId String
+  verification   AppointmentVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+  appointmentId  String
+  format         String // PRINT | PDF
+  lang           String // en | bn
+  issuedById     String? // actor (patient owner / doctor / staff)
+  issuedAt       DateTime @default(now())
+
+  @@index([appointmentId])
+}
+
+/**
+ * The permanent digital visit record — created exactly once per appointment
+ * by an authorized doctor (or, under policy C, chamber staff). Immutable:
+ * disputes and corrections append fields / new audit events, never overwrite
+ * the completion facts. The digital record is the source of truth; the paper
+ * form is a convenience for the chamber.
+ */
+model CompletedVisit {
+  id                   String   @id @default(cuid())
+  appointmentId        String   @unique
+  referenceCode        String
+  doctorId             String
+  doctorName           String // display name at completion (receipt snapshot)
+  chamberId            String?
+  chamberName          String? // chamber display name at completion
+  patientId            String?
+  patientName          String
+  patientPhone         String
+  slotStart            DateTime // scheduled slot (UTC)
+  // ── fee snapshot (docs/FEE_SYSTEM.md §3) — frozen at completion so the
+  //    receipt preserves the exact price the patient was charged ──
+  fee                  Float
+  currency             String    @default("BDT")
+  patientType          String? // NEW | RETURNING | FOLLOW_UP
+  completedById        String // performing doctor/staff user id
+  completedByName      String // display name at completion time
+  completedAt          DateTime @default(now()) // server-generated
+  verificationMethod   String // QR | MANUAL_CODE | REFERENCE
+  policy               String // A | B | C applied at completion
+  patientConfirmationStatus String @default("NOT_REQUIRED") // NOT_REQUIRED | PENDING | CONFIRMED | EXPIRED
+  patientConfirmedAt   DateTime?
+  patientConfirmedVia  String? // APP | CODE
+  receiptNumber        String   @unique // e.g. VR-XXXXXXXX
+  // ── correction workflow (never silent overwrites) ──
+  correctionStatus     String? // null | DISPUTED | CORRECTED
+  correctedById        String?
+  correctedAt          DateTime?
+  correctionReason     String?
+  consultationNote     String?
+  createdAt            DateTime @default(now())
+
+  confirmation         PatientVisitConfirmation?
+  disputes             VisitDispute[]
+
+  @@index([doctorId, completedAt])
+  @@index([patientId])
+  @@index([patientPhone])
+}
+
+/**
+ * Mode B one-time patient confirmation code. Single-use, expiring,
+ * attempt-limited; the raw code is only shown inside the patient's own
+ * authenticated session (never in URLs or QR payloads).
+ */
+model PatientVisitConfirmation {
+  id            String   @id @default(cuid())
+  visitId       String   @unique
+  visit         CompletedVisit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  appointmentId String   @unique
+  codeHash      String // sha256(appointmentId:code)
+  attempts      Int      @default(0)
+  expiresAt     DateTime
+  consumedAt    DateTime?
+  createdAt     DateTime @default(now())
+
+  @@index([appointmentId])
+}
+
+/** Patient-reported dispute over a completed visit (append-only workflow). */
+model VisitDispute {
+  id            String    @id @default(cuid())
+  visitId       String
+  visit         CompletedVisit @relation(fields: [visitId], references: [id])
+  appointmentId String
+  reportedById  String?
+  reporterName  String
+  reporterPhone String?
+  reason        String
+  status        String    @default("OPEN") // OPEN | UNDER_REVIEW | RESOLVED
+  resolution    String?
+  resolvedById  String?
+  resolvedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([status])
+  @@index([appointmentId])
+}
+
 /**
  * Web-push (FCM) registration tokens per user. A user may have several
  * (multiple browsers/devices); tokens are pruned automatically when FCM

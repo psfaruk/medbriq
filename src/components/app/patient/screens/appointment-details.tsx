@@ -59,6 +59,7 @@ import {
 } from "@/components/app/shared/ui-kit";
 import { useToast } from "@/hooks/use-toast";
 import { DateStrip, InfoRow, SlotGrid, genderLabel } from "./shared";
+import VvsPatientCard from "@/components/vvs/patient-card";
 
 type PayMethod = "BKASH" | "NAGAD" | "CARD";
 
@@ -718,6 +719,9 @@ export default function AppointmentDetailsScreen({ id }: { id: string }) {
           </InfoRow>
         </div>
       </SectionCard>
+
+      {/* ── Verified Visit System (form + visit record) ─────── */}
+      <VvsPatientCard appointment={a} onChanged={reload} />
 
       {/* ── notes ───────────────────────────────────────────────── */}
       {a.notes ? (
