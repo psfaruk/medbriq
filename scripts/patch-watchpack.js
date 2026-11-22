@@ -41,6 +41,13 @@ const NEW_TAIL = "return (i.ignored||(()=>false))(p);});/*" + MARKER + "*/";
 const REPLACEMENT = `this.ignored=((p)=>{try{if(typeof p==="string"){const __root=(process.env.MEDBRIC_PROJECT_ROOT||process.cwd());if(p===__root+"/upload"||p.startsWith(__root+"/upload/"))return true;const __rel=p.startsWith(__root+"/")?p.slice(__root.length+1):null;if(__rel){const __top=__rel.split("/")[0];if(__top==="db"||__top==="upload"||__top==="tool-results"||__top==="docs"||__top==="screenshots")return true;}if(/\\.(log|db|db-journal|db-wal|db-shm)$/.test(p))return true;}}catch(e){}return (i.ignored||(()=>false))(p);});/*${MARKER}*/`;
 
 function main() {
+  // Vercel (and other production hosts): the patch is a sandbox-dev-only
+  // workaround. Production builds never run the webpack watcher, so skip
+  // entirely — this also removes any risk of postinstall failing there.
+  if (process.env.VERCEL || process.env.VERCEL_ENV) {
+    console.log("[patch-watchpack] VERCEL environment detected, skipping");
+    return;
+  }
   if (!fs.existsSync(TARGET)) {
     console.error(`[patch-watchpack] target not found: ${TARGET}`);
     process.exit(1);
