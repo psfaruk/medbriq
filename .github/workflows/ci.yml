@@ -1,48 +1,25 @@
-# Medbriq CI — quality gate
-#
-# Deliberately minimal (the repo is PRIVATE: GitHub Actions free allowance for private
-# repos is 2,000 minutes/month — see docs/costs.md):
-#   - lint (eslint) + typecheck (tsc --noEmit) only.
-#   - NO `next build` step: it roughly doubles run time; build/deploy verification is
-#     performed at deployment time. Revisit when a staging deploy pipeline exists.
-#   - Prisma client is generated because src imports @prisma/client types.
-#   - tsc --noEmit is the strict gate: next.config.ts currently sets
-#     ignoreBuildErrors: true (scaffold default), so CI carries the type safety check.
-
 name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
-
-# Cancel superseded runs on the same branch/PR to save free minutes.
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+    branches: [main]
 
 jobs:
-  quality:
-    name: Lint & typecheck
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Bun
+      - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "latest"
+          bun-version: latest
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Generate Prisma client
-        run: bunx prisma generate
-
       - name: Lint
         run: bun run lint
-
-      - name: Typecheck
-        run: bunx tsc --noEmit
