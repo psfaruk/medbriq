@@ -12,8 +12,12 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST /api/v1/auth/register
- * Creates a PATIENT or DOCTOR account. Doctor accounts additionally receive a
- * DoctorProfile (verificationStatus "PENDING") linked to their specialty.
+ * PATIENT-FIRST SIGNUP (master prompt §3.1): every account is created as a
+ * user/patient — name, DOB, present & permanent address, contact and an
+ * explicit terms agreement. Doctors and hospitals do NOT sign up directly:
+ * they create this account first, then apply from their dashboard
+ * (POST /api/v2/auth/apply-doctor | apply-hospital).
+ * The legacy DOCTOR role schema is kept for backward compatibility only.
  * The new user is signed in automatically (session cookie set on success).
  */
 
@@ -40,6 +44,26 @@ const phoneField = z
   .max(20, "Phone must be at most 20 characters.")
   .optional();
 
+/** ISO "YYYY-MM-DD"; must be a real calendar date, in the past, < 120 years. */
+const dobField = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be YYYY-MM-DD.")
+  .refine((v) => {
+    const d = new Date(`${v}T00:00:00Z`);
+    if (Number.isNaN(d.getTime())) return false;
+    const now = Date.now();
+    if (d.getTime() > now) return false; // future
+    return now - d.getTime() < 120 * 365.25 * 24 * 3600 * 1000;
+  }, "Enter a valid date of birth.")
+  .optional();
+
+const addressField = z
+  .string()
+  .trim()
+  .max(300, "Address must be at most 300 characters.")
+  .optional();
+
 /** Accepts "bn,en" or ["bn","en"]; returns comma-joined known codes. */
 function normalizeLanguages(
   input: string | string[] | undefined | null
@@ -58,6 +82,12 @@ const patientSchema = z.object({
   password: passwordField,
   name: nameField,
   phone: phoneField,
+  dateOfBirth: dobField,
+  presentAddress: addressField,
+  permanentAddress: addressField,
+  agreed: z.literal(true, {
+    message: "You must accept the Terms of Service and Privacy Policy.",
+  }).optional(),
 });
 
 const doctorSchema = z.object({
@@ -93,10 +123,19 @@ const doctorSchema = z.object({
   requiresApproval: z.boolean().optional().default(true),
 });
 
-const registerSchema = z.discriminatedUnion("role", [
-  patientSchema,
-  doctorSchema,
-]);
+const registerSchema = z.preprocess(
+  // Patient-first: a body without "role" (or role "PATIENT") is a patient signup.
+  (raw) => {
+    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+      const obj = raw as Record<string, unknown>;
+      if (obj.role === undefined || obj.role === null || obj.role === "") {
+        return { ...obj, role: ROLES.PATIENT };
+      }
+    }
+    return raw;
+  },
+  z.discriminatedUnion("role", [patientSchema, doctorSchema])
+);
 
 /** lowercase, non-alphanumeric runs -> "-", edges trimmed; fallback "doctor". */
 function slugifyName(name: string): string {
@@ -214,12 +253,15 @@ export async function POST(req: NextRequest) {
       return ok({ user: toSessionUser(user) }, 201);
     }
 
-    // PATIENT
+    // PATIENT (patient-first signup — the only public registration path)
     const user = await store.createPatientUser({
       email: input.email,
       passwordHash,
       name: input.name,
       phone,
+      dateOfBirth: input.dateOfBirth ?? null,
+      presentAddress: input.presentAddress?.trim() || null,
+      permanentAddress: input.permanentAddress?.trim() || null,
     });
 
     await store.createAuditLog({

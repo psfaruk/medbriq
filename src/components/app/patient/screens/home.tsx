@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/app-state";
 import { apiGet } from "@/lib/api-client";
 import { getPreloadedBoot } from "@/lib/boot-data";
-import { searchPreset, setSearchPreset } from "../preset";
+import { setSearchPreset } from "../preset";
 import type { AppointmentDto, DoctorCard, SpecialtyInfo } from "@/lib/types";
 import {
   SectionCard,
@@ -28,6 +28,7 @@ import {
   ArrowRight,
   Stethoscope,
 } from "lucide-react";
+import ProfessionalApplySection from "./role-apply";
 
 /** Home dashboard (master prompt §3.9). */
 export default function HomeScreen() {
@@ -132,6 +133,9 @@ export default function HomeScreen() {
           </Button>
         </div>
       </div>
+
+      {/* Professional applications (patient-first onboarding, §3.1) */}
+      <ProfessionalApplySection />
 
       {/* Quick actions */}
       <div className="grid grid-cols-4 gap-2.5">

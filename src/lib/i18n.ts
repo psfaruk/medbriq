@@ -97,6 +97,13 @@ const en: Record<string, string> = {
   "auth.haveAccount": "Already have an account?",
   "auth.noAccount": "New to MedBricBD?",
   "auth.terms": "By continuing you agree to our Terms of Service and Privacy Policy.",
+  "auth.createAccountSubtitle": "One account for appointments, family records and applications.",
+  "auth.dob": "Date of birth",
+  "auth.presentAddress": "Present address",
+  "auth.permanentAddress": "Permanent address",
+  "auth.sameAddress": "Same as present address",
+  "auth.agree": "I agree to the Terms of Service and Privacy Policy",
+  "auth.patientFirstNote": "Doctor or hospital? Create your account first — after signing in, apply from your dashboard.",
 
   // ── Patient navigation ──────────────────────────────────────────
   "nav.home": "Home",
@@ -119,6 +126,14 @@ const en: Record<string, string> = {
   "home.myBookings": "My bookings",
   "home.familyRecords": "Family records",
   "home.healthLibrary": "Health library",
+  "home.professionalTitle": "Are you a doctor or a hospital?",
+  "home.professionalSubtitle": "Apply from your dashboard — your account upgrades after admin verification.",
+  "home.joinAsDoctor": "Join as a doctor",
+  "home.joinAsDoctorDesc": "Submit your BMDC registration and specialty for verification.",
+  "home.registerHospital": "Register your hospital",
+  "home.registerHospitalDesc": "List your hospital or clinic with branches and departments.",
+  "home.applyTitle": "Apply as a doctor",
+  "home.applyHospitalTitle": "Register your hospital",
 
   // ── Search ──────────────────────────────────────────────────────
   "search.title": "Find doctors",
@@ -774,6 +789,13 @@ const bn: Record<string, string> = {
   "auth.haveAccount": "আগে থেকেই অ্যাকাউন্ট আছে?",
   "auth.noAccount": "মেডব্রিকবিডিতে নতুন?",
   "auth.terms": "চালিয়ে গেলে আপনি আমাদের শর্তাবলী ও গোপনীয়তা নীতিতে সম্মত হচ্ছেন।",
+  "auth.createAccountSubtitle": "অ্যাপয়েন্টমেন্ট, পরিবারের রেকর্ড ও আবেদনের জন্য একটি অ্যাকাউন্ট।",
+  "auth.dob": "জন্মতারিখ",
+  "auth.presentAddress": "বর্তমান ঠিকানা",
+  "auth.permanentAddress": "স্থায়ী ঠিকানা",
+  "auth.sameAddress": "বর্তমান ঠিকানার মতোই",
+  "auth.agree": "আমি সেবার শর্তাবলী ও গোপনীয়তা নীতিতে সম্মত আছি",
+  "auth.patientFirstNote": "চিকিৎসক বা হাসপাতাল? প্রথমে অ্যাকাউন্ট খুলুন — সাইন ইন করে ড্যাশবোর্ড থেকেই আবেদন করুন।",
 
   // ── Patient navigation ──────────────────────────────────────────
   "nav.home": "হোম",
@@ -796,6 +818,14 @@ const bn: Record<string, string> = {
   "home.myBookings": "আমার বুকিং",
   "home.familyRecords": "পরিবারের রেকর্ড",
   "home.healthLibrary": "স্বাস্থ্য লাইব্রেরি",
+  "home.professionalTitle": "আপনি কি চিকিৎসক বা হাসপাতাল?",
+  "home.professionalSubtitle": "ড্যাশবোর্ড থেকেই আবেদন করুন — অ্যাডমিন যাচাইয়ের পর অ্যাকাউন্ট আপগ্রেড হবে।",
+  "home.joinAsDoctor": "চিকিৎসক হিসেবে যোগ দিন",
+  "home.joinAsDoctorDesc": "BMDC নিবন্ধন ও বিশেষত্ব জমা দিন যাচাইয়ের জন্য।",
+  "home.registerHospital": "আপনার হাসপাতাল নিবন্ধন করুন",
+  "home.registerHospitalDesc": "শাখা ও বিভাগসহ হাসপাতাল বা ক্লিনিক যোগ করুন।",
+  "home.applyTitle": "চিকিৎসক হিসেবে আবেদন",
+  "home.applyHospitalTitle": "আপনার হাসপাতাল নিবন্ধন করুন",
 
   // ── Search ──────────────────────────────────────────────────────
   "search.title": "ডাক্তার খুঁজুন",

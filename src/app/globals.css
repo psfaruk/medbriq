@@ -268,3 +268,29 @@
 .pb-safe-nav {
   padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
 }
+
+/* Cinematic video wall: a slow sub-sampled drift (Ken Burns style) so the
+   AI-generated login wall feels alive without distracting from the form.
+   Runs only when prefers-reduced-motion is NOT set. */
+@keyframes video-drift {
+  0% {
+    transform: scale(1.02) translate(0, 0);
+  }
+  50% {
+    transform: scale(1.1) translate(-1.5%, -1%);
+  }
+  100% {
+    transform: scale(1.02) translate(0, 0);
+  }
+}
+
+.animate-video-drift {
+  animation: video-drift 24s ease-in-out infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-video-drift {
+    animation: none;
+  }
+}

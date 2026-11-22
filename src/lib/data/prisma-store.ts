@@ -11,6 +11,8 @@ import type {
   AuthUser,
   AuthUserWithCredentials,
   AvailabilityRuleRecord,
+  ApplyDoctorInput,
+  ApplyHospitalInput,
   CreateAppointmentInput,
   CreateAuditLogInput,
   CreateDoctorAccountInput,
@@ -24,6 +26,7 @@ import type {
   DoctorRecord,
   FeeSettingsHistoryRecord,
   FeeSettingsRecord,
+  HospitalContextRecord,
   HospitalRecord,
   ListDoctorsOptions,
   ModerationReviewRecord,
@@ -322,6 +325,9 @@ export class PrismaStore implements DataStore {
         passwordHash: input.passwordHash,
         name: input.name,
         phone: input.phone,
+        dateOfBirth: input.dateOfBirth ?? null,
+        presentAddress: input.presentAddress ?? null,
+        permanentAddress: input.permanentAddress ?? null,
         role: ROLES.PATIENT,
       },
       include: this.USER_INCLUDE,
@@ -428,6 +434,83 @@ export class PrismaStore implements DataStore {
             specialties: {
               create: { specialtyId: input.specialtyId },
             },
+          },
+        },
+      },
+      include: {
+        doctorProfile: {
+          select: { slug: true, verificationStatus: true },
+        },
+      },
+    });
+    return this.toAuthUser(user);
+  }
+
+  async applyDoctorProfile(userId: string, input: ApplyDoctorInput): Promise<AuthUser> {
+    const existing = await this.db.user.findUnique({
+      where: { id: userId },
+      include: { doctorProfile: { select: { id: true } } },
+    });
+    if (!existing) throw new Error("Account not found.");
+    if (existing.doctorProfile) {
+      throw new Error("This account already has a doctor profile.");
+    }
+    const user = await this.db.user.update({
+      where: { id: userId },
+      data: {
+        role: ROLES.DOCTOR,
+        doctorProfile: {
+          create: {
+            slug: input.profile.slug,
+            verificationStatus: input.profile.verificationStatus,
+            bio: input.profile.bio,
+            experienceYears: input.profile.experienceYears,
+            consultationFee: input.profile.consultationFee,
+            followUpFee: input.profile.followUpFee,
+            videoConsultFee: input.profile.videoConsultFee,
+            regNumber: input.profile.regNumber,
+            city: input.profile.city,
+            chamberAddress: input.profile.chamberAddress,
+            languages: input.profile.languages,
+            supportsVideo: input.profile.supportsVideo,
+            requiresApproval: input.profile.requiresApproval,
+            hospitalId: input.profile.hospitalId,
+            specialties: {
+              create: { specialtyId: input.specialtyId },
+            },
+          },
+        },
+      },
+      include: {
+        doctorProfile: {
+          select: { slug: true, verificationStatus: true },
+        },
+      },
+    });
+    return this.toAuthUser(user);
+  }
+
+  async applyHospitalProfile(userId: string, input: ApplyHospitalInput): Promise<AuthUser> {
+    const existing = await this.db.user.findUnique({
+      where: { id: userId },
+      include: { hospitalProfile: { select: { id: true } } },
+    });
+    if (!existing) throw new Error("Account not found.");
+    if (existing.hospitalProfile) {
+      throw new Error("This account already manages a hospital.");
+    }
+    const user = await this.db.user.update({
+      where: { id: userId },
+      data: {
+        role: ROLES.HOSPITAL,
+        hospitalProfile: {
+          create: {
+            name: input.name,
+            slug: input.slug,
+            city: input.city,
+            address: input.address,
+            phone: input.phone,
+            verificationStatus: "PENDING",
           },
         },
       },
@@ -602,6 +685,14 @@ export class PrismaStore implements DataStore {
 
   async doctorSlugExists(slug: string): Promise<boolean> {
     const existing = await this.db.doctorProfile.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
+    return existing !== null;
+  }
+
+  async hospitalSlugExists(slug: string): Promise<boolean> {
+    const existing = await this.db.hospital.findUnique({
       where: { slug },
       select: { id: true },
     });
@@ -1464,6 +1555,21 @@ export class PrismaStore implements DataStore {
       type: hospital.type,
       doctorCount: hospital.doctors.length,
     }));
+  }
+
+  async getHospitalByUserId(userId: string): Promise<HospitalContextRecord | null> {
+    const hospital = await this.db.hospital.findUnique({
+      where: { userId },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        city: true,
+        verificationStatus: true,
+        verificationNote: true,
+      },
+    });
+    return hospital ?? null;
   }
 
   // ── Admin user directory ───────────────────────

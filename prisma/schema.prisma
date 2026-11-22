@@ -25,6 +25,12 @@ model User {
   passwordHash  String // "" sentinel for OAuth/phone-only accounts (no password set yet)
   name          String
   phone         String?
+  // Patient-first onboarding profile fields (master prompt §3.1):
+  // every account starts as a user/patient; doctors & hospitals apply later
+  // from the dashboard. DOB is an ISO "YYYY-MM-DD" string for store parity.
+  dateOfBirth     String?
+  presentAddress  String?
+  permanentAddress String?
   // Auth provider that created (or most recently linked to) this account:
   // credentials | google | phone. Credential logins remain possible while a
   // password hash exists; see docs/security.md.

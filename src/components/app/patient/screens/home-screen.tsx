@@ -39,6 +39,7 @@ import {
   fmtDateTime,
 } from "@/components/app/shared/ui-kit";
 import { setSearchPreset } from "../parts";
+import ProfessionalApplySection from "./role-apply";
 
 const QUICK_ACTIONS: {
   key: string;
@@ -203,6 +204,9 @@ export default function HomeScreen() {
           ))}
         </div>
       </section>
+
+      {/* ── Professional applications (patient-first onboarding) ── */}
+      <ProfessionalApplySection />
 
       {/* ── Specialty chips ─────────────────────────────────────── */}
       <SectionCard

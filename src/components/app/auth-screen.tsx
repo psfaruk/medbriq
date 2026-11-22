@@ -1,17 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   InputOTP,
   InputOTPGroup,
@@ -27,7 +21,6 @@ import {
   Loader2,
   Sparkles,
   Stethoscope,
-  Building2,
   UserRound,
   ChevronDown,
   Languages,
@@ -187,6 +180,34 @@ export default function AuthScreen() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {/* ── Mobile cinematic video banner ──────────────────── */}
+      <div className="relative h-44 overflow-hidden sm:h-52 lg:hidden">
+        <video
+          className="absolute inset-0 h-full w-full object-cover animate-video-drift"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          poster="/images/auth-side.png"
+          aria-hidden="true"
+        >
+          <source src="/videos/login-wall.mp4" type="video/mp4" />
+        </video>
+        <div
+          className="absolute inset-0 bg-gradient-to-t from-[#172B4D]/95 via-[#1769AA]/55 to-[#13A89E]/20"
+          aria-hidden="true"
+        />
+        <div className="relative flex h-full flex-col justify-end p-5 pb-4 text-white">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-white/70">
+            Bangladesh-first · Global-ready
+          </p>
+          <h2 className="mt-1 max-w-sm text-lg font-bold leading-snug">
+            Healthcare appointments, without the waiting room.
+          </h2>
+        </div>
+      </div>
+
       <div className="flex-1 grid lg:grid-cols-[1.05fr_1fr]">
         {/* ── Left: form column ─────────────────────────────────── */}
         <div className="flex flex-col px-5 sm:px-10 lg:px-16 py-8">
@@ -231,10 +252,7 @@ export default function AuthScreen() {
                 />
               )}
               {authView === "register" && (
-                <RegisterView
-                  specialties={specialties}
-                  onAuthenticated={onAuthenticated}
-                />
+                <RegisterView onAuthenticated={onAuthenticated} />
               )}
               {authView === "otp" && <OtpView onAuthenticated={onAuthenticated} />}
               {authView === "forgot" && <ForgotView />}
@@ -281,7 +299,25 @@ export default function AuthScreen() {
         </div>
 
         {/* ── Right: brand panel (desktop only) ─────────────────── */}
-        <aside className="hidden lg:flex flex-col justify-between bg-brand-gradient p-12 text-white relative overflow-hidden">
+        <aside className="hidden lg:flex flex-col justify-between p-12 text-white relative overflow-hidden bg-[#172B4D]">
+          {/* Cinematic AI-generated video wall; slow drift adds depth. */}
+          <video
+            className="absolute inset-0 h-full w-full object-cover animate-video-drift"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            poster="/images/auth-side.png"
+            aria-hidden="true"
+          >
+            <source src="/videos/login-wall.mp4" type="video/mp4" />
+          </video>
+          {/* Brand gradient overlay keeps every word readable. */}
+          <div
+            className="absolute inset-0 bg-gradient-to-b from-[#172B4D]/88 via-[#1769AA]/65 to-[#13A89E]/35"
+            aria-hidden="true"
+          />
           <div
             className="absolute -right-24 -top-24 h-96 w-96 rounded-full bg-white/10 blur-2xl"
             aria-hidden="true"
@@ -347,31 +383,6 @@ export default function AuthScreen() {
 function WelcomeView({ onDemoToggle }: { onDemoToggle: () => void }) {
   const { t } = useT();
   const { setAuthView } = useAppStore();
-  const roles: {
-    key: RegisterRole;
-    icon: typeof UserRound;
-    title: string;
-    hint: string;
-  }[] = [
-    {
-      key: "PATIENT",
-      icon: UserRound,
-      title: t("auth.rolePatient"),
-      hint: "Book & manage appointments",
-    },
-    {
-      key: "DOCTOR",
-      icon: Stethoscope,
-      title: t("auth.roleDoctor"),
-      hint: "Queue, fees & schedules",
-    },
-    {
-      key: "HOSPITAL",
-      icon: Building2,
-      title: t("auth.roleHospital"),
-      hint: "Branches, doctors & revenue",
-    },
-  ];
   return (
     <div>
       <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold text-primary">
@@ -383,39 +394,49 @@ function WelcomeView({ onDemoToggle }: { onDemoToggle: () => void }) {
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">{t("auth.subtitle")}</p>
 
-      <div className="mt-6 grid grid-cols-3 gap-2">
-        {roles.map((r) => (
-          <button
-            key={r.key}
-            onClick={() => setAuthView("register")}
-            className="group rounded-2xl border border-border bg-card p-3 text-left transition-all hover:border-primary/50 hover:shadow-soft"
-          >
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-soft text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-              <r.icon className="h-4.5 w-4.5" />
-            </span>
-            <p className="mt-2 text-xs font-semibold leading-tight">{r.title}</p>
-            <p className="mt-0.5 text-[10px] text-muted-foreground leading-tight">
-              {r.hint}
+      {/* Patient-first onboarding: ONE account type at signup. */}
+      <div className="mt-6 rounded-2xl border border-primary/25 bg-primary-soft/40 p-4">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <UserRound className="h-5 w-5" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              {t("auth.createAccount")}
             </p>
-          </button>
-        ))}
+            <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+              {t("auth.createAccountSubtitle")}
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-2">
+          <Button className="h-11" onClick={() => setAuthView("register")}>
+            {t("auth.signUp")}
+          </Button>
+          <Button
+            variant="outline"
+            className="h-11"
+            onClick={() => setAuthView("login")}
+          >
+            {t("auth.signIn")}
+          </Button>
+        </div>
       </div>
 
-      <div className="mt-6 space-y-2">
-        <Button
-          className="w-full h-11"
-          onClick={() => setAuthView("login")}
-        >
-          {t("auth.signIn")}
-        </Button>
-        <Button
-          variant="outline"
-          className="w-full h-11"
-          onClick={() => setAuthView("register")}
-        >
-          {t("auth.signUp")}
-        </Button>
+      {/* Doctors & hospitals apply AFTER login (master prompt §3.1). */}
+      <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-dashed border-border bg-muted/40 p-3">
+        <Stethoscope className="mt-0.5 h-4 w-4 shrink-0 text-secondary" aria-hidden="true" />
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {t("auth.patientFirstNote")}
+        </p>
       </div>
+
+      <button
+        onClick={onDemoToggle}
+        className="mt-4 w-full text-center text-xs font-medium text-muted-foreground hover:text-foreground"
+      >
+        {t("profile.demoLogins")}
+      </button>
     </div>
   );
 }
@@ -821,12 +842,11 @@ function ForgotView() {
   );
 }
 
-/* ── Register ─────────────────────────────────────────────────────── */
+
+/* ── Register (patient-first unified signup, master prompt §3.1) ──── */
 function RegisterView({
-  specialties,
   onAuthenticated,
 }: {
-  specialties: SpecialtyInfo[];
   onAuthenticated: (
     user: SessionUser,
     opts?: { viaRegister?: boolean }
@@ -835,94 +855,42 @@ function RegisterView({
   const { t } = useT();
   const { setAuthView } = useAppStore();
   const { toast } = useToast();
-  const [role, setRole] = useState<RegisterRole>("PATIENT");
   const [busy, setBusy] = useState(false);
 
-  // shared fields
+  // Every account starts as a user/patient — doctors and hospitals apply
+  // from the dashboard after signing in (see auth.patientFirstNote).
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [presentAddress, setPresentAddress] = useState("");
+  const [permanentAddress, setPermanentAddress] = useState("");
+  const [sameAddress, setSameAddress] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
-  // doctor fields
-  const [specialtySlug, setSpecialtySlug] = useState("");
-  const [regNumber, setRegNumber] = useState("");
-  const [experienceYears, setExperienceYears] = useState("5");
-  const [consultationFee, setConsultationFee] = useState("1000");
-  const [city, setCity] = useState("Dhaka");
-
-  // hospital fields
-  const [hospitalName, setHospitalName] = useState("");
-  const [hospitalCity, setHospitalCity] = useState("Dhaka");
-  const [hospitalAddress, setHospitalAddress] = useState("");
-
-  const canSubmit = useMemo(() => {
-    if (name.trim().length < 2 || !email || password.length < 8) return false;
-    if (role === "DOCTOR")
-      return (
-        !!specialtySlug &&
-        regNumber.trim().length >= 3 &&
-        Number(consultationFee) > 0
-      );
-    if (role === "HOSPITAL")
-      return hospitalName.trim().length >= 3 && hospitalCity.trim().length >= 2;
-    return true;
-  }, [
-    name,
-    email,
-    password,
-    role,
-    specialtySlug,
-    regNumber,
-    consultationFee,
-    hospitalName,
-    hospitalCity,
-  ]);
+  const canSubmit =
+    name.trim().length >= 2 && !!email && password.length >= 8 && agreed;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
-      let data: { user: SessionUser };
-      if (role === "HOSPITAL") {
-        data = await apiPost<{ user: SessionUser }>(
-          "/api/v2/auth/hospital-register",
-          {
-            name: name.trim(),
-            email,
-            password,
-            hospitalName: hospitalName.trim(),
-            city: hospitalCity.trim(),
-            address: hospitalAddress.trim() || undefined,
-            phone: phone.trim() || undefined,
-          }
-        );
-      } else {
-        data = await apiPost<{ user: SessionUser }>(
-          "/api/v1/auth/register",
-          role === "DOCTOR"
-            ? {
-                role: "DOCTOR",
-                name: name.trim(),
-                email,
-                password,
-                phone: phone.trim() || undefined,
-                specialtySlug,
-                regNumber: regNumber.trim(),
-                experienceYears: Number(experienceYears) || 0,
-                consultationFee: Number(consultationFee),
-                followUpFee: 0,
-                city: city.trim(),
-              }
-            : {
-                role: "PATIENT",
-                name: name.trim(),
-                email,
-                password,
-                phone: phone.trim() || undefined,
-              }
-        );
-      }
+      const data = await apiPost<{ user: SessionUser }>(
+        "/api/v1/auth/register",
+        {
+          role: "PATIENT",
+          name: name.trim(),
+          email,
+          password,
+          phone: phone.trim() || undefined,
+          dateOfBirth: dateOfBirth || undefined,
+          presentAddress: presentAddress.trim() || undefined,
+          permanentAddress: (sameAddress ? presentAddress : permanentAddress)
+            .trim() || undefined,
+          agreed: true,
+        }
+      );
       onAuthenticated(data.user, { viaRegister: true });
     } catch (err) {
       toast({
@@ -947,24 +915,9 @@ function RegisterView({
       <h1 className="text-2xl font-bold tracking-tight">
         {t("auth.createAccount")}
       </h1>
-
-      <Tabs
-        value={role}
-        onValueChange={(v) => setRole(v as RegisterRole)}
-        className="mt-4"
-      >
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="PATIENT" className="text-xs sm:text-sm">
-            {t("auth.rolePatient")}
-          </TabsTrigger>
-          <TabsTrigger value="DOCTOR" className="text-xs sm:text-sm">
-            {t("auth.roleDoctor")}
-          </TabsTrigger>
-          <TabsTrigger value="HOSPITAL" className="text-xs sm:text-sm">
-            {t("auth.roleHospital")}
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {t("auth.createAccountSubtitle")}
+      </p>
 
       <form onSubmit={submit} className="mt-4 space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -975,15 +928,41 @@ function RegisterView({
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={
-                role === "HOSPITAL" ? "Manager name" : "Your full name"
-              }
+              placeholder="Your full name"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="reg-dob">{t("auth.dob")}</Label>
+            <Input
+              id="reg-dob"
+              type="date"
+              required
+              max={new Date().toISOString().slice(0, 10)}
+              value={dateOfBirth}
+              onChange={(e) => setDateOfBirth(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="reg-email">{t("auth.email")}</Label>
+            <Input
+              id="reg-email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
             />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="reg-phone">
               {t("auth.phone")}{" "}
-              <span className="text-muted-foreground">({t("common.optional")})</span>
+              <span className="text-muted-foreground">
+                ({t("common.optional")})
+              </span>
             </Label>
             <Input
               id="reg-phone"
@@ -994,22 +973,13 @@ function RegisterView({
             />
           </div>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="reg-email">{t("auth.email")}</Label>
-          <Input
-            id="reg-email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-          />
-        </div>
+
         <div className="space-y-1.5">
           <Label htmlFor="reg-password">{t("auth.password")}</Label>
           <Input
             id="reg-password"
             type="password"
+            autoComplete="new-password"
             required
             minLength={8}
             value={password}
@@ -1018,100 +988,64 @@ function RegisterView({
           />
         </div>
 
-        {role === "DOCTOR" ? (
-          <div className="grid gap-3 rounded-xl border border-border bg-muted/40 p-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label>{t("search.specialty")}</Label>
-              <Select value={specialtySlug} onValueChange={setSpecialtySlug}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("search.anySpecialty")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {specialties.map((s) => (
-                    <SelectItem key={s.slug} value={s.slug}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="reg-number">BMDC Reg. No.</Label>
-              <Input
-                id="reg-number"
-                required
-                value={regNumber}
-                onChange={(e) => setRegNumber(e.target.value)}
-                placeholder="BMDC-A-12345"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="reg-exp">{t("doctor.experience")} (years)</Label>
-              <Input
-                id="reg-exp"
-                type="number"
-                min={0}
-                max={60}
-                value={experienceYears}
-                onChange={(e) => setExperienceYears(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="reg-fee">
-                {t("booking.consultationFee")} (৳)
-              </Label>
-              <Input
-                id="reg-fee"
-                type="number"
-                min={100}
-                value={consultationFee}
-                onChange={(e) => setConsultationFee(e.target.value)}
-              />
-            </div>
-            <p className="text-[11px] text-muted-foreground sm:col-span-2">
-              Doctor accounts start unverified — an admin reviews your BMDC
-              registration before your profile goes public.
-            </p>
-          </div>
-        ) : null}
+        <div className="space-y-1.5">
+          <Label htmlFor="reg-present-addr">
+            {t("auth.presentAddress")}{" "}
+            <span className="text-muted-foreground">
+              ({t("common.optional")})
+            </span>
+          </Label>
+          <Input
+            id="reg-present-addr"
+            value={presentAddress}
+            onChange={(e) => setPresentAddress(e.target.value)}
+            placeholder="House, road, area, city"
+          />
+        </div>
 
-        {role === "HOSPITAL" ? (
-          <div className="grid gap-3 rounded-xl border border-border bg-muted/40 p-3 sm:grid-cols-2">
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="reg-hospital">Hospital / clinic name</Label>
-              <Input
-                id="reg-hospital"
-                required
-                value={hospitalName}
-                onChange={(e) => setHospitalName(e.target.value)}
-                placeholder="e.g. Shapla Health Complex"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="reg-hcity">City</Label>
-              <Input
-                id="reg-hcity"
-                required
-                value={hospitalCity}
-                onChange={(e) => setHospitalCity(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="reg-haddr">
-                Address <span className="text-muted-foreground">({t("common.optional")})</span>
-              </Label>
-              <Input
-                id="reg-haddr"
-                value={hospitalAddress}
-                onChange={(e) => setHospitalAddress(e.target.value)}
-              />
-            </div>
-            <p className="text-[11px] text-muted-foreground sm:col-span-2">
-              Hospital accounts start pending verification — the platform
-              admin reviews before your dashboard goes live.
-            </p>
-          </div>
-        ) : null}
+        <div className="space-y-1.5">
+          <Label htmlFor="reg-perm-addr">
+            {t("auth.permanentAddress")}{" "}
+            <span className="text-muted-foreground">
+              ({t("common.optional")})
+            </span>
+          </Label>
+          <Input
+            id="reg-perm-addr"
+            disabled={sameAddress}
+            value={sameAddress ? presentAddress : permanentAddress}
+            onChange={(e) => setPermanentAddress(e.target.value)}
+            placeholder="Village/thana, district"
+          />
+          <label
+            htmlFor="reg-same-addr"
+            className="flex cursor-pointer items-center gap-2 pt-0.5 text-xs text-muted-foreground"
+          >
+            <Checkbox
+              id="reg-same-addr"
+              checked={sameAddress}
+              onCheckedChange={(v) => setSameAddress(v === true)}
+            />
+            {t("auth.sameAddress")}
+          </label>
+        </div>
+
+        {/* Explicit agreement — required (master prompt §3.1). */}
+        <label
+          htmlFor="reg-agree"
+          className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-border bg-muted/40 p-3"
+        >
+          <Checkbox
+            id="reg-agree"
+            className="mt-0.5"
+            checked={agreed}
+            onCheckedChange={(v) => setAgreed(v === true)}
+            aria-required="true"
+          />
+          <span className="text-xs leading-relaxed text-muted-foreground">
+            {t("auth.agree")}
+          </span>
+        </label>
 
         <Button type="submit" className="w-full h-11" disabled={busy || !canSubmit}>
           {busy ? (
@@ -1121,6 +1055,14 @@ function RegisterView({
           )}
         </Button>
       </form>
+
+      {/* Doctor / hospital onboarding happens AFTER login. */}
+      <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-dashed border-border bg-muted/40 p-3">
+        <Stethoscope className="mt-0.5 h-4 w-4 shrink-0 text-secondary" aria-hidden="true" />
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {t("auth.patientFirstNote")}
+        </p>
+      </div>
 
       <p className="mt-4 text-center text-xs text-muted-foreground">
         {t("auth.haveAccount")}{" "}

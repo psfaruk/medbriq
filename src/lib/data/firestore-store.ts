@@ -12,6 +12,8 @@ import type {
   AuthUser,
   AuthUserWithCredentials,
   AvailabilityRuleRecord,
+  ApplyDoctorInput,
+  ApplyHospitalInput,
   CreateAppointmentInput,
   CreateAuditLogInput,
   CreateDoctorAccountInput,
@@ -23,6 +25,7 @@ import type {
   DataStore,
   DoctorProfilePatch,
   DoctorRecord,
+  HospitalContextRecord,
   HospitalRecord,
   ListDoctorsOptions,
   ModerationReviewRecord,
@@ -644,6 +647,9 @@ export class FirestoreStore implements DataStore {
         passwordHash: input.passwordHash,
         name: input.name,
         phone: input.phone,
+        dateOfBirth: input.dateOfBirth ?? null,
+        presentAddress: input.presentAddress ?? null,
+        permanentAddress: input.permanentAddress ?? null,
         role: "PATIENT",
         status: "ACTIVE",
         createdAt: now,
@@ -939,6 +945,92 @@ export class FirestoreStore implements DataStore {
       .limit(1)
       .get();
     return !snap.empty;
+  }
+
+  async hospitalSlugExists(slug: string): Promise<boolean> {
+    const snap = await this.fs
+      .collection("hospitals")
+      .where("slug", "==", slug)
+      .limit(1)
+      .get();
+    return !snap.empty;
+  }
+
+  async applyDoctorProfile(userId: string, input: ApplyDoctorInput): Promise<AuthUser> {
+    const { ref: userRef } = await this.getUserDocRef(userId);
+    // Guard: an existing doctor profile for this user blocks re-application.
+    const existingProfile = await this.fs
+      .collection("doctors")
+      .where("userId", "==", userId)
+      .limit(1)
+      .get();
+    if (!existingProfile.empty) {
+      throw new Error("This account already has a doctor profile.");
+    }
+    const doctorId = randomUUID();
+    const now = new Date().toISOString();
+    // Atomic batch: role promotion + doctor profile + specialty link.
+    const batch = this.fs.batch();
+    batch.update(userRef, { role: "DOCTOR", updatedAt: now });
+    batch.set(this.fs.collection("doctors").doc(doctorId), {
+      userId,
+      slug: input.profile.slug,
+      bio: input.profile.bio,
+      experienceYears: input.profile.experienceYears,
+      consultationFee: input.profile.consultationFee,
+      followUpFee: input.profile.followUpFee,
+      videoConsultFee: input.profile.videoConsultFee,
+      regNumber: input.profile.regNumber,
+      verificationStatus: input.profile.verificationStatus,
+      verificationNote: null,
+      verifiedAt: null,
+      city: input.profile.city,
+      country: "Bangladesh",
+      chamberAddress: input.profile.chamberAddress,
+      languages: input.profile.languages,
+      supportsVideo: input.profile.supportsVideo,
+      requiresApproval: input.profile.requiresApproval,
+      photoUrl: null,
+      hospitalId: input.profile.hospitalId,
+      specialtyIds: [input.specialtyId],
+      createdAt: now,
+      updatedAt: now,
+    });
+    await batch.commit();
+    this.invalidateDirectory(); // pending doctors surface in admin review queues
+    return this.toAuthUserById(userId);
+  }
+
+  async applyHospitalProfile(userId: string, input: ApplyHospitalInput): Promise<AuthUser> {
+    const { ref: userRef } = await this.getUserDocRef(userId);
+    const existingHospital = await this.fs
+      .collection("hospitals")
+      .where("userId", "==", userId)
+      .limit(1)
+      .get();
+    if (!existingHospital.empty) {
+      throw new Error("This account already manages a hospital.");
+    }
+    const hospitalId = randomUUID();
+    const now = new Date().toISOString();
+    const batch = this.fs.batch();
+    batch.update(userRef, { role: "HOSPITAL", updatedAt: now });
+    batch.set(this.fs.collection("hospitals").doc(hospitalId), {
+      userId,
+      name: input.name,
+      slug: input.slug,
+      city: input.city,
+      address: input.address,
+      phone: input.phone,
+      about: null,
+      verificationStatus: "PENDING",
+      verificationNote: null,
+      verifiedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await batch.commit();
+    return this.toAuthUserById(userId);
   }
 
   async updateDoctorProfile(id: string, patch: DoctorProfilePatch): Promise<DoctorRecord> {
@@ -1681,6 +1773,27 @@ export class FirestoreStore implements DataStore {
           (d) => d.hospitalId === id && ["VERIFIED", "PENDING"].includes(d.verificationStatus)
         ).length,
       }));
+  }
+
+  async getHospitalByUserId(userId: string): Promise<HospitalContextRecord | null> {
+    const snap = await this.fs
+      .collection("hospitals")
+      .where("userId", "==", userId)
+      .limit(1)
+      .get();
+    if (snap.empty) return null;
+    const doc = snap.docs[0].data() as HospitalDoc & {
+      verificationStatus?: string | null;
+      verificationNote?: string | null;
+    };
+    return {
+      id: snap.docs[0].id,
+      name: doc.name,
+      slug: doc.slug,
+      city: doc.city,
+      verificationStatus: doc.verificationStatus ?? null,
+      verificationNote: doc.verificationNote ?? null,
+    };
   }
 
   // ── Admin user directory ────────────────────────────────────────────
