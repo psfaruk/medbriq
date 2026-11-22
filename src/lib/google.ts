@@ -5,11 +5,13 @@
  *
  *  1. PRODUCTION (default): the client uses the Firebase Auth JS SDK
  *     (signInWithPopup + GoogleAuthProvider) and sends the resulting
- *     Firebase ID token. We verify it with firebase-admin using the
- *     FIREBASE_SERVICE_ACCOUNT credentials — audience (our project),
- *     issuer, expiry and email-verified flags are all checked by the
- *     Admin SDK itself. Requires the Google sign-in provider to be
- *     enabled in the Firebase console.
+ *     Firebase ID token. We verify the JWT ourselves against Google's
+ *     public securetoken certificates (RS256 signature, issuer
+ *     https://securetoken.google.com/<projectId>, audience = project id,
+ *     expiry, email verified) using node:crypto — deliberately NOT
+ *     firebase-admin/auth, whose jwks-rsa/jose chain breaks in the
+ *     serverless bundle (ERR_REQUIRE_ESM). Requires the Google sign-in
+ *     provider to be enabled in the Firebase console.
  *
  *  2. FALLBACK (local experiments): a Google Identity Services (GIS)
  *     JWT is verified against Google's public tokeninfo endpoint, with
@@ -18,12 +20,41 @@
  * Server-side only.
  */
 
-import { cert, getApps, initializeApp } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
+import { createPublicKey, createVerify } from "crypto";
 import { parseServiceAccountEnv } from "@/lib/data/firestore-store";
 
 const TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
+const SECURETOKEN_CERTS_URL =
+  "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com";
 const FETCH_TIMEOUT_MS = 10_000;
+
+/** Cert cache (Google rotates keys every ~few weeks; respect max-age). */
+let certsCache: { keys: Record<string, string>; fetchedAt: number; maxAgeMs: number } | null =
+  null;
+
+async function getSecureTokenCerts(): Promise<Record<string, string> | null> {
+  const now = Date.now();
+  if (certsCache && now - certsCache.fetchedAt < certsCache.maxAgeMs) {
+    return certsCache.keys;
+  }
+  try {
+    const res = await fetch(SECURETOKEN_CERTS_URL, {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    if (!res.ok) return null;
+    const cacheControl = res.headers.get("cache-control") ?? "";
+    const maxAge = /max-age=(\d+)/.exec(cacheControl)?.[1];
+    const keys = (await res.json()) as Record<string, string>;
+    certsCache = {
+      keys,
+      fetchedAt: now,
+      maxAgeMs: maxAge ? Math.min(Number(maxAge) * 1000, 6 * 60 * 60 * 1000) : 60 * 60 * 1000,
+    };
+    return keys;
+  } catch {
+    return null;
+  }
+}
 
 /** Subset of the tokeninfo payload that this module cares about. */
 type GoogleTokenInfo = {
@@ -35,6 +66,45 @@ type GoogleTokenInfo = {
   exp?: string;
 };
 
+/** Fields of a decoded Firebase ID token we verify. */
+type FirebaseIdToken = {
+  header: { alg?: string; kid?: string };
+  payload: {
+    iss?: string;
+    aud?: string;
+    sub?: string;
+    exp?: number;
+    email?: string;
+    email_verified?: boolean;
+    name?: string;
+    picture?: string;
+    firebase?: { sign_in_provider?: string };
+  };
+  rawHeader: string;
+  rawPayload: string;
+  signature: Buffer;
+};
+
+function decodeJwt(credential: string): FirebaseIdToken | null {
+  try {
+    const parts = credential.split(".");
+    if (parts.length !== 3) return null;
+    const rawHeader = parts[0];
+    const rawPayload = parts[1];
+    // accept both Buffer and url-safe base64
+    const header = JSON.parse(
+      Buffer.from(rawHeader, "base64url").toString("utf8")
+    ) as FirebaseIdToken["header"];
+    const payload = JSON.parse(
+      Buffer.from(rawPayload, "base64url").toString("utf8")
+    ) as FirebaseIdToken["payload"];
+    const signature = Buffer.from(parts[2], "base64url");
+    return { header, payload, rawHeader, rawPayload, signature };
+  } catch {
+    return null;
+  }
+}
+
 export function getGoogleClientId(): string | null {
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
   return clientId && clientId.length > 0 ? clientId : null;
@@ -45,18 +115,6 @@ export function isGoogleAuthConfigured(): boolean {
   return parseServiceAccountEnv() !== null || getGoogleClientId() !== null;
 }
 
-/** Get (or lazily create) the firebase-admin app instance for Auth. */
-function getAdminApp() {
-  const serviceAccount = parseServiceAccountEnv();
-  if (!serviceAccount) return null;
-  return (
-    getApps()[0] ??
-    initializeApp({
-      credential: cert(serviceAccount as Parameters<typeof cert>[0]),
-    })
-  );
-}
-
 /** Verified Google identity — provider-agnostic shape used by the auth route. */
 export interface GoogleIdentity {
   email: string;
@@ -64,32 +122,61 @@ export interface GoogleIdentity {
   picture: string | null;
 }
 
-/** Path 1: Firebase Auth ID token, verified with the Admin SDK. */
+/** The Firebase project id the service account belongs to (token audience). */
+function serviceAccountProjectId(): string | null {
+  const sa = parseServiceAccountEnv() as { project_id?: string } | null;
+  return sa?.project_id ?? null;
+}
+
+/**
+ * Path 1: Firebase Auth ID token, verified against Google's public
+ * securetoken certificates (the same keys firebase-admin uses).
+ */
 async function verifyFirebaseIdToken(
   credential: string
 ): Promise<GoogleIdentity | null> {
-  const app = getAdminApp();
-  if (!app) return null;
+  const projectId = serviceAccountProjectId();
+  if (!projectId) return null;
+
+  const decoded = decodeJwt(credential);
+  if (!decoded) return null;
+  // RS256 is the only algorithm Firebase issues — reject anything else
+  // (prevents algorithm-confusion attacks).
+  if (decoded.header.alg !== "RS256" || !decoded.header.kid) return null;
+
+  // Standard claims firebase-admin also enforces.
+  const { payload } = decoded;
+  if (payload.iss !== `https://securetoken.google.com/${projectId}`) return null;
+  if (payload.aud !== projectId) return null;
+  if (!payload.sub || payload.sub.length > 128) return null;
+  if (typeof payload.exp !== "number" || payload.exp * 1000 <= Date.now()) return null;
+
+  // Only accept tokens minted for a Google sign-in (not phone/password
+  // sessions that might leak through the same endpoint).
+  if (payload.firebase?.sign_in_provider !== "google.com") return null;
+  if (payload.email_verified !== true) return null;
+  if (!payload.email || typeof payload.email !== "string") return null;
+
+  // Verify the RS256 signature with the matching public certificate.
+  const certs = await getSecureTokenCerts();
+  if (!certs) return null;
+  const certPem = certs[decoded.header.kid];
+  if (!certPem) return null;
   try {
-    const decoded = await getAuth(app).verifyIdToken(credential, true);
-    // Only accept tokens minted for a Google sign-in (not phone/password
-    // sessions that might leak through the same endpoint).
-    const provider =
-      (decoded.firebase as { sign_in_provider?: string } | undefined)
-        ?.sign_in_provider ?? "google.com";
-    if (provider !== "google.com") return null;
-    if (!decoded.email) return null;
-    if (decoded.email_verified !== true) return null;
-    const email = decoded.email.toLowerCase();
-    return {
-      email,
-      name: decoded.name || email.split("@")[0] || "Google user",
-      picture: decoded.picture ?? null,
-    };
+    const publicKey = createPublicKey(certPem);
+    const verifier = createVerify("RSA-SHA256");
+    verifier.update(`${decoded.rawHeader}.${decoded.rawPayload}`);
+    if (!verifier.verify(publicKey, decoded.signature)) return null;
   } catch {
-    // Invalid, expired, wrong audience/project — uniformly "no".
     return null;
   }
+
+  const email = payload.email.toLowerCase();
+  return {
+    email,
+    name: payload.name || email.split("@")[0] || "Google user",
+    picture: payload.picture ?? null,
+  };
 }
 
 /** Path 2: GIS JWT, verified against Google's public tokeninfo endpoint. */
@@ -142,8 +229,8 @@ async function verifyTokeninfoJwt(
 export async function verifyGoogleIdToken(
   credential: string
 ): Promise<GoogleIdentity | null> {
-  // Try the Firebase Admin path first (production). When there is no
-  // service account the admin verifier returns null immediately.
+  // Try the Firebase securetoken path first (production). When there is
+  // no service account it returns null immediately.
   const viaFirebase = await verifyFirebaseIdToken(credential);
   if (viaFirebase) return viaFirebase;
   // Fall back to the GIS tokeninfo path.
