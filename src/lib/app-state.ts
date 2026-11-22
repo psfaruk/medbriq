@@ -64,6 +64,7 @@ export type PortalView =
   | { name: "calendar" }
   | { name: "faq" }
   | { name: "verify"; d: string }
+  | { name: "legal"; doc?: string }
   | { name: "auth"; mode: "login" | "register" | "forgot" };
 
 /** A booking intent saved before login (spec §12). */
@@ -282,6 +283,9 @@ export function viewToUrl(view: PortalView): string {
     case "verify":
       if (view.d) p.set("d", view.d);
       break;
+    case "legal":
+      if (view.doc) p.set("doc", view.doc);
+      break;
     case "auth":
       if (view.mode !== "login") p.set("mode", view.mode);
       break;
@@ -330,6 +334,8 @@ export function urlToView(search: string): PortalView {
       return { name: "library", category: p.get("category") ?? undefined };
     case "verify":
       return { name: "verify", d: p.get("d") ?? "" };
+    case "legal":
+      return { name: "legal", doc: p.get("doc") ?? undefined };
     case "auth": {
       const mode = p.get("mode");
       return {

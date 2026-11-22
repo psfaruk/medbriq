@@ -12,6 +12,7 @@ import { PhoneCall, ShieldCheck } from "lucide-react";
 import { useAppStore, type PortalView } from "@/lib/app-state";
 import { useT } from "@/components/app/shared/ui-kit";
 import { BrandLogo } from "@/components/app/shared/brand";
+import { LEGAL_DOCS, type LegalLocale } from "@/content/legal";
 import { PortalLink } from "../shared";
 
 type FooterColumn = {
@@ -57,6 +58,18 @@ const COLUMNS: FooterColumn[] = [
 export default function PortalFooter() {
   const { t } = useT();
   const lang = useAppStore((s) => s.lang);
+  const locale = (lang ?? "en") as LegalLocale;
+
+  // Legal & policy documents — bilingual titles straight from the content
+  // registry so the footer never drifts from the Legal Center.
+  const legalLinks: FooterColumn = {
+    titleKey: "portal.footer.legal",
+    links: LEGAL_DOCS.map((d) => ({
+      label: d.title[locale],
+      view: { name: "legal", doc: d.slug } as PortalView,
+    })),
+  };
+  const columns = [...COLUMNS, legalLinks];
 
   return (
     <footer className="mt-auto border-t border-border bg-slate-50">
@@ -75,7 +88,7 @@ export default function PortalFooter() {
       </PortalLink>
 
       <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
-        <div className="grid gap-10 md:grid-cols-[1.4fr_repeat(3,1fr)]">
+        <div className="grid gap-10 md:grid-cols-2 xl:grid-cols-[1.4fr_repeat(4,1fr)]">
           {/* Brand + tagline */}
           <div>
             <div className="flex items-center gap-2">
@@ -97,7 +110,7 @@ export default function PortalFooter() {
           </div>
 
           {/* Link columns */}
-          {COLUMNS.map((col) => (
+          {columns.map((col) => (
             <nav key={col.titleKey} aria-label={t(col.titleKey)}>
               <h3 className="text-sm font-bold uppercase tracking-wide text-foreground">
                 {t(col.titleKey)}

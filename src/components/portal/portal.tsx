@@ -44,6 +44,7 @@ const FaqView = dynamic(() => import("./info/info-views").then((m) => ({ default
 const CalendarView = dynamic(() => import("./info/info-views").then((m) => ({ default: m.CalendarView })), { loading: () => <ViewFallback /> });
 const ToolsView = dynamic(() => import("./tools/tools-view").then((m) => ({ default: m.ToolsView })), { loading: () => <ViewFallback /> });
 const PortalVerifyView = dynamic(() => import("./vvs/verify-view"), { loading: () => <ViewFallback /> });
+const LegalCenterView = dynamic(() => import("./legal/legal-view"), { loading: () => <ViewFallback /> });
 const AuthFrameView = dynamic(() => import("./auth/auth-frame"), { loading: () => <ViewFallback /> });
 
 function ViewFallback() {
@@ -100,6 +101,7 @@ export default function PublicPortal() {
       faq: `FAQ · ${suffix}`,
       tools: `Health Tools · ${suffix}`,
       calendar: `Health Awareness Calendar · ${suffix}`,
+      legal: `Legal & Policies · ${suffix}`,
     };
     document.title = titles[view] ?? suffix;
   }, [portalView]);
@@ -192,6 +194,9 @@ export default function PublicPortal() {
       break;
     case "verify":
       content = <PortalVerifyView payload={portalView.d} />;
+      break;
+    case "legal":
+      content = <LegalCenterView doc={portalView.doc} />;
       break;
     case "home":
     default:

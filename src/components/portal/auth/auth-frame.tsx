@@ -2,21 +2,21 @@
 
 /**
  * Auth gate frame (spec §12): wraps the existing AuthScreen inside the
- * portal with a minimal top bar and — when a booking intent is pending —
- * a context banner explaining exactly what resumes after sign-in.
+ * portal. The screen itself now renders a full-screen cinematic video wall
+ * with an overlaid glass form card, so this frame only maps the portal
+ * auth mode onto the auth view state and — when a booking intent is
+ * pending — passes a context banner explaining exactly what resumes after
+ * sign-in.
  */
 
 import { useEffect } from "react";
-import { ArrowLeft, CalendarClock } from "lucide-react";
+import { CalendarClock } from "lucide-react";
 import { useAppStore } from "@/lib/app-state";
 import { useT } from "@/components/app/shared/ui-kit";
-import { BrandLogo } from "@/components/app/shared/brand";
-import { PortalLink, useTrackPageView } from "../shared";
 import AuthScreen from "@/components/app/auth-screen";
 
 export default function AuthFrameView({ mode }: { mode: "login" | "register" | "forgot" }) {
   const { t } = useT();
-  useTrackPageView(`auth-${mode}`);
   const pendingBooking = useAppStore((s) => s.pendingBooking);
   const setPortalView = useAppStore((s) => s.setPortalView);
 
@@ -32,47 +32,27 @@ export default function AuthFrameView({ mode }: { mode: "login" | "register" | "
     }
   }, [targetView, setAuthView]);
 
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Minimal top bar */}
-      <header className="border-b border-border bg-white">
-        <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
-          <PortalLink
-            view={{ name: "home" }}
-            ariaLabel={t("portal.nav.backToSite")}
-            className="flex items-center gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          >
-            <BrandLogo className="h-7 w-7" />
-            <span className="text-sm font-extrabold text-foreground">MedBricBD</span>
-          </PortalLink>
-          <button
-            type="button"
-            onClick={() => setPortalView({ name: "home" }, { push: true })}
-            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            {t("portal.nav.backToSite")}
-          </button>
-        </div>
-      </header>
-
-      {/* Booking context banner (spec §12) */}
-      {pendingBooking && (
-        <div
-          role="status"
-          className="border-b border-[#13A89E]/30 bg-[#13A89E]/10"
-        >
-          <div className="mx-auto flex w-full max-w-6xl items-start gap-3 px-4 py-3 sm:px-6">
-            <CalendarClock className="mt-0.5 h-5 w-5 shrink-0 text-[#0f8f87]" aria-hidden="true" />
-            <p className="text-sm font-medium leading-relaxed text-[#0f8f87]">
-              {t("portal.auth.bookingNotice", { name: pendingBooking.doctorName })}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* The existing, battle-tested auth flow (login/register/OTP/forgot) */}
-      <AuthScreen />
+  // Booking context banner (spec §12) — floats over the video wall as a
+  // glassy teal strip right under the top bar.
+  const notice = pendingBooking ? (
+    <div className="px-4 pt-1 sm:px-6" role="status">
+      <div className="mx-auto flex w-full max-w-2xl items-start gap-3 rounded-2xl border border-[#13A89E]/50 bg-[#0B1B30]/70 px-4 py-3 shadow-lg backdrop-blur-md">
+        <CalendarClock
+          className="mt-0.5 h-5 w-5 shrink-0 text-[#5EEAD4]"
+          aria-hidden="true"
+        />
+        <p className="text-sm font-medium leading-relaxed text-teal-50">
+          {t("portal.auth.bookingNotice", { name: pendingBooking.doctorName })}
+        </p>
+      </div>
     </div>
+  ) : null;
+
+  return (
+    <AuthScreen
+      notice={notice}
+      onBack={() => setPortalView({ name: "home" }, { push: true })}
+      backLabel={t("portal.nav.backToSite")}
+    />
   );
 }

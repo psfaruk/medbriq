@@ -28,6 +28,8 @@ import {
 import { useAppStore } from "@/lib/app-state";
 import { apiGet, apiPost, ApiCallError } from "@/lib/api-client";
 import { getPreloadedBoot } from "@/lib/boot-data";
+import { legalDocTitle } from "@/content/legal";
+import { PortalLink } from "@/components/portal/shared";
 import type {
   AuthConfig,
   SessionUser,
@@ -35,7 +37,7 @@ import type {
 } from "@/lib/types";
 import { LANGS } from "@/lib/i18n";
 import { track } from "@/lib/analytics";
-import { BrandLogo, BrandWordmark } from "@/components/app/shared/brand";
+import { BrandLogo } from "@/components/app/shared/brand";
 import { useT } from "@/components/app/shared/ui-kit";
 
 /**
@@ -83,7 +85,17 @@ const DEMO_ACCOUNTS: {
   },
 ];
 
-export default function AuthScreen() {
+export default function AuthScreen({
+  notice,
+  onBack,
+  backLabel,
+}: {
+  /** Optional banner (e.g. pending-booking context) rendered over the wall. */
+  notice?: React.ReactNode;
+  /** When provided, renders a “back to site” affordance in the top bar. */
+  onBack?: () => void;
+  backLabel?: string;
+}) {
   const { t } = useT();
   const { authView, setAuthView, setUser, lang, setLang } = useAppStore();
   const { toast } = useToast();
@@ -179,9 +191,12 @@ export default function AuthScreen() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      {/* ── Mobile cinematic video banner ──────────────────── */}
-      <div className="relative h-44 overflow-hidden sm:h-52 lg:hidden">
+    <div className="relative flex min-h-screen flex-col">
+      {/* ── Full-screen cinematic video wall (fixed behind everything) ── */}
+      <div className="fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
+        {/* Static fallback layers: base color + still frame under the video */}
+        <div className="absolute inset-0 bg-[#0B1B30]" />
+        <div className="absolute inset-0 bg-[url('/images/auth-side.png')] bg-cover bg-center" />
         <video
           className="absolute inset-0 h-full w-full object-cover animate-video-drift"
           autoPlay
@@ -190,46 +205,55 @@ export default function AuthScreen() {
           playsInline
           preload="metadata"
           poster="/images/auth-side.png"
-          aria-hidden="true"
         >
           <source src="/videos/login-wall.mp4" type="video/mp4" />
         </video>
-        <div
-          className="absolute inset-0 bg-gradient-to-t from-[#172B4D]/95 via-[#1769AA]/55 to-[#13A89E]/20"
-          aria-hidden="true"
-        />
-        <div className="relative flex h-full flex-col justify-end p-5 pb-4 text-white">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-white/70">
-            Bangladesh-first · Global-ready
-          </p>
-          <h2 className="mt-1 max-w-sm text-lg font-bold leading-snug">
-            Healthcare appointments, without the waiting room.
-          </h2>
-        </div>
+        {/* Brand scrim keeps every overlaid word readable */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0B1B30]/85 via-[#1769AA]/55 to-[#0B1B30]/90" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0B1B30]/55 via-transparent to-[#0B1B30]/40" />
+        <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-[#13A89E]/20 blur-3xl" />
+        <div className="absolute -left-24 bottom-0 h-96 w-96 rounded-full bg-[#1769AA]/25 blur-3xl" />
       </div>
 
-      <div className="flex-1 grid lg:grid-cols-[1.05fr_1fr]">
-        {/* ── Left: form column ─────────────────────────────────── */}
-        <div className="flex flex-col px-5 sm:px-10 lg:px-16 py-8">
-          {/* top bar */}
-          <div className="flex items-center justify-between">
-            <button
-              className="flex items-center gap-2"
-              onClick={() => setAuthView("welcome")}
-              aria-label="MedBricBD home"
-            >
-              <BrandLogo className="h-9 w-9" />
-              <BrandWordmark className="text-xl" />
-            </button>
-            <div className="flex items-center gap-1 rounded-full border border-border bg-card p-1">
+      {/* ── Overlay content (everything sits on the wall) ─────────── */}
+      <div className="relative z-10 flex min-h-screen flex-col">
+        {/* Top bar: brand · back · language */}
+        <header className="flex h-16 shrink-0 items-center justify-between gap-3 px-4 sm:px-6 lg:px-10">
+          <button
+            className="flex items-center gap-2 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            onClick={() => (onBack ? onBack() : setAuthView("welcome"))}
+            aria-label="MedBricBD home"
+          >
+            <BrandLogo className="h-9 w-9 shrink-0 drop-shadow-md" />
+            {/* Wall-specific wordmark: light tints readable on the dark video */}
+            <span className="hidden text-xl font-bold tracking-tight drop-shadow-md sm:inline">
+              <span className="text-white">Med</span>
+              <span className="text-[#A9D6F5]">Bric</span>
+              <span className="text-[#5EEAD4]">BD</span>
+            </span>
+          </button>
+          <div className="flex items-center gap-2 sm:gap-3">
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                aria-label={backLabel ?? "Back to site"}
+                title={backLabel ?? "Back to site"}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/90 shadow-sm backdrop-blur transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:px-3.5"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="hidden sm:inline">{backLabel ?? "Back to site"}</span>
+              </button>
+            )}
+            <div className="flex items-center gap-1 rounded-full border border-white/25 bg-white/10 p-1 shadow-sm backdrop-blur">
               {LANGS.map((l) => (
                 <button
                   key={l.code}
                   onClick={() => setLang(l.code)}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                  className={`rounded-full px-2.5 py-1 text-xs font-semibold transition-colors sm:px-3 ${
                     lang === l.code
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-white text-[#1769AA] shadow"
+                      : "text-white/85 hover:text-white"
                   }`}
                   aria-pressed={lang === l.code}
                 >
@@ -238,144 +262,168 @@ export default function AuthScreen() {
               ))}
             </div>
           </div>
+        </header>
 
-          <div className="flex-1 flex items-center justify-center py-10">
-            <div className="w-full max-w-md animate-rise-in">
-              {authView === "welcome" && (
-                <WelcomeView onDemoToggle={() => setShowDemo((v) => !v)} />
-              )}
-              {authView === "login" && (
-                <LoginView
-                  config={config}
-                  onAuthenticated={onAuthenticated}
-                  onGoogle={googleSignIn}
-                />
-              )}
-              {authView === "register" && (
-                <RegisterView onAuthenticated={onAuthenticated} />
-              )}
-              {authView === "otp" && <OtpView onAuthenticated={onAuthenticated} />}
-              {authView === "forgot" && <ForgotView />}
-            </div>
-          </div>
+        {/* Pending-booking banner (rendered by the portal auth frame) */}
+        {notice}
 
-          {/* demo accounts panel */}
-          <div className="mt-auto">
-            <button
-              className="flex w-full items-center justify-between rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-semibold text-muted-foreground hover:border-primary/40 transition-colors"
-              onClick={() => setShowDemo((v) => !v)}
-              aria-expanded={showDemo}
-            >
-              <span className="flex items-center gap-2">
-                <Sparkles className="h-3.5 w-3.5 text-secondary" />
-                {t("profile.demoLogins")} — one-click review access
-              </span>
-              <ChevronDown
-                className={`h-4 w-4 transition-transform ${showDemo ? "rotate-180" : ""}`}
-              />
-            </button>
-            {showDemo ? (
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                {DEMO_ACCOUNTS.map((acc) => (
-                  <button
-                    key={acc.email}
-                    onClick={() => loginWithDemo(acc.email, acc.password)}
-                    className="rounded-xl border border-border bg-card px-3.5 py-2.5 text-left hover:border-primary/50 hover:shadow-soft transition-all"
+        {/* Main: headline + glass form card, both floating on the wall */}
+        <main className="flex flex-1 items-center justify-center px-4 py-6 pb-safe-nav sm:px-6">
+          <div className="grid w-full max-w-6xl items-center gap-8 lg:grid-cols-[1.05fr_minmax(400px,470px)] lg:gap-12">
+            {/* Headline column (compact on mobile, full on lg) */}
+            <div className="text-center text-white lg:text-left">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/70 sm:text-xs">
+                Bangladesh-first · Global-ready
+              </p>
+              <h2 className="mx-auto mt-2 max-w-xl text-2xl font-bold leading-snug drop-shadow-md sm:text-3xl lg:mx-0 lg:text-[2.75rem] lg:leading-[1.15]">
+                Healthcare appointments, without the waiting room.
+              </h2>
+              <p className="mx-auto mt-3 hidden max-w-md text-sm leading-relaxed text-white/80 sm:block lg:mx-0 lg:text-base">
+                Search verified doctors, compare transparent new/returning
+                patient fees and book chamber visits — instant or with doctor
+                approval.
+              </p>
+              <div className="mt-7 hidden gap-3 lg:grid lg:grid-cols-3">
+                {[
+                  {
+                    icon: ShieldCheck,
+                    title: "Verified doctors",
+                    text: "BMDC registration checked before profiles go live.",
+                  },
+                  {
+                    icon: Wallet,
+                    title: "Transparent fees",
+                    text: "New & returning patient pricing set by each doctor.",
+                  },
+                  {
+                    icon: CalendarCheck,
+                    title: "Reliable booking",
+                    text: "Real-time slots — no double booking, ever.",
+                  },
+                ].map((f) => (
+                  <div
+                    key={f.title}
+                    className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-md"
                   >
-                    <p className="text-xs font-semibold text-foreground">
-                      {acc.label}
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
+                      <f.icon className="h-4.5 w-4.5" aria-hidden="true" />
+                    </span>
+                    <p className="mt-2.5 text-sm font-semibold">{f.title}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-white/70">
+                      {f.text}
                     </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {acc.email}
-                    </p>
-                  </button>
+                  </div>
                 ))}
               </div>
-            ) : null}
-            <p className="mt-3 text-center text-[11px] text-muted-foreground">
-              {t("auth.terms")}
-            </p>
-          </div>
-        </div>
+              <p className="mt-5 hidden text-[11px] text-white/55 lg:block">
+                Demo environment — all doctors, hospitals and payments are
+                fictional sandbox data.
+              </p>
+            </div>
 
-        {/* ── Right: brand panel (desktop only) ─────────────────── */}
-        <aside className="hidden lg:flex flex-col justify-between p-12 text-white relative overflow-hidden bg-[#172B4D]">
-          {/* Cinematic AI-generated video wall; slow drift adds depth. */}
-          <video
-            className="absolute inset-0 h-full w-full object-cover animate-video-drift"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            poster="/images/auth-side.png"
-            aria-hidden="true"
-          >
-            <source src="/videos/login-wall.mp4" type="video/mp4" />
-          </video>
-          {/* Brand gradient overlay keeps every word readable. */}
-          <div
-            className="absolute inset-0 bg-gradient-to-b from-[#172B4D]/88 via-[#1769AA]/65 to-[#13A89E]/35"
-            aria-hidden="true"
-          />
-          <div
-            className="absolute -right-24 -top-24 h-96 w-96 rounded-full bg-white/10 blur-2xl"
-            aria-hidden="true"
-          />
-          <div
-            className="absolute -left-16 bottom-10 h-72 w-72 rounded-full bg-secondary/30 blur-2xl"
-            aria-hidden="true"
-          />
-          <div className="relative">
-            <p className="text-sm font-semibold uppercase tracking-widest text-white/70">
-              Bangladesh-first · Global-ready
-            </p>
-            <h2 className="mt-4 text-4xl font-bold leading-tight">
-              Healthcare appointments,{" "}
-              <span className="text-white/90">without the waiting room.</span>
-            </h2>
-            <p className="mt-4 max-w-md text-white/80">
-              Search verified doctors, compare transparent new/returning
-              patient fees and book chamber visits — instant or with doctor
-              approval.
-            </p>
-          </div>
-          <div className="relative grid gap-4">
-            {[
-              {
-                icon: ShieldCheck,
-                title: "Verified doctors only",
-                text: "BMDC registration checked before profiles go live.",
-              },
-              {
-                icon: Wallet,
-                title: "Transparent fees",
-                text: "New & returning patient pricing set by each doctor.",
-              },
-              {
-                icon: CalendarCheck,
-                title: "Reliable booking",
-                text: "Real-time slots — no double booking, ever.",
-              },
-            ].map((f) => (
-              <div key={f.title} className="flex items-start gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
-                  <f.icon className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold">{f.title}</p>
-                  <p className="text-xs text-white/70">{f.text}</p>
-                </div>
+            {/* Glass card carrying the auth flow (login/register/OTP/forgot) */}
+            <div className="mx-auto w-full max-w-md lg:max-w-none">
+              <div className="animate-rise-in rounded-3xl border border-white/40 bg-white/95 p-5 shadow-2xl shadow-[#0B1B30]/50 backdrop-blur-xl sm:p-8">
+                {authView === "welcome" && (
+                  <WelcomeView onDemoToggle={() => setShowDemo((v) => !v)} />
+                )}
+                {authView === "login" && (
+                  <LoginView
+                    config={config}
+                    onAuthenticated={onAuthenticated}
+                    onGoogle={googleSignIn}
+                  />
+                )}
+                {authView === "register" && (
+                  <RegisterView onAuthenticated={onAuthenticated} />
+                )}
+                {authView === "otp" && <OtpView onAuthenticated={onAuthenticated} />}
+                {authView === "forgot" && <ForgotView />}
               </div>
-            ))}
-            <p className="mt-2 text-[11px] text-white/60">
-              Demo environment — all doctors, hospitals and payments are
-              fictional sandbox data.
-            </p>
+            </div>
           </div>
-        </aside>
+        </main>
+
+        {/* Demo accounts + legal line, floating at the bottom of the wall */}
+        <div className="mx-auto w-full max-w-xl px-4 pb-5 sm:px-6">
+          <button
+            className="flex w-full items-center justify-between rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-xs font-semibold text-white/85 shadow-sm backdrop-blur transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            onClick={() => setShowDemo((v) => !v)}
+            aria-expanded={showDemo}
+          >
+            <span className="flex items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 text-[#5EEAD4]" aria-hidden="true" />
+              {t("profile.demoLogins")} — one-click review access
+            </span>
+            <ChevronDown
+              className={`h-4 w-4 transition-transform ${showDemo ? "rotate-180" : ""}`}
+            />
+          </button>
+          {showDemo ? (
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {DEMO_ACCOUNTS.map((acc) => (
+                <button
+                  key={acc.email}
+                  onClick={() => loginWithDemo(acc.email, acc.password)}
+                  className="rounded-xl border border-white/20 bg-white/10 px-3.5 py-2.5 text-left shadow-sm backdrop-blur transition-all hover:border-white/40 hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                >
+                  <p className="text-xs font-semibold text-white">
+                    {acc.label}
+                  </p>
+                  <p className="text-[11px] text-white/65">
+                    {acc.email}
+                  </p>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <p className="mt-3 text-center text-[11px] leading-relaxed text-white/65">
+            <LegalInlineLinks kind="terms-line" />
+          </p>
+        </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Renders the terms/privacy sentence with real, deep-linkable policy links
+ * (the legal center lives at ?view=legal). Two shapes:
+ *  - "terms-line" — the passive “by continuing…” line
+ *  - "agree" — the explicit registration consent sentence
+ */
+function LegalInlineLinks({ kind }: { kind: "terms-line" | "agree" }) {
+  const { t } = useT();
+  const lang = useAppStore((s) => s.lang);
+  const linkCls =
+    "font-semibold text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-sm";
+  if (kind === "agree") {
+    return (
+      <>
+        {t("auth.agreeLead")}{" "}
+        <PortalLink view={{ name: "legal", doc: "terms" }} className={linkCls}>
+          {legalDocTitle("terms", lang)}
+        </PortalLink>{" "}
+        {t("auth.agreeMid")}{" "}
+        <PortalLink view={{ name: "legal", doc: "privacy" }} className={linkCls}>
+          {legalDocTitle("privacy", lang)}
+        </PortalLink>
+        {t("auth.agreeTrail")}
+      </>
+    );
+  }
+  return (
+    <>
+      {t("auth.termsLead")}{" "}
+      <PortalLink view={{ name: "legal", doc: "terms" }} className={linkCls}>
+        {legalDocTitle("terms", lang)}
+      </PortalLink>{" "}
+      {t("auth.termsJoin")}{" "}
+      <PortalLink view={{ name: "legal", doc: "privacy" }} className={linkCls}>
+        {legalDocTitle("privacy", lang)}
+      </PortalLink>
+      {t("auth.termsTrail")}
+    </>
   );
 }
 
@@ -1043,7 +1091,7 @@ function RegisterView({
             aria-required="true"
           />
           <span className="text-xs leading-relaxed text-muted-foreground">
-            {t("auth.agree")}
+            <LegalInlineLinks kind="agree" />
           </span>
         </label>
 
