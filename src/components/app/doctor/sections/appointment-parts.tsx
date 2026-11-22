@@ -315,8 +315,8 @@ export function AppointmentActionDialogs({
             <DialogTitle>Cancel this appointment?</DialogTitle>
             <DialogDescription>
               {patient} · {ref} · {fmtDateLong(appt.slotStart)} at{" "}
-              {fmtTime(appt.slotStart)}. Any sandbox payment will be refunded
-              and the patient will be notified. This cannot be undone.
+              {fmtTime(appt.slotStart)}. Any online payment already made will
+              be refunded and the patient will be notified. This cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">

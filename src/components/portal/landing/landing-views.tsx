@@ -330,7 +330,7 @@ export function ForProvidersView() {
             Diagnostics, pharmacies & telehealth partners
           </h1>
           <p className="mt-3 text-base leading-relaxed text-muted-foreground">
-            MedBricBD is building a partner ecosystem around doctor discovery:
+            Find Medi Doctor is building a partner ecosystem around doctor discovery:
             diagnostic centers, pharmacies, and — after regulatory review —
             telehealth services. Partner registration is not open yet; this page
             explains what is coming so you can plan ahead.

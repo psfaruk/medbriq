@@ -1,5 +1,5 @@
 /**
- * MedBricBD — Firebase Cloud Messaging service worker.
+ * Find Medi Doctor — Firebase Cloud Messaging service worker.
  *
  * Delivers web-push notifications while the site is in the background and
  * focuses/opens the target URL on click. Uses the firebase *compat* builds
@@ -27,7 +27,7 @@ const messaging = firebase.messaging();
 
 // Background message → OS/browser notification.
 messaging.onBackgroundMessage((payload) => {
-  const title = (payload.notification && payload.notification.title) || "MedBricBD";
+  const title = (payload.notification && payload.notification.title) || "Find Medi Doctor";
   const body = (payload.notification && payload.notification.body) || "";
   const url = payload.data && payload.data.url;
   self.registration.showNotification(title, {

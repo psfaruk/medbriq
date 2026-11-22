@@ -17,22 +17,22 @@ import { parseServiceAccountEnv } from "@/lib/data/firestore-store";
  */
 
 const globalForPush = globalThis as unknown as {
-  __medbriqFcmMessaging: Messaging | null | undefined;
-  __medbriqPushProjectMismatchWarned: boolean | undefined;
+  __fmdFcmMessaging: Messaging | null | undefined;
+  __fmdPushMismatchWarned: boolean | undefined;
 };
 
 function getMessagingFromEnv(): Messaging | null {
-  if (globalForPush.__medbriqFcmMessaging !== undefined) {
-    return globalForPush.__medbriqFcmMessaging;
+  if (globalForPush.__fmdFcmMessaging !== undefined) {
+    return globalForPush.__fmdFcmMessaging;
   }
   const serviceAccount = parseServiceAccountEnv() as
     | { project_id?: string }
     | null;
   if (!serviceAccount) {
     console.warn(
-      "[medbriq-push] FIREBASE_SERVICE_ACCOUNT not set — web push disabled."
+      "[mfmd-push] FIREBASE_SERVICE_ACCOUNT not set — web push disabled."
     );
-    globalForPush.__medbriqFcmMessaging = null;
+    globalForPush.__fmdFcmMessaging = null;
     return null;
   }
   const app: App = getApps().length
@@ -40,7 +40,7 @@ function getMessagingFromEnv(): Messaging | null {
     : initializeApp({
         credential: cert(serviceAccount as Parameters<typeof cert>[0]),
       });
-  globalForPush.__medbriqFcmMessaging = getMessaging(app);
+  globalForPush.__fmdFcmMessaging = getMessaging(app);
 
   // FCM tokens are project-scoped: they can only be delivered by the SAME
   // Firebase project the client app used to register them. Detect the
@@ -51,18 +51,18 @@ function getMessagingFromEnv(): Messaging | null {
     clientProject &&
     serverProject &&
     clientProject !== serverProject &&
-    !globalForPush.__medbriqPushProjectMismatchWarned
+    !globalForPush.__fmdPushMismatchWarned
   ) {
-    globalForPush.__medbriqPushProjectMismatchWarned = true;
+    globalForPush.__fmdPushMismatchWarned = true;
     console.error(
-      `[medbriq-push] CONFIG MISMATCH: client tokens belong to Firebase project ` +
+      `[mfmd-push] CONFIG MISMATCH: client tokens belong to Firebase project ` +
         `"${clientProject}" (NEXT_PUBLIC_FIREBASE_PROJECT_ID) but the server ` +
         `sends via "${serverProject}" (FIREBASE_SERVICE_ACCOUNT). FCM will ` +
         `reject every send with SENDER_ID_MISMATCH. Align both sides on ONE ` +
         `project (service account JSON + web app config + VAPID key).`
     );
   }
-  return globalForPush.__medbriqFcmMessaging;
+  return globalForPush.__fmdFcmMessaging;
 }
 
 export interface PushPayload {
@@ -117,7 +117,7 @@ export async function sendPushToUser(
         }
         if (code.includes("SENDER_ID_MISMATCH")) {
           console.error(
-            "[medbriq-push] SENDER_ID_MISMATCH — client tokens and the " +
+            "[mfmd-push] SENDER_ID_MISMATCH — client tokens and the " +
               "server service account belong to different Firebase projects " +
             "(see the CONFIG MISMATCH log above)."
           );
@@ -128,6 +128,6 @@ export async function sendPushToUser(
       await Promise.all(deadTokens.map((token) => getStore().removePushToken(token)));
     }
   } catch (err) {
-    console.error("[medbriq-push] dispatch failed:", err);
+    console.error("[mfmd-push] dispatch failed:", err);
   }
 }

@@ -6,7 +6,7 @@ import path from "node:path";
  *
  * On Vercel (and any host with a read-only project filesystem) the only
  * writable directory is /tmp. DATABASE_URL points there (e.g.
- * `file:/tmp/medbriq.db`), but the serverless bundle itself is read-only —
+ * `file:/tmp/fmd.db`), but the serverless bundle itself is read-only —
  * so on the first Prisma use of a cold instance we copy the bundled demo
  * database (prisma/seed.db, traced into the function bundle via
  * outputFileTracingIncludes in next.config.ts) to that target path.

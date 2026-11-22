@@ -1,4 +1,4 @@
-# Deploying Medbriq to Vercel — Why It Fails Today & The Fix
+# Deploying Find Medi Doctor to Vercel — Why It Fails Today & The Fix
 
 This document explains exactly why "direct deploy to Vercel" fails for this
 repository right now, and the two supported paths to get a working live URL.
@@ -25,7 +25,7 @@ repository right now, and the two supported paths to get a working live URL.
 
 ### Step 1 — Create the database
 1. Sign up at https://neon.tech (free tier).
-2. Create a project (e.g. `medbriq`) and copy the **connection string**
+2. Create a project (e.g. `findmedidoctor`) and copy the **connection string**
    (`postgresql://...`).
 
 ### Step 2 — Push the schema and seed demo data (from your machine)

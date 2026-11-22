@@ -1,5 +1,5 @@
 /**
- * Medbriq application constants.
+ * Find Medi Doctor application constants.
  * SQLite does not support native Prisma enums, so these string unions are the
  * single source of truth for role/status values. Keep in sync with
  * prisma/schema.prisma comments.
@@ -55,7 +55,7 @@ export type AppointmentType =
   (typeof APPOINTMENT_TYPE)[keyof typeof APPOINTMENT_TYPE];
 
 /** Session cookie name (httpOnly, set by /api/v1/auth/*). */
-export const SESSION_COOKIE = "medbriq_session";
+export const SESSION_COOKIE = "fmd_session";
 /** Session lifetime in days. */
 export const SESSION_TTL_DAYS = 7;
 

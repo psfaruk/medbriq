@@ -1,5 +1,5 @@
 /**
- * MedBricBD Health Library — content type contract.
+ * Find Medi Doctor Health Library — content type contract.
  *
  * Source of truth for all educational content is the typed TS modules in
  * src/content/. Publication state can be overridden per item by admins
@@ -45,7 +45,7 @@ export type ContentPerson = {
 };
 
 export const CONTENT_AUTHOR: ContentPerson = {
-  name: "MedBricBD Health Library Team",
+  name: "Find Medi Doctor Health Library Team",
   role: "Health education editors",
 };
 

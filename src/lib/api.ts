@@ -3,7 +3,7 @@ import { ModuleDisabledError } from "@/lib/modules";
 import { FeeModuleUnavailableError } from "@/lib/data/types";
 
 /**
- * Standard Medbriq API response helpers.
+ * Standard Find Medi Doctor API response helpers.
  * Success: { ok: true, data }
  * Failure: { ok: false, error: { message, code } }
  */
@@ -29,7 +29,7 @@ export function handleRouteError(err: unknown) {
   if (err instanceof FeeModuleUnavailableError) {
     return fail(err.message, 503, "MODULE_DISABLED");
   }
-  console.error("[medbriq-api]", err);
+  console.error("[mfmd-api]", err);
   const message =
     err instanceof Error ? err.message : "Unexpected server error";
   return fail(message, 500, "INTERNAL_ERROR");

@@ -1,10 +1,9 @@
 "use client";
 
 /**
- * MedBricBD brand marks — a clean medical cross + pulse motif in the
+ * Find Medi Doctor brand marks — a clean medical cross + pulse motif in the
  * platform blue (#1769AA), teal accent (#13A89E).
  */
-
 export function BrandLogo({ className = "h-9 w-9" }: { className?: string }) {
   return (
     <svg
@@ -45,9 +44,9 @@ export function BrandWordmark({
 }) {
   return (
     <span className={`font-bold tracking-tight ${className}`}>
-      <span className="text-foreground">Med</span>
-      <span className="text-primary">Bric</span>
-      <span className="text-secondary">BD</span>
+      <span className="text-secondary">Find </span>
+      <span className="text-primary">Medi </span>
+      <span className="text-foreground">Doctor</span>
       {showSuffix ? (
         <span className="sr-only"> — find and book verified doctors</span>
       ) : null}

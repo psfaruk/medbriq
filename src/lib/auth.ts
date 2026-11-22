@@ -10,7 +10,7 @@ import {
 } from "@/lib/constants";
 
 /**
- * Medbriq authentication (server-side only).
+ * Find Medi Doctor authentication (server-side only).
  *
  * Strategy for the MVP:
  * - Passwords hashed with scrypt (Node built-in; no external dependency) —

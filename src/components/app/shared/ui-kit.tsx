@@ -19,7 +19,7 @@ import { useAppStore } from "@/lib/app-state";
 import { translate } from "@/lib/i18n";
 
 /**
- * MedBricBD shared UI kit — the reusable primitives every interface uses
+ * Find Medi Doctor shared UI kit — the reusable primitives every interface uses
  * (master prompt §10: reusable component library, consistent spacing and
  * colors, loading/empty/error states everywhere).
  */
@@ -418,15 +418,15 @@ export function ErrorState({
   );
 }
 
-// ── Demo data notice (honesty requirement, master prompt §10) ──────
+// ── Inline info notice for dashboard sections ─────────
 export function DemoNotice({ children }: { children?: ReactNode }) {
   return (
     <p className="rounded-xl border border-border bg-muted/60 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
       {children ?? (
         <>
-          <strong className="text-foreground">Demo environment.</strong> All
-          doctors, hospitals and payments shown are fictional sandbox data —
-          no real medical service or money movement.
+          <strong className="text-foreground">Platform data.</strong> All
+          doctors, hospitals, appointments and fees on Find Medi Doctor are
+          real production records managed by verified users.
         </>
       )}
     </p>

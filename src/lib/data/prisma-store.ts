@@ -46,7 +46,7 @@ import type {
 import { ReferenceCodeCollisionError, SlotConflictError } from "./types";
 
 /**
- * Medbriq local data store — Prisma + SQLite (development default).
+ * Find Medi Doctor local data store — Prisma + SQLite (development default).
  *
  * All query logic here was moved VERBATIM out of the v1 API routes,
  * src/lib/auth.ts and src/lib/slots.ts during the dual-store refactor; the
@@ -56,19 +56,19 @@ import { ReferenceCodeCollisionError, SlotConflictError } from "./types";
  */
 
 const globalForPrisma = globalThis as unknown as {
-  __medbriqPrismaStoreClient: PrismaClient | undefined;
+  __fmdPrismaStoreClient: PrismaClient | undefined;
 };
 
 function getClient(): PrismaClient {
-  if (!globalForPrisma.__medbriqPrismaStoreClient) {
+  if (!globalForPrisma.__fmdPrismaStoreClient) {
     // Serverless bootstrap: copy the bundled demo SQLite file to the
     // writable /tmp target on Vercel (no-op locally / on Firestore).
     ensureSqliteFile();
-    globalForPrisma.__medbriqPrismaStoreClient = new PrismaClient({
+    globalForPrisma.__fmdPrismaStoreClient = new PrismaClient({
       log: process.env.NODE_ENV === "production" ? ["error"] : ["query"],
     });
   }
-  return globalForPrisma.__medbriqPrismaStoreClient;
+  return globalForPrisma.__fmdPrismaStoreClient;
 }
 
 /** Prisma include resolving everything the DoctorRecord needs. */

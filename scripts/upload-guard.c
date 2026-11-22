@@ -9,7 +9,7 @@
 // Build: gcc -shared -fPIC -O2 -o upload-guard.so upload-guard.c -ldl
 // Use:   LD_PRELOAD=/path/upload-guard.so node ...
 //
-// MEDBRIC_UPLOAD_LOG=1 additionally logs every blocked call (stderr) so the
+// FMD_UPLOAD_LOG=1 additionally logs every blocked call (stderr) so the
 // offending walker can be identified.
 
 #define _GNU_SOURCE
@@ -43,7 +43,7 @@ static int is_upload(const char *p) {
 static int log_enabled(void) {
     static int cached = -1;
     if (cached == -1) {
-        const char *v = getenv("MEDBRIC_UPLOAD_LOG");
+        const char *v = getenv("FMD_UPLOAD_LOG");
         cached = v ? (v[0] == '2' ? 2 : 1) : 0;
     }
     return cached;

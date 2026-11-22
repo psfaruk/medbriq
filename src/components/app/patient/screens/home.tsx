@@ -344,8 +344,8 @@ export default function HomeScreen() {
 
       <SectionCard>
         <p className="text-xs leading-relaxed text-muted-foreground">
-          All doctors, hospitals and payments in this demo are fictional
-          sandbox data — no real medical service. For emergencies call{" "}
+          Every doctor profile is reviewed before it goes live. Health
+          content is educational — not medical advice. For emergencies call{" "}
           <strong className="text-destructive">999</strong>.
         </p>
       </SectionCard>

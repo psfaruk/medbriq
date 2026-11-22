@@ -6,7 +6,7 @@
  * One DashboardShell + eleven sections: overview, today's queue,
  * appointments manager, patient visit lookup, fee settings (doctor-wise
  * pricing), weekly schedule, chambers, earnings, reviews, profile and
- * settings. All data comes from the finished MedBricBD API — this file is
+ * settings. All data comes from the finished Find Medi Doctor API — this file is
  * presentation only.
  */
 

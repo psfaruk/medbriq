@@ -434,7 +434,7 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
 
       const res = await apiPost<BookingResult>("/api/v1/appointments", body);
 
-      // optional sandbox online payment (booking already exists — never block)
+      // optional online payment (booking already exists — never block)
       if (payOnline) {
         try {
           await apiPost("/api/v2/payments", {

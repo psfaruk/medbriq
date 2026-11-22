@@ -2,7 +2,7 @@ import type { Article } from "../types";
 import { CONTENT_AUTHOR } from "../types";
 
 /**
- * MedBricBD Health Library — articles, batch 2 (demo dataset).
+ * Find Medi Doctor Health Library — articles, batch 2 (demo dataset).
  *
  * Same honesty rules as articles.ts: items are marked PUBLISHED so the demo
  * portal shows a working library, but medicalReviewer is deliberately null —

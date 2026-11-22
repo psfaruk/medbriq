@@ -1,4 +1,4 @@
-# Medbriq — Database
+# Find Medi Doctor — Database
 
 Source of truth: [`prisma/schema.prisma`](../prisma/schema.prisma). Runtime: **SQLite**
 (dev, free-first MVP); the schema is designed to be **PostgreSQL-portable** (production

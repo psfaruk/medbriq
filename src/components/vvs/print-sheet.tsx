@@ -125,7 +125,7 @@ function SheetPart({
     <div className="vvs-part">
       <div className="vvs-head">
         <div className="vvs-brand">
-          MedBricBD
+          Find Medi Doctor
           <small>VERIFIED APPOINTMENT · ভেরিফায়েড অ্যাপয়েন্টমেন্ট</small>
         </div>
         <div className="vvs-copytag">
@@ -241,7 +241,7 @@ function SheetPart({
           </div>
         ) : (
           <div className="vvs-signbox">
-            <span className="lbl">Verified by MedBricBD</span>
+            <span className="lbl">Verified by Find Medi Doctor</span>
             <span className="ln">Doc v{form.documentVersion} · VVS</span>
           </div>
         )}

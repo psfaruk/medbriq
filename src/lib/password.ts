@@ -1,7 +1,7 @@
 import { randomBytes, scryptSync, timingSafeEqual } from "crypto";
 
 /**
- * Medbriq password hashing (pure module — no Next.js imports).
+ * Find Medi Doctor password hashing (pure module — no Next.js imports).
  *
  * Extracted from src/lib/auth.ts so that standalone scripts (prisma/seed.ts,
  * scripts/firestore-seed.ts) can reuse the exact same hashing without pulling

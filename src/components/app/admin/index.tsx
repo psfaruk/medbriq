@@ -41,7 +41,7 @@ import VvsAdminSection from "./sections/vvs-section";
 import type { SupportTicketItem } from "./types";
 
 /**
- * AdminDashboard — the MedBricBD super admin web panel (master prompt §7).
+ * AdminDashboard — the Find Medi Doctor super admin web panel (master prompt §7).
  *
  * One DashboardShell + twelve sections keyed by `adminSection` in the app
  * store. The nav carries live badges for the doctor verification queue and

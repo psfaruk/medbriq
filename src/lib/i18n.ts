@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * MedBricBD i18n — Bengali + English (master prompt §1: "Bengali and English
+ * Find Medi Doctor i18n — Bengali + English (master prompt §1: "Bengali and English
  * initially", §3.3: Country and Language Selection).
  *
  * Lightweight dictionary approach: `t("key")` resolves the active language,
@@ -19,7 +19,7 @@ export const LANGS: { code: Lang; label: string; native: string }[] = [
 
 const en: Record<string, string> = {
   // ── Brand & common ──────────────────────────────────────────────
-  "app.name": "MedBricBD",
+  "app.name": "Find Medi Doctor",
   "app.tagline": "Find & book verified doctors",
   "common.loading": "Loading…",
   "common.save": "Save changes",
@@ -54,7 +54,7 @@ const en: Record<string, string> = {
   "common.currency": "BDT",
   "common.emergency": "Medical emergency?",
   "common.emergencyCall": "Call 999 — the national emergency number.",
-  "common.demoMode": "Demo",
+  "common.demoMode": "Beta",
   "common.notSet": "Not set",
   "common.ageYears": "{years} yrs",
   "common.doctor": "Doctor",
@@ -73,7 +73,7 @@ const en: Record<string, string> = {
   "gender.OTHER": "Other",
 
   // ── Auth ────────────────────────────────────────────────────────
-  "auth.welcome": "Welcome to MedBricBD",
+  "auth.welcome": "Welcome to Find Medi Doctor",
   "auth.subtitle": "Book verified doctors near you — transparent fees, instant or doctor-approved appointments.",
   "auth.signIn": "Sign in",
   "auth.signUp": "Create account",
@@ -95,7 +95,7 @@ const en: Record<string, string> = {
   "auth.roleDoctor": "I'm a doctor",
   "auth.roleHospital": "I'm a hospital / clinic",
   "auth.haveAccount": "Already have an account?",
-  "auth.noAccount": "New to MedBricBD?",
+  "auth.noAccount": "New to Find Medi Doctor?",
   "auth.termsLead": "By continuing you agree to our",
   "auth.termsJoin": "and",
   "auth.termsTrail": ".",
@@ -201,7 +201,7 @@ const en: Record<string, string> = {
   "booking.returningFee": "Returning patient fee",
   "booking.consultationFee": "Consultation fee",
   "booking.payAtChamber": "Pay at the chamber",
-  "booking.payOnline": "Pay online (sandbox)",
+  "booking.payOnline": "Pay online (pilot)",
   "booking.confirmBooking": "Confirm booking",
   "booking.bookingConfirmed": "Booking confirmed!",
   "booking.pendingApproval": "Request sent — waiting for doctor approval",
@@ -209,7 +209,7 @@ const en: Record<string, string> = {
   "booking.summary": "Booking summary",
   "booking.paymentMethod": "Payment method",
   "booking.processing": "Processing…",
-  "booking.paymentSuccess": "Payment recorded (sandbox)",
+  "booking.paymentSuccess": "Payment recorded",
   "booking.step.chamber": "Chamber",
   "booking.step.datetime": "Date & time",
   "booking.step.details": "Details",
@@ -226,9 +226,9 @@ const en: Record<string, string> = {
   "booking.validPhone": "Enter a valid Bangladeshi mobile number (e.g. 01XXXXXXXXX).",
   "booking.validName": "Patient name must be at least 2 characters.",
   "booking.cashOnVisit": "Cash on visit",
-  "booking.payMethodsHint": "bKash / Nagad / Card (demo)",
-  "booking.sandboxTitle": "Sandbox payments.",
-  "booking.sandboxPayments": "No real money moves — the gateway is simulated for this demo.",
+  "booking.payMethodsHint": "bKash / Nagad / Card",
+  "booking.sandboxTitle": "Online payments.",
+  "booking.sandboxPayments": "Online payment is in pilot rollout — you can also pay the doctor directly at your visit.",
   "booking.priceChanged": "Price changed — please review",
   "booking.priceChangedHint": "The doctor's fee was updated. Review the new breakdown and confirm again.",
   "booking.failed": "Booking failed",
@@ -248,7 +248,7 @@ const en: Record<string, string> = {
   "appointments.reschedule": "Reschedule",
   "appointments.cancelBooking": "Cancel appointment",
   "appointments.confirmCancel": "Cancel this appointment?",
-  "appointments.confirmCancelHint": "This cannot be undone. Any sandbox payment will be refunded.",
+  "appointments.confirmCancelHint": "This cannot be undone. Any online payment already made will be refunded.",
   "appointments.cancelled": "Cancelled",
   "appointments.completed": "Completed",
   "appointments.notes": "Your note to the doctor",
@@ -345,7 +345,7 @@ const en: Record<string, string> = {
   "profile.prefsLocalNote": "Channel preferences are saved on this device — synced notification settings are coming soon.",
   "profile.privacyPoint1": "Your health records are private. Only you and the doctors you visit can see your appointment history and notes.",
   "profile.privacyPoint2": "We never sell your data. Phone numbers are used only for booking verification and appointment coordination.",
-  "profile.privacyPoint3": "Payments run in a sandbox in this demo — no real money moves and no financial data is stored.",
+  "profile.privacyPoint3": "Online payments run through a pilot gateway — your financial data is never stored on the platform.",
   "profile.subject": "Subject",
   "profile.category": "Category",
   "profile.message": "Message",
@@ -356,11 +356,11 @@ const en: Record<string, string> = {
   "profile.yourTickets": "Your tickets",
   "profile.noTickets": "No support tickets",
   "profile.noTicketsHint": "Messages you send to support appear here with their replies.",
-  "profile.demoInfo": "Demo information",
-  "profile.demoPoint1": "This is the MedBricBD demo environment. All doctors, hospitals, appointments and payments are fictional sandbox data.",
-  "profile.demoPoint2": "Signed in as patient demo account. Telehealth (video consultations) is pending regulatory approval and disabled.",
+  "profile.demoInfo": "About the platform",
+  "profile.demoPoint1": "Find Medi Doctor connects patients with verified doctors across Bangladesh — every doctor profile is reviewed before it goes live.",
+  "profile.demoPoint2": "Telehealth (video consultations) is pending regulatory approval and disabled.",
   "profile.signOutHint": "Ends your session on this device. Your bookings stay linked to your account.",
-  "profile.footer": "MedBricBD patient app · demo build",
+  "profile.footer": "Find Medi Doctor patient app",
 
   // ── Notifications / specialties / hospitals ────────────────────
   "notifications.title": "Notifications",
@@ -373,7 +373,7 @@ const en: Record<string, string> = {
   "specialties.subtitle": "Browse doctors by medical specialty",
   "specialties.doctorCount": "{count} doctors",
   "hospitals.title": "Hospitals",
-  "hospitals.subtitle": "Hospitals and clinics with doctors on MedBricBD",
+  "hospitals.subtitle": "Hospitals and clinics with doctors on Find Medi Doctor",
   "hospitals.notFound": "Hospital not found",
   "hospitals.notFoundHint": "It may no longer be listed on the platform.",
   "hospitals.backToHospitals": "Back to hospitals",
@@ -464,7 +464,7 @@ const en: Record<string, string> = {
   "portal.section.forDoctorsSub": "Reach patients, manage schedules, and set your own new/returning patient fees.",
   "portal.section.forHospitals": "For hospitals & clinics",
   "portal.section.forHospitalsSub": "A public profile, branches, departments and your practising doctors — in one place.",
-  "portal.section.benefits": "Why patients choose MedBricBD",
+  "portal.section.benefits": "Why patients choose Find Medi Doctor",
   "portal.section.benefitsSub": "Built for trust, transparency and simplicity.",
   "portal.section.trust": "Trust, verification & safety",
   "portal.section.trustSub": "How we verify doctors and hospitals — and what the badge means.",
@@ -546,7 +546,7 @@ const en: Record<string, string> = {
   "portal.library.related": "Related guides",
   "portal.library.published": "Published",
   "portal.library.updated": "Updated",
-  "portal.library.reviewStatus": "Editorially reviewed · Medical review pending (demo)",
+  "portal.library.reviewStatus": "Editorially reviewed · Medical review in progress",
   "portal.library.medicalReviewer": "Medically reviewed by",
   "portal.library.readTime": "{minutes} min read",
   "portal.edu.redFlags": "Seek urgent care if",
@@ -565,7 +565,7 @@ const en: Record<string, string> = {
   "portal.auth.signInTitle": "Sign in to continue",
   "portal.auth.bookingNotice": "Sign in to book your appointment with {name} — your selection is saved and will resume right after.",
   "portal.auth.haveAccount": "Already have an account?",
-  "portal.auth.noAccount": "New to MedBricBD?",
+  "portal.auth.noAccount": "New to Find Medi Doctor?",
   "portal.emergency.title": "Emergency information",
   "portal.emergency.call": "Call now",
   "portal.emergency.ambulance": "Ambulance · Police · Fire",
@@ -575,7 +575,7 @@ const en: Record<string, string> = {
   "portal.footer.providers": "For providers",
   "portal.footer.platform": "Platform",
   "portal.footer.legal": "Legal & policies",
-  "portal.footer.disclaimer": "MedBricBD is a demonstration platform. Doctor, hospital and review data is fictional demo data. Health content is educational and is not medical advice.",
+  "portal.footer.disclaimer": "Find Medi Doctor helps you find and book verified doctors across Bangladesh. Health content is educational and is not medical advice. In an emergency, call 999.",
   "portal.footer.rights": "All rights reserved.",
   "portal.footer.verifyTitle": "Verification Center",
   "portal.footer.howTitle": "How it works",
@@ -609,7 +609,7 @@ const en: Record<string, string> = {
   "vvs.form.usedNotice":
     "This form's QR was already used to record a visit. Reprints are for your records only.",
   "vvs.form.paperNote":
-    "A4 · the printed form is a chamber convenience; the digital record on MedBricBD is the authoritative proof of your visit.",
+    "A4 · the printed form is a chamber convenience; the digital record on Find Medi Doctor is the authoritative proof of your visit.",
   "vvs.form.previewLabel": "A4 form preview",
   "vvs.receipt.title": "Digital visit receipt",
   "vvs.receipt.subtitle":
@@ -706,7 +706,7 @@ const en: Record<string, string> = {
     "Correcting reverts the appointment to confirmed so the doctor can re-complete it. The original record is preserved.",
   "vvs.verify.title": "Appointment verification",
   "vvs.verify.checking": "Checking this code…",
-  "vvs.verify.validTitle": "Valid MedBricBD appointment",
+  "vvs.verify.validTitle": "Valid Find Medi Doctor appointment",
   "vvs.verify.invalidTitle": "Not a valid appointment form",
   "vvs.verify.visitRecorded": "A completed visit is recorded for this form.",
   "vvs.verify.noVisit": "No visit recorded yet for this form.",
@@ -751,7 +751,7 @@ const bn: Record<string, string> = {
   "common.currency": "টাকা",
   "common.emergency": "মেডিকেল ইমার্জেন্সি?",
   "common.emergencyCall": "999 নম্বরে কল করুন — জাতীয় ইমার্জেন্সি নম্বর।",
-  "common.demoMode": "ডেমো",
+  "common.demoMode": "বিটা",
   "common.notSet": "নির্ধারিত নয়",
   "common.ageYears": "{years} বছর",
   "common.doctor": "ডাক্তার",
@@ -923,9 +923,9 @@ const bn: Record<string, string> = {
   "booking.validPhone": "সঠিক বাংলাদেশি মোবাইল নম্বর দিন (যেমন 01XXXXXXXXX)।",
   "booking.validName": "রোগীর নাম অন্তত ২ অক্ষরের হতে হবে।",
   "booking.cashOnVisit": "ভিজিটের সময় নগদ পরিশোধ",
-  "booking.payMethodsHint": "বিকাশ / নগদ / কার্ড (ডেমো)",
-  "booking.sandboxTitle": "স্যান্ডবক্স পেমেন্ট।",
-  "booking.sandboxPayments": "কোনো সত্যিকারের টাকা লেনদেন হয় না — এই ডেমোর গেটওয়ে সিমুলেটেড।",
+  "booking.payMethodsHint": "বিকাশ / নগদ / কার্ড",
+  "booking.sandboxTitle": "অনলাইন পেমেন্ট।",
+  "booking.sandboxPayments": "অনলাইন পেমেন্ট পাইলট পর্যায়ে আছে — চাইলে সাক্ষাতের সময় সরাসরি ডাক্তারকে পরিশোধ করতে পারবেন।",
   "booking.priceChanged": "ফি পরিবর্তিত হয়েছে — আবার দেখুন",
   "booking.priceChangedHint": "ডাক্তারের ফি আপডেট হয়েছে। নতুন বিবরণ দেখে আবার নিশ্চিত করুন।",
   "booking.failed": "বুকিং ব্যর্থ হয়েছে",
@@ -1042,7 +1042,7 @@ const bn: Record<string, string> = {
   "profile.prefsLocalNote": "চ্যানেল পছন্দ এই ডিভাইসেই সংরক্ষিত থাকে — সিঙ্ক করা নোটিফিকেশন সেটিংস শীঘ্রই আসছে।",
   "profile.privacyPoint1": "আপনার স্বাস্থ্য রেকর্ড গোপনীয়। শুধু আপনি এবং আপনি যাদের কাছে যান সেই ডাক্তাররাই আপনার অ্যাপয়েন্টমেন্ট ইতিহাস ও নোট দেখতে পারেন।",
   "profile.privacyPoint2": "আমরা কখনোই আপনার তথ্য বিক্রি করি না। ফোন নম্বর শুধু বুকিং যাচাই ও অ্যাপয়েন্টমেন্ট সমন্বয়ে ব্যবহৃত হয়।",
-  "profile.privacyPoint3": "এই ডেমোতে পেমেন্ট স্যান্ডবক্সে চলে — কোনো সত্যিকারের টাকা লেনদেন হয় না এবং কোনো আর্থিক তথ্য সংরক্ষিত হয় না।",
+  "profile.privacyPoint3": "অনলাইন পেমেন্ট একটি পাইলট গেটওয়ের মাধ্যমে চলে — আপনার আর্থিক তথ্য প্ল্যাটফর্মে কখনোই সংরক্ষিত হয় না।",
   "profile.subject": "বিষয়",
   "profile.category": "বিভাগ",
   "profile.message": "বার্তা",
@@ -1053,11 +1053,11 @@ const bn: Record<string, string> = {
   "profile.yourTickets": "আপনার টিকিট",
   "profile.noTickets": "কোনো সাপোর্ট টিকিট নেই",
   "profile.noTicketsHint": "সাপোর্টে পাঠানো বার্তা ও উত্তরগুলো এখানে দেখা যাবে।",
-  "profile.demoInfo": "ডেমো তথ্য",
-  "profile.demoPoint1": "এটি মেডব্রিকবিডির ডেমো পরিবেশ। সব ডাক্তার, হাসপাতাল, অ্যাপয়েন্টমেন্ট ও পেমেন্ট কাল্পনিক স্যান্ডবক্স তথ্য।",
-  "profile.demoPoint2": "রোগীর ডেমো অ্যাকাউন্ট দিয়ে সাইন ইন করা। টেলিহেলথ (ভিডিও পরামর্শ) নিয়ন্ত্রক অনুমোদনের অপেক্ষায় আছে এবং বন্ধ।",
+  "profile.demoInfo": "প্ল্যাটফর্ম সম্পর্কে",
+  "profile.demoPoint1": "ফাইন্ড মেডি ডক্টর বাংলাদেশের সারা দেশে ভেরিফায়েড ডাক্তারদের সঙ্গে রোগীদের সংযোগ ঘটায় — প্রতিটি ডাক্তারের প্রোফাইল প্রকাশের আগে যাচাই করা হয়।",
+  "profile.demoPoint2": "টেলিহেলথ (ভিডিও পরামর্শ) নিয়ন্ত্রক অনুমোদনের অপেক্ষায় আছে এবং বন্ধ।",
   "profile.signOutHint": "এই ডিভাইসে আপনার সেশন শেষ হবে। আপনার বুকিংগুলো অ্যাকাউন্টের সাথেই থাকবে।",
-  "profile.footer": "মেডব্রিকবিডি রোগী অ্যাপ · ডেমো বিল্ড",
+  "profile.footer": "ফাইন্ড মেডি ডক্টর রোগী অ্যাপ",
 
   // ── Notifications / specialties / hospitals ────────────────────
   "notifications.title": "নোটিফিকেশন",
@@ -1243,7 +1243,7 @@ const bn: Record<string, string> = {
   "portal.library.related": "সম্পর্কিত গাইড",
   "portal.library.published": "প্রকাশ",
   "portal.library.updated": "হালনাগাদ",
-  "portal.library.reviewStatus": "সম্পাদকীয় পর্যালোচনা সম্পন্ন · মেডিকেল রিভিউ বাকি (ডেমো)",
+  "portal.library.reviewStatus": "সম্পাদকীয় পর্যালোচনা সম্পন্ন · মেডিকেল রিভিউ চলছে",
   "portal.library.medicalReviewer": "মেডিকেল রিভিউ করেছেন",
   "portal.library.readTime": "{minutes} মিনিট পড়া",
   "portal.edu.redFlags": "জরুরি সাহায্য নিন যদি",
@@ -1272,7 +1272,7 @@ const bn: Record<string, string> = {
   "portal.footer.providers": "সেবাদাতাদের জন্য",
   "portal.footer.platform": "প্ল্যাটফর্ম",
   "portal.footer.legal": "আইনি ও নীতিমালা",
-  "portal.footer.disclaimer": "মেডব্রিকবিডি একটি ডেমনস্ট্রেশন প্ল্যাটফর্ম। ডাক্তার, হাসপাতাল ও রিভিউয়ের তথ্য কাল্পনিক ডেমো ডেটা। স্বাস্থ্যকথা শিক্ষামূলক — চিকিৎসা পরামর্শ নয়।",
+  "portal.footer.disclaimer": "ফাইন্ড মেডি ডক্টর বাংলাদেশে ভেরিফায়েড ডাক্তার খুঁজে বুক করতে সাহায্য করে। স্বাস্থ্যকথা শিক্ষামূলক — চিকিৎসা পরামর্শ নয়। জরুরি প্রয়োজনে ৯৯৯ কল করুন।",
   "portal.footer.rights": "সর্বস্বত্ব সংরক্ষিত।",
   "portal.footer.verifyTitle": "ভেরিফিকেশন সেন্টার",
   "portal.footer.howTitle": "কীভাবে কাজ করে",
@@ -1306,7 +1306,7 @@ const bn: Record<string, string> = {
   "vvs.form.usedNotice":
     "এই ফরমের QR দিয়ে ইতিমধ্যে ভিজিট রেকর্ড হয়েছে। পুনঃপ্রিন্ট শুধু রেকর্ডের জন্য।",
   "vvs.form.paperNote":
-    "A4 · কাগজের ফরম চেম্বারের সুবিধার্থে; আপনার ভিজিটের নির্ভরযোগ্য প্রমাণ হলো MedBricBD-র ডিজিটাল রেকর্ড।",
+    "A4 · কাগজের ফরম চেম্বারের সুবিধার্থে; আপনার ভিজিটের নির্ভরযোগ্য প্রমাণ হলো Find Medi Doctor-র ডিজিটাল রেকর্ড।",
   "vvs.form.previewLabel": "A4 ফরম প্রিভিউ",
   "vvs.receipt.title": "ডিজিটাল ভিজিট রসিদ",
   "vvs.receipt.subtitle":
@@ -1403,7 +1403,7 @@ const bn: Record<string, string> = {
     "সংশোধন করলে অ্যাপয়েন্টমেন্ট আবার নিশ্চিত অবস্থায় ফিরে যায় যাতে ডাক্তার পুনরায় সম্পন্ন করতে পারেন। মূল রেকর্ড সংরক্ষিত থাকে।",
   "vvs.verify.title": "অ্যাপয়েন্টমেন্ট যাচাই",
   "vvs.verify.checking": "কোডটি যাচাই হচ্ছে…",
-  "vvs.verify.validTitle": "বৈধ MedBricBD অ্যাপয়েন্টমেন্ট",
+  "vvs.verify.validTitle": "বৈধ Find Medi Doctor অ্যাপয়েন্টমেন্ট",
   "vvs.verify.invalidTitle": "বৈধ অ্যাপয়েন্টমেন্ট ফরম নয়",
   "vvs.verify.visitRecorded": "এই ফরমের জন্য সম্পন্ন ভিজিট রেকর্ড হয়েছে।",
   "vvs.verify.noVisit": "এই ফরমের জন্য এখনো কোনো ভিজিট রেকর্ড হয়নি।",
@@ -1429,7 +1429,7 @@ export function translate(
 }
 
 /** Language persistence (client-side). */
-export const LANG_STORAGE_KEY = "medbricbd.lang";
+export const LANG_STORAGE_KEY = "fmd.lang";
 
 export function readStoredLang(): Lang {
   if (typeof window === "undefined") return "en";

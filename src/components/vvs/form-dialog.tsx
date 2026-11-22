@@ -103,7 +103,7 @@ export default function VvsFormDialog({
     try {
       await vvsDownloadPdf(
         sheet,
-        `MedBricBD-Appointment-${doc.appointment.referenceCode}.pdf`
+        `Find Medi Doctor-Appointment-${doc.appointment.referenceCode}.pdf`
       );
     } finally {
       setDownloading(false);

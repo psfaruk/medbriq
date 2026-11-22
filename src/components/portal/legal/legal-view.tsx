@@ -98,7 +98,7 @@ export default function LegalCenterView({ doc }: { doc?: string }) {
         <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
           {locale === "bn"
             ? "মেডব্রিকবিডি চলার নিয়ম — শর্তাবলী, গোপনীয়তা, ভূমিকা, সতর্কতা ও আরও সবকিছু, সহজ ভাষায়। প্রতিটি দলিল বাংলা ও ইংরেজি দুই ভাষাতেই পড়া যায়।"
-            : "The rules MedBricBD runs by — terms, privacy, roles, safety warnings and more, in plain language. Every document is available in both Bangla and English."}
+            : "The rules Find Medi Doctor runs by — terms, privacy, roles, safety warnings and more, in plain language. Every document is available in both Bangla and English."}
         </p>
       </header>
 
@@ -136,7 +136,7 @@ export default function LegalCenterView({ doc }: { doc?: string }) {
           aria-label={locale === "bn" ? "নীতিমালা দলিল" : "Policy documents"}
           className="hidden lg:block"
         >
-          <div className="medbriq-scroll sticky top-24 max-h-[calc(100vh-8rem)] space-y-1 overflow-y-auto rounded-2xl border border-border bg-card p-2">
+          <div className="app-scroll sticky top-24 max-h-[calc(100vh-8rem)] space-y-1 overflow-y-auto rounded-2xl border border-border bg-card p-2">
             {LEGAL_DOCS.map((d) => {
               const DIcon = DOC_ICONS[d.icon];
               const isActive = d.slug === current.slug;

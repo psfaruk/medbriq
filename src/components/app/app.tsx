@@ -26,7 +26,7 @@ const AdminDashboard = dynamic(() => import("@/components/app/admin"), {
 // Guests get the PUBLIC PORTAL (discovery + education, no login required);
 // sign-in happens only through the portal's auth gate view.
 const PublicPortal = dynamic(() => import("@/components/portal/portal"), {
-  loading: () => <DashboardFallback label="MedBricBD" />,
+  loading: () => <DashboardFallback label="Find Medi Doctor" />,
 });
 
 function DashboardFallback({ label }: { label: string }) {
@@ -56,7 +56,7 @@ type BootstrapPayload = {
 };
 
 /**
- * MedBricBD root application (single-route SPA on "/").
+ * Find Medi Doctor root application (single-route SPA on "/").
  *
  * Boot: ONE /api/v1/bootstrap request resolves the session AND the public
  * data the first screen needs (previously a 3–5 request waterfall, each
@@ -127,7 +127,7 @@ export default function App() {
         <div className="flex flex-col items-center gap-3" role="status">
           <span className="h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
           <p className="text-xs font-medium text-muted-foreground">
-            Loading MedBricBD…
+            Loading Find Medi Doctor…
           </p>
         </div>
       </div>

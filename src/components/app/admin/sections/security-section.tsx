@@ -29,7 +29,7 @@ const CAPABILITIES: Capability[] = [
   {
     key: "booking",
     label: "Book & pay for appointments",
-    hint: "Patient-side booking flow with sandbox payments",
+    hint: "Patient-side booking flow with online payments",
     roles: { PATIENT: true, DOCTOR: false, HOSPITAL: false, ADMIN: false },
   },
   {
@@ -71,7 +71,7 @@ const CAPABILITIES: Capability[] = [
   {
     key: "ledger",
     label: "Payment ledger & refunds",
-    hint: "Sandbox refunds, commission settings",
+    hint: "Refunds, commission settings",
     roles: { PATIENT: false, DOCTOR: false, HOSPITAL: false, ADMIN: true },
   },
 ];
@@ -187,7 +187,7 @@ export default function SecuritySection() {
               <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
               <p className="leading-relaxed text-muted-foreground">
                 <strong className="text-foreground">Active sessions note.</strong>{" "}
-                Demo accounts share one session per browser; signing out revokes
+                Each account holds one session per browser; signing out revokes
                 the server session immediately.
               </p>
             </li>
@@ -200,9 +200,9 @@ export default function SecuritySection() {
             <li className="flex items-start gap-2.5">
               <Server className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <p className="leading-relaxed text-muted-foreground">
-                <strong className="text-foreground">SQLite locally, Firestore when configured.</strong>{" "}
+                <strong className="text-foreground">SQLite locally, Firestore in production.</strong>{" "}
                 The dual-store data layer keeps data in the deployment region —
-                no cross-region replication in this demo.
+                no cross-region replication.
               </p>
             </li>
             <li className="flex items-start gap-2.5">

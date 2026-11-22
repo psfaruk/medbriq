@@ -2,7 +2,7 @@
 
 /**
  * appointment-details.tsx — full appointment view (new style) with
- * reschedule, cancel, sandbox pay-now and post-visit review actions.
+ * reschedule, cancel, online pay-now and post-visit review actions.
  */
 
 import { useEffect, useState } from "react";
@@ -272,7 +272,7 @@ function CancelDialog({
   );
 }
 
-// ── sandbox pay dialog ──────────────────────────────────────────────
+// ── online pay dialog ──────────────────────────────────────────────
 
 function PayDialog({
   appointment,

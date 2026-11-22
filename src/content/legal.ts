@@ -58,19 +58,19 @@ export const LEGAL_DOCS: LegalDoc[] = [
     updated: LEGAL_UPDATED,
     title: { en: "Terms of Service", bn: "সেবার শর্তাবলী" },
     short: {
-      en: "The rules for using MedBricBD",
+      en: "The rules for using Find Medi Doctor",
       bn: "মেডব্রিকবিডি ব্যবহারের নিয়মাবলী",
     },
     intro: {
-      en: "These Terms govern your use of MedBricBD — a doctor-discovery and chamber-appointment platform operating in Bangladesh. By browsing while signed in, creating an account or booking an appointment you accept them.",
+      en: "These Terms govern your use of Find Medi Doctor — a doctor-discovery and chamber-appointment platform operating in Bangladesh. By browsing while signed in, creating an account or booking an appointment you accept them.",
       bn: "এই শর্তাবলী মেডব্রিকবিডি — বাংলাদেশে পরিচালিত একটি ডাক্তার-অনুসন্ধান ও চেম্বার-অ্যাপয়েন্টমেন্ট প্ল্যাটফর্ম — ব্যবহারের নিয়ম নির্ধারণ করে। সাইন ইন করে ব্রাউজ করলে, অ্যাকাউন্ট খুললে বা অ্যাপয়েন্টমেন্ট নিলে আপনি এতে সম্মত হচ্ছেন।",
     },
     sections: {
       en: [
         {
-          heading: "1. What MedBricBD is",
+          heading: "1. What Find Medi Doctor is",
           body: [
-            "MedBricBD connects patients with independent, BMDC-registered doctors who practice at their own chambers, and lists verified hospitals and clinics across Bangladesh. We help you discover, compare and book — we do not practice medicine ourselves.",
+            "Find Medi Doctor connects patients with independent, BMDC-registered doctors who practice at their own chambers, and lists verified hospitals and clinics across Bangladesh. We help you discover, compare and book — we do not practice medicine ourselves.",
           ],
           bullets: [
             "A searchable directory of doctors with specialties, chambers, schedules and transparent new/returning patient fees.",
@@ -93,7 +93,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
         {
           heading: "3. Doctor and hospital partners",
           body: [
-            "Providers using the platform commit to truthful credentials, accurate schedules and honouring the fees displayed at booking time. A doctor's Verified badge means the platform has checked their BMDC registration — clinical responsibility for your care always remains with the treating doctor and institution, not with MedBricBD.",
+            "Providers using the platform commit to truthful credentials, accurate schedules and honouring the fees displayed at booking time. A doctor's Verified badge means the platform has checked their BMDC registration — clinical responsibility for your care always remains with the treating doctor and institution, not with Find Medi Doctor.",
           ],
         },
         {
@@ -108,7 +108,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
         {
           heading: "5. Fees and payments",
           body: [
-            "Each doctor sets their own chamber fees — including separate new and returning patient pricing — and displays them on their profile. MedBricBD charges no booking fee and never holds patient money: chamber fees are settled directly at the chamber, and any refund of a chamber fee follows the doctor's or institution's own policy. Online payments remain disabled in this deployment.",
+            "Each doctor sets their own chamber fees — including separate new and returning patient pricing — and displays them on their profile. Find Medi Doctor charges no booking fee and never holds patient money: chamber fees are settled directly at the chamber, and any refund of a chamber fee follows the doctor's or institution's own policy. Online payments remain disabled in this deployment.",
           ],
         },
         {
@@ -208,7 +208,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
       bn: "আমরা কী সংগ্রহ করি ও কীভাবে রক্ষা করি",
     },
     intro: {
-      en: "This policy explains what personal data MedBricBD collects, why, who can see it, and the choices you control. Plain language, no fine print.",
+      en: "This policy explains what personal data Find Medi Doctor collects, why, who can see it, and the choices you control. Plain language, no fine print.",
       bn: "এই নীতিতে ব্যাখ্যা করা হয়েছে মেডব্রিকবিডি কী ব্যক্তিগত তথ্য সংগ্রহ করে, কেন করে, কারা দেখতে পায় এবং আপনার নিয়ন্ত্রণে কী কী আছে। সহজ ভাষায়, কোনো সূক্ষ্ম অক্ষর ছাড়াই।",
     },
     sections: {
@@ -338,7 +338,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
       bn: "আপনার চিকিৎসা রেকর্ড কারা দেখতে পায়",
     },
     intro: {
-      en: "Medical information deserves a higher bar than ordinary data. This document explains exactly how visit records, doctor notes and Verified Visit data are protected on MedBricBD.",
+      en: "Medical information deserves a higher bar than ordinary data. This document explains exactly how visit records, doctor notes and Verified Visit data are protected on Find Medi Doctor.",
       bn: "চিকিৎসা-সংক্রান্ত তথ্য সাধারণ তথ্যের চেয়ে বেশি সুরক্ষা পাওয়ার যোগ্য। এই দলিলে ব্যাখ্যা করা হয়েছে মেডব্রিকবিডিতে ভিজিট রেকর্ড, ডাক্তারের নোট ও ভেরিফায়েড ভিজিটের তথ্য ঠিক কীভাবে সুরক্ষিত থাকে।",
     },
     sections: {
@@ -432,7 +432,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
       bn: "রোগী, চিকিৎসক, হাসপাতাল ও অ্যাডমিন",
     },
     intro: {
-      en: "MedBricBD uses a patient-first account model: everyone registers the same way, and provider roles are granted only after an in-dashboard application and verification. Here is exactly what each role can and cannot do.",
+      en: "Find Medi Doctor uses a patient-first account model: everyone registers the same way, and provider roles are granted only after an in-dashboard application and verification. Here is exactly what each role can and cannot do.",
       bn: "মেডব্রিকবিডি রোগী-প্রথম অ্যাকাউন্ট মডেল ব্যবহার করে: সবাই একইভাবে নিবন্ধন করেন, এবং প্রোভাইডার ভূমিকা দেওয়া হয় শুধু ড্যাশবোর্ড-আবেদন ও যাচাইয়ের পর। প্রতিটি ভূমিকা ঠিক কী পারে আর কী পারে না, তা এখানে।",
     },
     sections: {
@@ -572,7 +572,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
         {
           heading: "4. Video consultations are disabled",
           body: [
-            "Telehealth features are deliberately switched off in this deployment until DGHS/BMDC telemedicine compliance is confirmed. All appointments on MedBricBD are physical chamber visits.",
+            "Telehealth features are deliberately switched off in this deployment until DGHS/BMDC telemedicine compliance is confirmed. All appointments on Find Medi Doctor are physical chamber visits.",
           ],
         },
         {
@@ -820,7 +820,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
       bn: "বুকিং বাতিল ও ফি কীভাবে কাজ করে",
     },
     intro: {
-      en: "Life happens — appointments get missed. Here is exactly how cancellation, doctor-side changes, no-shows and fee refunds work on MedBricBD.",
+      en: "Life happens — appointments get missed. Here is exactly how cancellation, doctor-side changes, no-shows and fee refunds work on Find Medi Doctor.",
       bn: "জীবনে সব পরিকল্পনা ঠিক থাকে না — অ্যাপয়েন্টমেন্ট মিস হয়। মেডব্রিকবিডিতে বাতিলকরণ, ডাক্তার-পক্ষের পরিবর্তন, নো-শো ও ফি ফেরত ঠিক কীভাবে কাজ করে, তা-ই এখানে।",
     },
     sections: {
@@ -846,7 +846,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
         {
           heading: "4. Chamber fee refunds",
           body: [
-            "MedBricBD never holds your money — chamber fees are paid directly at the chamber. If a fee was already paid at the chamber and the visit did not happen for reasons within the doctor's control, the refund follows that doctor's or institution's own published policy; our support channel will help you reach the right person.",
+            "Find Medi Doctor never holds your money — chamber fees are paid directly at the chamber. If a fee was already paid at the chamber and the visit did not happen for reasons within the doctor's control, the refund follows that doctor's or institution's own published policy; our support channel will help you reach the right person.",
           ],
         },
         {

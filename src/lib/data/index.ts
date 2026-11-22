@@ -3,7 +3,7 @@ import { PrismaStore } from "./prisma-store";
 import { FirestoreStore, parseServiceAccountEnv } from "./firestore-store";
 
 /**
- * Medbriq dual data-store selection.
+ * Find Medi Doctor dual data-store selection.
  *
  * - FIREBASE_SERVICE_ACCOUNT set (and valid JSON) → FirestoreStore, backed by
  *   the Firebase project named in the service account, database id from
@@ -17,7 +17,7 @@ import { FirestoreStore, parseServiceAccountEnv } from "./firestore-store";
  */
 
 const globalForStore = globalThis as unknown as {
-  __medbriqDataStore: DataStore | undefined;
+  __fmdDataStore: DataStore | undefined;
   __medbriqStoreKind: StoreKind | undefined;
 };
 
@@ -33,11 +33,11 @@ export function storeKind(): StoreKind {
 
 /** The process-wide DataStore instance (Firestore in production, Prisma locally). */
 export function getStore(): DataStore {
-  if (!globalForStore.__medbriqDataStore) {
-    globalForStore.__medbriqDataStore =
+  if (!globalForStore.__fmdDataStore) {
+    globalForStore.__fmdDataStore =
       storeKind() === "firestore" ? new FirestoreStore() : new PrismaStore();
   }
-  return globalForStore.__medbriqDataStore;
+  return globalForStore.__fmdDataStore;
 }
 
 export type { DataStore, StoreKind } from "./types";

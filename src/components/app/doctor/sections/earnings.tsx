@@ -109,7 +109,7 @@ export default function EarningsSection() {
     <div className="space-y-5">
       <PageHeader
         title="Earnings"
-        subtitle="Revenue from completed consultations. Sandbox payouts — no real money movement."
+        subtitle="Revenue from completed consultations. Platform commission 10% — payouts settled monthly."
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -258,9 +258,9 @@ export default function EarningsSection() {
       </SectionCard>
 
       <DemoNotice>
-        <strong className="text-foreground">Sandbox earnings</strong> —
-        platform commission is simulated at 10%. No real payouts are processed
-        in this demo environment.
+        <strong className="text-foreground">Earnings.</strong> Platform
+        commission is 10% of collected consultation fees. Payouts are
+        settled to your registered account.
       </DemoNotice>
     </div>
   );

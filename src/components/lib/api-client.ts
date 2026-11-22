@@ -1,10 +1,10 @@
 "use client";
 
 /**
- * Shared client helpers for the Medbriq API envelope:
+ * Shared client helpers for the Find Medi Doctor API envelope:
  *   { ok: true, data } | { ok: false, error: { message, code } }
  *
- * Extracted from the patterns in src/components/views/auth-view.tsx so new
+ * Extracted from the patterns in the legacy auth view so new
  * components (notification bell, settings view, ...) can share one copy.
  */
 

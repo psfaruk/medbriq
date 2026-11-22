@@ -382,9 +382,9 @@ export default function OverviewSection() {
       ) : null}
 
       <DemoNotice>
-        <strong className="text-foreground">Demo environment.</strong> Signed
-        in as the demo doctor account (doctor@medbriq.dev). All patients,
-        appointments and payments shown are fictional sandbox data.
+        <strong className="text-foreground">Production data.</strong> You are
+        viewing real platform records — patient details are confidential and
+        covered by the Health Data &amp; Confidentiality policy.
       </DemoNotice>
 
       {dialogs}

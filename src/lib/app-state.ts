@@ -6,7 +6,7 @@ import type { Lang } from "@/lib/i18n";
 import { readStoredLang, storeLang } from "@/lib/i18n";
 
 /**
- * MedBricBD application state.
+ * Find Medi Doctor application state.
  *
  * The product is a single-route SPA (only "/" is user-visible), so all
  * navigation lives here: the patient app runs a screen + history stack,
@@ -252,7 +252,7 @@ export function hydrateLang() {
 
 // ── Portal view ↔ URL (?view=…&slug=…&…) ───────────────────────────
 
-const PENDING_BOOKING_KEY = "medbricbd.pendingBooking";
+const PENDING_BOOKING_KEY = "fmd.pendingBooking";
 
 /** Serialize a portal view into a shareable URL on the single "/" route. */
 export function viewToUrl(view: PortalView): string {

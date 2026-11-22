@@ -784,7 +784,7 @@ export function OnlineConsultation() {
             Video consultations — coming after compliance review
           </h3>
           <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            Telehealth is a regulated service in Bangladesh. MedBricBD keeps video
+            Telehealth is a regulated service in Bangladesh. Find Medi Doctor keeps video
             consultations switched off until the required regulatory and clinical
             review is complete. Today, all bookings are in-person visits at the
             doctor&apos;s chamber — with transparent fees shown before you confirm.

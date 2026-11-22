@@ -10,7 +10,7 @@ import type {
 import type { AppointmentDto } from "@/lib/types";
 
 /**
- * Shared server-side helpers for the Medbriq booking engine routes.
+ * Shared server-side helpers for the Find Medi Doctor booking engine routes.
  *
  * This folder is prefixed with "_" so Next.js treats it as a private
  * (non-routable) folder — it is only ever imported by /api/v1 route handlers.
@@ -105,7 +105,7 @@ export async function logAppointmentAction(
       meta: JSON.stringify(meta),
     });
   } catch (err) {
-    console.error("[medbriq-audit]", action, err);
+    console.error("[mfmd-audit]", action, err);
   }
 }
 
@@ -140,7 +140,7 @@ export async function notifyUser(
       meta: meta ? JSON.stringify(meta) : null,
     });
   } catch (err) {
-    console.error("[medbriq-notify]", err);
+    console.error("[mfmd-notify]", err);
   }
   // Best-effort web push (fire-and-forget — see src/lib/push.ts). The
   // in-app notification above stays the source of truth.

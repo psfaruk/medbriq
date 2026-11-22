@@ -1,6 +1,6 @@
 # Public Portal Upgrade — Phase 0 Audit & Implementation Plan
 
-> Product goal: transform MedBricBD from a login-first appointment app into a
+> Product goal: transform Find Medi Doctor from a login-first appointment app into a
 > **public healthcare discovery portal** (no login to browse) with a
 > **login-gated application** (booking, records, dashboards) behind it.
 > Original request: "Public Healthcare Discovery Portal + Login-Gated Application".

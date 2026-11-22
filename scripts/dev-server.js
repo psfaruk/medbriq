@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
- * MedBricBD dev-server launcher.
+ * Find Medi Doctor dev-server launcher.
  *
  * Responsibilities:
  *  1. Sandbox FUSE immunity: /home/z/my-project/upload is a network mount
@@ -27,7 +27,7 @@ const nextBin = path.join(root, "node_modules", "next", "dist", "bin", "next");
 const env = {
   ...process.env,
   NEXT_TELEMETRY_DISABLED: "1",
-  MEDBRIC_PROJECT_ROOT: root,
+  FMD_PROJECT_ROOT: root,
   // This sandbox has ~3.9GB RAM shared with a browser, platform services and
   // stuck processes; an uncapped webpack dev server balloons past 1.4GB and
   // gets OOM-killed. 900MB keeps it alive at the cost of slower compiles.

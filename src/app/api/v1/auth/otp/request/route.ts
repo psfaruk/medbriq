@@ -33,6 +33,17 @@ export async function POST(req: NextRequest) {
   try {
     const now = Date.now();
 
+    // SECURITY: with the console SMS provider the OTP is echoed back in the
+    // response — in production that would let anyone take over any phone
+    // number. Refuse phone OTP entirely until a real provider is wired up.
+    if (isDevOtpMode() && process.env.NODE_ENV === "production") {
+      return fail(
+        "Phone sign-in is temporarily unavailable. Please use email or Google.",
+        503,
+        "OTP_NOT_AVAILABLE"
+      );
+    }
+
     const body = await req.json().catch(() => null);
     const parsed = requestSchema.safeParse(body);
     if (!parsed.success) {

@@ -170,7 +170,7 @@ export function VerificationCenterView() {
           {t("portal.footer.verifyTitle")}
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-          Trust is earned through transparency. Here is exactly how MedBricBD
+          Trust is earned through transparency. Here is exactly how Find Medi Doctor
           verifies doctors and hospitals, what the badges mean, and what we
           deliberately do NOT claim.
         </p>

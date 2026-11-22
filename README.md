@@ -1,6 +1,6 @@
-# Medbriq
+# Find Medi Doctor
 
-**Medbriq** (Med + **briq**, from *bridge*) is a global doctor discovery & healthcare platform that **bridges patients and doctors**: find verified doctors, book appointments instantly or by doctor approval, and manage the whole booking lifecycle — for patients, doctors, and platform administrators.
+**Find Medi Doctor** (Med + **briq**, from *bridge*) is a global doctor discovery & healthcare platform that **bridges patients and doctors**: find verified doctors, book appointments instantly or by doctor approval, and manage the whole booking lifecycle — for patients, doctors, and platform administrators.
 
 - **Initial market:** Bangladesh (Asia/Dhaka, UTC+6, BDT, national emergency number **999**)
 - **Architecture:** country-extensible by design (see [docs/architecture.md](docs/architecture.md))
@@ -107,9 +107,9 @@ Other useful commands:
 
 | Role | Email | Password | Identity |
 | --- | --- | --- | --- |
-| Admin | `admin@medbriq.dev` | `Admin@Medbriq123` | Platform Admin |
-| Doctor | `doctor@medbriq.dev` | `Doctor@123` | Dr. Ayesha Rahman (verified) |
-| Patient | `patient@medbriq.dev` | `Patient@123` | Rahim Uddin |
+| Admin | `admin@findmedidoctor.dev` | `Admin@Find Medi Doctor123` | Platform Admin |
+| Doctor | `doctor@findmedidoctor.dev` | `Doctor@123` | Dr. Ayesha Rahman (verified) |
+| Patient | `patient@findmedidoctor.dev` | `Patient@123` | Rahim Uddin |
 
 Additional seeded (fictional) doctors share the password `Doctor@123`; extra demo patients
 (`patient2@`, `patient3@`…) share `Patient@123`. All seeded doctor registration numbers are
@@ -243,7 +243,7 @@ code style, and the strict **no-secrets / fictional-demo-data-only** policies.
 
 ## License
 
-Proprietary — **all rights reserved** (© 2026 Medbriq). No open-source license is granted
+Proprietary — **all rights reserved** (© 2026 Find Medi Doctor). No open-source license is granted
 at this time; a formal `LICENSE` file will be added when the business decides the licensing
 model.
 
@@ -257,5 +257,5 @@ model.
 
 ---
 
-*Medbriq is a discovery & booking platform. It does not provide medical advice, diagnosis,
+*Find Medi Doctor is a discovery & booking platform. It does not provide medical advice, diagnosis,
 or prescriptions. In a medical emergency in Bangladesh, call **999** immediately.*

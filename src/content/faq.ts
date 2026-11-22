@@ -9,8 +9,8 @@ export const FAQ_ITEMS: FaqItem[] = [
   // ── General ────────────────────────────────────────────────────────
   {
     audience: "general",
-    q: "What is MedBricBD?",
-    a: "MedBricBD is a healthcare discovery platform for finding and booking appointments with doctors in Bangladesh. You can browse verified doctor profiles, hospital listings, and free health education — without creating an account. Signing in is only needed to book and manage appointments.",
+    q: "What is Find Medi Doctor?",
+    a: "Find Medi Doctor is a healthcare discovery platform for finding and booking appointments with doctors in Bangladesh. You can browse verified doctor profiles, hospital listings, and free health education — without creating an account. Signing in is only needed to book and manage appointments.",
   },
   {
     audience: "general",
@@ -19,7 +19,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     audience: "general",
-    q: "Are the doctors on MedBricBD verified?",
+    q: "Are the doctors on Find Medi Doctor verified?",
     a: "Doctors who complete our credential review receive a 'Verified' badge, which is shown on their profile. Profiles that have not yet completed verification are clearly marked 'Pending' instead. You can filter searches to show verified doctors only, and our verification process is explained openly on the Verification Center page.",
   },
   {
@@ -61,7 +61,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     audience: "patients",
     q: "Are video consultations available?",
-    a: "Not yet. Video consultation is a regulated service in Bangladesh, so MedBricBD keeps it disabled until the required compliance review is complete. All bookings in this demo are in-person chamber visits.",
+    a: "Not yet. Video consultation is a regulated service in Bangladesh, so Find Medi Doctor keeps it disabled until the required compliance review is complete. All bookings in this demo are in-person chamber visits.",
   },
   // ── Doctors ────────────────────────────────────────────────────────
   {

@@ -1,11 +1,11 @@
-# Medbriq — Architecture
+# Find Medi Doctor — Architecture
 
 > Audience: engineering team. This document explains the system as built for the MVP, the
 > deliberate deviations from the master product spec’s ideal stack, and the scaling path.
 
 ## 1. System Overview
 
-Medbriq MVP is a **single Next.js 16 application** containing a single-route SPA (public site +
+Find Medi Doctor MVP is a **single Next.js 16 application** containing a single-route SPA (public site +
 patient area + doctor dashboard + admin console) and a versioned REST API implemented as
 Next.js Route Handlers — a **modular monolith**.
 
@@ -179,9 +179,9 @@ Availability was checked against the **authoritative Verisign registry RDAP serv
 | 18 | swastho.com | ❌ taken |
 | 19 | curevia.com | ❌ taken |
 | 20 | healova.com | ❌ taken |
-| **21** | **medbriq.com** | ✅ **available → chosen** |
+| **21** | **findmedidoctor.com** | ✅ **available → chosen** |
 
-**Chosen: Medbriq** — *Med* + *briq* (from *bridge*): “bridging patients and doctors.”
+**Chosen: Find Medi Doctor** — *Med* + *briq* (from *bridge*): “bridging patients and doctors.”
 
 Rationale:
 - Short, easy to pronounce internationally, no implied medical outcome (per spec §2 rules).
@@ -189,16 +189,16 @@ Rationale:
   the logo (bridge arch + medical cross, `src/components/brand.tsx`).
 - Distinctive/coined → lower collision risk than descriptive names; `.com` available.
 - Several strong candidates with South-Asian health roots (nirog, sehatu, shastho,
-  swastho — Bengali/Hindi/Urdu “health”) were all taken; Medbriq keeps a neutral,
+  swastho — Bengali/Hindi/Urdu “health”) were all taken; Find Medi Doctor keeps a neutral,
   international character suitable for the worldwide roadmap.
 
 **Caveats (honest):**
-- **medbriq.com has NOT been purchased yet** — it was verified available on 2026-11-19;
+- **findmedidoctor.com has NOT been purchased yet** — it was verified available on 2026-11-19;
   availability can change at any time. Purchase (~$10–12/yr) is a pending business task
   (see [costs.md](costs.md)).
 - **No formal trademark search has been performed.** Professional trademark clearance
   (Bangladesh + target international classes) is a **pending business task** before any
-  public launch. “Medbriq” is the *provisional* brand per the master spec.
+  public launch. “Find Medi Doctor” is the *provisional* brand per the master spec.
 
 ## 6. Future Scaling Path
 

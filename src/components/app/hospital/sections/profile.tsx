@@ -149,7 +149,7 @@ export default function ProfileSection() {
             <VerificationBadge status={profile.verificationStatus} />
             <p className="max-w-lg text-xs leading-relaxed text-muted-foreground">
               {profile.verificationStatus === "VERIFIED"
-                ? "Your hospital is verified and listed publicly on MedBricBD. Admins re-review after material profile changes."
+                ? "Your hospital is verified and listed publicly on Find Medi Doctor. Admins re-review after material profile changes."
                 : `Verification ${profile.verificationStatus
                     .replaceAll("_", " ")
                     .toLowerCase()} — your public profile activates after admin review.`}

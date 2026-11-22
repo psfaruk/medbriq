@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
     }
 
     const name = parsed.data.name ?? `Guest ${phone.slice(-4)}`;
-    const email = `p_${phone.replace("+", "")}@phone.medbriq.dev`;
+    const email = `p_${phone.replace("+", "")}@phone.findmedidoctor.com`;
     const { user, created } = await store.findOrCreatePhoneUser({
       phone,
       name,

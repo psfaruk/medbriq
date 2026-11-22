@@ -1,5 +1,5 @@
 /**
- * Medbriq time utilities.
+ * Find Medi Doctor time utilities.
  *
  * Policy (docs/architecture.md):
  * - All appointment timestamps are stored in UTC.

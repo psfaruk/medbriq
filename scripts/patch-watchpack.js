@@ -30,15 +30,15 @@ const TARGET = path.join(
   "watchpack.js"
 );
 
-const MARKER = "__MEDBRIC_WATCH_GUARD__";
+const MARKER = "__FMD_WATCH_GUARD__";
 const ANCHOR = "this.ignored=i.ignored||(()=>false);";
-const OLD_MARKER = "__MEDBRIC_UPLOAD_GUARD__";
+const OLD_MARKER = "__FMD_UPLOAD_GUARD__";
 // The v1 patch wrapped the constructor this.ignored with an upload-only guard
 // ending in the old marker comment. Detect and upgrade it.
 const OLD_TAIL = "return (i.ignored||(()=>false))(p);});/*" + OLD_MARKER + "*/";
 const NEW_TAIL = "return (i.ignored||(()=>false))(p);});/*" + MARKER + "*/";
 
-const REPLACEMENT = `this.ignored=((p)=>{try{if(typeof p==="string"){const __root=(process.env.MEDBRIC_PROJECT_ROOT||process.cwd());if(p===__root+"/upload"||p.startsWith(__root+"/upload/"))return true;const __rel=p.startsWith(__root+"/")?p.slice(__root.length+1):null;if(__rel){const __top=__rel.split("/")[0];if(__top==="db"||__top==="upload"||__top==="tool-results"||__top==="docs"||__top==="screenshots")return true;}if(/\\.(log|db|db-journal|db-wal|db-shm)$/.test(p))return true;}}catch(e){}return (i.ignored||(()=>false))(p);});/*${MARKER}*/`;
+const REPLACEMENT = `this.ignored=((p)=>{try{if(typeof p==="string"){const __root=(process.env.FMD_PROJECT_ROOT||process.cwd());if(p===__root+"/upload"||p.startsWith(__root+"/upload/"))return true;const __rel=p.startsWith(__root+"/")?p.slice(__root.length+1):null;if(__rel){const __top=__rel.split("/")[0];if(__top==="db"||__top==="upload"||__top==="tool-results"||__top==="docs"||__top==="screenshots")return true;}if(/\\.(log|db|db-journal|db-wal|db-shm)$/.test(p))return true;}}catch(e){}return (i.ignored||(()=>false))(p);});/*${MARKER}*/`;
 
 function main() {
   // Vercel (and other production hosts): the patch is a sandbox-dev-only

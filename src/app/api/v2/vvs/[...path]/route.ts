@@ -457,7 +457,7 @@ export async function GET(
           serialNumber: verification.serialNumber,
           checkInAt: verification.checkInAt?.toISOString() ?? null,
           doctorRegNumber: doctor?.regNumber ?? null,
-          platform: "MedBricBD",
+          platform: "Find Medi Doctor",
           issuedAt: new Date().toISOString(),
         },
       });

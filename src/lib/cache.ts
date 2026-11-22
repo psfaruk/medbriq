@@ -21,10 +21,10 @@
 type CacheEntry = { value: unknown; expiresAt: number };
 
 const globalForCache = globalThis as unknown as {
-  __medbriqMemCache: Map<string, CacheEntry> | undefined;
+  __fmdMemCache: Map<string, CacheEntry> | undefined;
 };
 
-const cache: Map<string, CacheEntry> = (globalForCache.__medbriqMemCache ??=
+const cache: Map<string, CacheEntry> = (globalForCache.__fmdMemCache ??=
   new Map());
 
 /** Hard cap to bound memory on hostile query-string variety. */
@@ -41,10 +41,10 @@ function pruneExpired(now: number): void {
  * promise map so a stampede does not multiply Firestore reads.
  */
 const globalForInflight = globalThis as unknown as {
-  __medbriqMemCacheInflight: Map<string, Promise<unknown>> | undefined;
+  __fmdMemCacheInflight: Map<string, Promise<unknown>> | undefined;
 };
 const inflight: Map<string, Promise<unknown>> =
-  (globalForInflight.__medbriqMemCacheInflight ??= new Map());
+  (globalForInflight.__fmdMemCacheInflight ??= new Map());
 
 export async function cached<T>(
   key: string,

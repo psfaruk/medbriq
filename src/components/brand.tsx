@@ -1,9 +1,8 @@
-import { Badge } from "@/components/ui/badge";
-
 /**
- * Medbriq brand logo — a bridge arch beneath a medical cross.
- * "Med" + "briq" (bridge) = connecting patients and doctors.
- * Inline SVG keeps it crisp at any size with zero external assets.
+ * Find Medi Doctor brand marks — a medical cross over a bridge arch
+ * (connecting patients and doctors) in the platform blue (#1769AA)
+ * with a teal accent (#13A89E). Inline SVG keeps it crisp at any size
+ * with zero external assets.
  */
 export function BrandLogo({ className = "h-9 w-9" }: { className?: string }) {
   return (
@@ -11,7 +10,7 @@ export function BrandLogo({ className = "h-9 w-9" }: { className?: string }) {
       viewBox="0 0 48 48"
       className={className}
       role="img"
-      aria-label="Medbriq logo"
+      aria-label="Find Medi Doctor logo"
       xmlns="http://www.w3.org/2000/svg"
     >
       <rect x="2" y="2" width="44" height="44" rx="12" className="fill-primary" />
@@ -39,21 +38,9 @@ export function BrandLogo({ className = "h-9 w-9" }: { className?: string }) {
 export function BrandWordmark({ className = "" }: { className?: string }) {
   return (
     <span className={`font-bold tracking-tight ${className}`}>
-      <span className="text-primary">Med</span>
-      <span className="text-foreground">briq</span>
+      <span className="text-secondary">Find </span>
+      <span className="text-primary">Medi </span>
+      <span className="text-foreground">Doctor</span>
     </span>
-  );
-}
-
-/** Small "demo environment" badge — Medbriq MVP ships with seed demo data. */
-export function DemoBadge() {
-  return (
-    <Badge
-      variant="outline"
-      className="hidden sm:inline-flex items-center gap-1 border-emerald-500/40 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-    >
-      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-      Demo MVP
-    </Badge>
   );
 }

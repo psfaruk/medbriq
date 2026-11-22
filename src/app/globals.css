@@ -56,7 +56,7 @@
 }
 
 /* ────────────────────────────────────────────────────────────────────────
-   MedBricBD design tokens — master prompt §2
+   Find Medi Doctor design tokens — master prompt §2
    Primary #1769AA · Secondary #13A89E · Background #F4F8FC · Surface #FFF
    Text #172B4D · Muted #718096 · Success #16A34A · Warning #D97706 ·
    Error #DC2626. Rounded cards 12–16px, subtle shadows, high contrast.
@@ -161,7 +161,7 @@
   }
 }
 
-/* ── MedBricBD signature utilities ──────────────────────────────────── */
+/* ── Find Medi Doctor signature utilities ──────────────────────────────────── */
 
 /* Blue → teal gradient for hero bands and primary surfaces */
 .bg-brand-gradient {

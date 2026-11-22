@@ -19,15 +19,14 @@ import {
   Wallet,
   ArrowLeft,
   Loader2,
-  Sparkles,
   Stethoscope,
   UserRound,
-  ChevronDown,
   Languages,
 } from "lucide-react";
 import { useAppStore } from "@/lib/app-state";
 import { apiGet, apiPost, ApiCallError } from "@/lib/api-client";
 import { getPreloadedBoot } from "@/lib/boot-data";
+import { googlePopupSignIn } from "@/lib/firebase";
 import { legalDocTitle } from "@/content/legal";
 import { PortalLink } from "@/components/portal/shared";
 import type {
@@ -41,49 +40,16 @@ import { BrandLogo } from "@/components/app/shared/brand";
 import { useT } from "@/components/app/shared/ui-kit";
 
 /**
- * MedBricBD authentication (master prompt §3.1-8 + §8 flows).
+ * Find Medi Doctor authentication (master prompt §3.1-8 + §8 flows).
  *
- * Working sign-in methods on this deployment:
+ * Production sign-in methods:
  *  - Email + password (all roles)
  *  - Phone + OTP (patients; dev mode returns the code in the response)
- *  - Google (real credential flow when configured; otherwise an honestly
- *    labelled demo-account fallback so the flow is testable end-to-end)
- *  - Demo accounts panel for quick role access during review
+ *  - Google (Firebase Auth popup, verified server-side with the
+ *    firebase-admin service account)
  */
 
 type RegisterRole = "PATIENT" | "DOCTOR" | "HOSPITAL";
-
-const DEMO_ACCOUNTS: {
-  label: string;
-  email: string;
-  password: string;
-  role: RegisterRole | "ADMIN";
-}[] = [
-  {
-    label: "Patient — Rahim Uddin",
-    email: "patient@medbriq.dev",
-    password: "Patient@123",
-    role: "PATIENT",
-  },
-  {
-    label: "Doctor — Dr. Ayesha Rahman",
-    email: "doctor@medbriq.dev",
-    password: "Doctor@123",
-    role: "DOCTOR",
-  },
-  {
-    label: "Hospital — Greenview General",
-    email: "hospital@medbriq.dev",
-    password: "Hospital@123",
-    role: "HOSPITAL",
-  },
-  {
-    label: "Super Admin — Platform",
-    email: "admin@medbriq.dev",
-    password: "Admin@Medbriq123",
-    role: "ADMIN",
-  },
-];
 
 export default function AuthScreen({
   notice,
@@ -102,7 +68,6 @@ export default function AuthScreen({
 
   const [config, setConfig] = useState<AuthConfig | null>(null);
   const [specialties, setSpecialties] = useState<SpecialtyInfo[]>([]);
-  const [showDemo, setShowDemo] = useState(false);
 
   useEffect(() => {
     // PERF: the bootstrap request (app.tsx) already delivered these — only
@@ -148,46 +113,38 @@ export default function AuthScreen({
     toast({ title: `Welcome, ${user.name.split(" ")[0]}!` });
   };
 
-  const loginWithDemo = async (
-    email: string,
-    password: string,
-    note?: string
-  ) => {
+  const [googleBusy, setGoogleBusy] = useState(false);
+
+  const googleSignIn = async () => {
+    if (googleBusy) return;
+    setGoogleBusy(true);
     try {
-      const data = await apiPost<{ user: SessionUser }>(
-        "/api/v1/auth/login",
-        { email, password }
-      );
-      if (note) {
-        toast({ title: "Signed in", description: note });
+      const result = await googlePopupSignIn();
+      if (!result.idToken) {
+        if (result.reason !== "cancelled") {
+          toast({
+            title: "Google sign-in",
+            description: result.reason,
+            variant: "destructive",
+          });
+        }
+        return;
       }
+      const data = await apiPost<{ user: SessionUser }>(
+        "/api/v1/auth/google",
+        { credential: result.idToken }
+      );
       onAuthenticated(data.user);
     } catch (err) {
       toast({
-        title: "Sign in failed",
+        title: "Google sign-in failed",
         description:
           err instanceof ApiCallError ? err.message : "Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setGoogleBusy(false);
     }
-  };
-
-  const googleSignIn = async () => {
-    if (config?.googleEnabled) {
-      // Real Google flow requires GIS on the client; this deployment uses
-      // the demo fallback so the button always works.
-      toast({
-        title: "Google sign-in",
-        description: "Redirecting to Google…",
-      });
-      return;
-    }
-    // Honestly-labelled demo fallback (no GOOGLE_CLIENT_ID in sandbox).
-    await loginWithDemo(
-      "google.demo@medbriq.dev",
-      "Google@Demo123",
-      "Demo Google account used — real Google OAuth activates when GOOGLE_CLIENT_ID is configured."
-    );
   };
 
   return (
@@ -222,14 +179,14 @@ export default function AuthScreen({
           <button
             className="flex items-center gap-2 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             onClick={() => (onBack ? onBack() : setAuthView("welcome"))}
-            aria-label="MedBricBD home"
+            aria-label="Find Medi Doctor home"
           >
             <BrandLogo className="h-9 w-9 shrink-0 drop-shadow-md" />
             {/* Wall-specific wordmark: light tints readable on the dark video */}
             <span className="hidden text-xl font-bold tracking-tight drop-shadow-md sm:inline">
-              <span className="text-white">Med</span>
-              <span className="text-[#A9D6F5]">Bric</span>
-              <span className="text-[#5EEAD4]">BD</span>
+              <span className="text-white">Find </span>
+              <span className="text-[#A9D6F5]">Medi </span>
+              <span className="text-[#5EEAD4]">Doctor</span>
             </span>
           </button>
           <div className="flex items-center gap-2 sm:gap-3">
@@ -315,23 +272,18 @@ export default function AuthScreen({
                   </div>
                 ))}
               </div>
-              <p className="mt-5 hidden text-[11px] text-white/55 lg:block">
-                Demo environment — all doctors, hospitals and payments are
-                fictional sandbox data.
-              </p>
             </div>
 
             {/* Glass card carrying the auth flow (login/register/OTP/forgot) */}
             <div className="mx-auto w-full max-w-md lg:max-w-none">
               <div className="animate-rise-in rounded-3xl border border-white/40 bg-white/95 p-5 shadow-2xl shadow-[#0B1B30]/50 backdrop-blur-xl sm:p-8">
-                {authView === "welcome" && (
-                  <WelcomeView onDemoToggle={() => setShowDemo((v) => !v)} />
-                )}
+                {authView === "welcome" && <WelcomeView />}
                 {authView === "login" && (
                   <LoginView
                     config={config}
                     onAuthenticated={onAuthenticated}
                     onGoogle={googleSignIn}
+                    googleBusy={googleBusy}
                   />
                 )}
                 {authView === "register" && (
@@ -344,40 +296,9 @@ export default function AuthScreen({
           </div>
         </main>
 
-        {/* Demo accounts + legal line, floating at the bottom of the wall */}
+        {/* Legal line, floating at the bottom of the wall */}
         <div className="mx-auto w-full max-w-xl px-4 pb-5 sm:px-6">
-          <button
-            className="flex w-full items-center justify-between rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-xs font-semibold text-white/85 shadow-sm backdrop-blur transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-            onClick={() => setShowDemo((v) => !v)}
-            aria-expanded={showDemo}
-          >
-            <span className="flex items-center gap-2">
-              <Sparkles className="h-3.5 w-3.5 text-[#5EEAD4]" aria-hidden="true" />
-              {t("profile.demoLogins")} — one-click review access
-            </span>
-            <ChevronDown
-              className={`h-4 w-4 transition-transform ${showDemo ? "rotate-180" : ""}`}
-            />
-          </button>
-          {showDemo ? (
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              {DEMO_ACCOUNTS.map((acc) => (
-                <button
-                  key={acc.email}
-                  onClick={() => loginWithDemo(acc.email, acc.password)}
-                  className="rounded-xl border border-white/20 bg-white/10 px-3.5 py-2.5 text-left shadow-sm backdrop-blur transition-all hover:border-white/40 hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-                >
-                  <p className="text-xs font-semibold text-white">
-                    {acc.label}
-                  </p>
-                  <p className="text-[11px] text-white/65">
-                    {acc.email}
-                  </p>
-                </button>
-              ))}
-            </div>
-          ) : null}
-          <p className="mt-3 text-center text-[11px] leading-relaxed text-white/65">
+          <p className="text-center text-[11px] leading-relaxed text-white/65">
             <LegalInlineLinks kind="terms-line" />
           </p>
         </div>
@@ -428,7 +349,7 @@ function LegalInlineLinks({ kind }: { kind: "terms-line" | "agree" }) {
 }
 
 /* ── Welcome ──────────────────────────────────────────────────────── */
-function WelcomeView({ onDemoToggle }: { onDemoToggle: () => void }) {
+function WelcomeView() {
   const { t } = useT();
   const { setAuthView } = useAppStore();
   return (
@@ -478,13 +399,6 @@ function WelcomeView({ onDemoToggle }: { onDemoToggle: () => void }) {
           {t("auth.patientFirstNote")}
         </p>
       </div>
-
-      <button
-        onClick={onDemoToggle}
-        className="mt-4 w-full text-center text-xs font-medium text-muted-foreground hover:text-foreground"
-      >
-        {t("profile.demoLogins")}
-      </button>
     </div>
   );
 }
@@ -494,10 +408,12 @@ function LoginView({
   config,
   onAuthenticated,
   onGoogle,
+  googleBusy,
 }: {
   config: AuthConfig | null;
   onAuthenticated: (user: SessionUser) => void;
   onGoogle: () => void;
+  googleBusy: boolean;
 }) {
   const { t } = useT();
   const { setAuthView, setOtpPhone } = useAppStore();
@@ -662,8 +578,12 @@ function LoginView({
         variant="outline"
         className="w-full h-11 gap-2"
         onClick={onGoogle}
+        disabled={googleBusy}
       >
-        <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+        {googleBusy ? (
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+        ) : (
+          <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
           <path
             fill="#4285F4"
             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z"
@@ -680,13 +600,13 @@ function LoginView({
             fill="#EA4335"
             d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52Z"
           />
-        </svg>
-        {t("auth.google")}
+          </svg>
+        )}
+        {googleBusy ? "Connecting to Google…" : t("auth.google")}
       </Button>
       {config && !config.googleEnabled ? (
         <p className="mt-2 text-center text-[11px] text-muted-foreground">
-          Google OAuth activates with GOOGLE_CLIENT_ID — the button signs in
-          with a clearly-labelled demo account in this sandbox.
+          Google sign-in is not configured yet — use email or phone for now.
         </p>
       ) : null}
 

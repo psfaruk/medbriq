@@ -457,7 +457,7 @@ export default function ProfileScreen() {
         )}
       </SectionCard>
 
-      {/* ── demo info (sandbox disclaimer + emergency guidance) ─── */}
+      {/* ── about the platform ─────────────────────────── */}
       <SectionCard title={t("profile.demoInfo")}>
         <div className="space-y-2 text-xs leading-relaxed text-muted-foreground">
           <p className="flex items-start gap-2">

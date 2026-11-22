@@ -77,7 +77,7 @@ export default function PublicPortal() {
   // title at least reflects the current page; real per-route metadata comes
   // when views lift into app/ routes).
   useEffect(() => {
-    const suffix = "MedBricBD";
+    const suffix = "Find Medi Doctor";
     const view = portalView.name;
     const titles: Record<string, string> = {
       home: `${suffix} — Find & Book Verified Doctors in Bangladesh`,

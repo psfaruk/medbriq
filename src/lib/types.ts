@@ -1,5 +1,5 @@
 /**
- * Shared client/server types for the Medbriq MVP.
+ * Shared client/server types for the Find Medi Doctor MVP.
  * These mirror the API response shapes documented in docs/api.md.
  */
 

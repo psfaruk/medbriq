@@ -192,7 +192,7 @@ export default function SettingsSection() {
         action={
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
             <Bell className="h-3.5 w-3.5" />
-            Simulated in demo
+            Device preferences
           </span>
         }
       >
@@ -221,7 +221,7 @@ export default function SettingsSection() {
           ))}
         </ul>
         <p className="mt-2 text-[11px] text-muted-foreground">
-          Toggles are local to this demo session — in-app notifications (the
+          Toggles are saved on this device — in-app notifications (the
           bell in the top bar) are always delivered.
         </p>
       </SectionCard>
@@ -254,15 +254,10 @@ export default function SettingsSection() {
       </SectionCard>
 
       <DemoNotice>
-        <strong className="text-foreground">Demo account:</strong>{" "}
-        doctor@medbriq.dev / Doctor@123 (Dr. Ayesha Rahman, medicine &amp;
-        diabetology).{" "}
-        <span className="mt-1 flex items-center gap-1.5">
-          <MonitorSmartphone className="h-3 w-3" />
-          Other demo logins: patient@medbriq.dev / Patient@123 ·
-          hospital@medbriq.dev / Hospital@123 · admin@medbriq.dev /
-          Admin@Medbriq123
-        </span>
+        <strong className="text-foreground">Account security.</strong> Keep your
+        password private and sign out on shared devices. Contact platform
+        support from the Help section if you need assistance with your
+        account.
       </DemoNotice>
     </div>
   );

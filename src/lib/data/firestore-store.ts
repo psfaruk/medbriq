@@ -46,7 +46,7 @@ import {
 } from "./types";
 
 /**
- * Medbriq production data store — Firebase Firestore (firebase-admin v14).
+ * Find Medi Doctor production data store — Firebase Firestore (firebase-admin v14).
  *
  * Collection modeling (docs/database.md §8):
  *   users/{uuid}              {email, passwordHash, name, phone, role, status, provider, phoneVerified, avatarUrl, createdAt, updatedAt}
@@ -88,7 +88,7 @@ export function parseServiceAccountEnv(): object | null {
     return parsed !== null && typeof parsed === "object" ? (parsed as object) : null;
   } catch (err) {
     console.error(
-      "[medbriq-store] FIREBASE_SERVICE_ACCOUNT is set but is not valid JSON — falling back to Prisma/SQLite.",
+      "[mfmd-store] FIREBASE_SERVICE_ACCOUNT is set but is not valid JSON — falling back to Prisma/SQLite.",
       err instanceof Error ? err.message : err
     );
     return null;

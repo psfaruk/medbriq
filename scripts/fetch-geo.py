@@ -4,7 +4,7 @@ Wikipedia 'List of upazilas in Bangladesh' and emit src/lib/geo.ts."""
 import urllib.request, json, re, sys
 
 URL = "https://en.wikipedia.org/w/api.php?action=parse&page=List_of_upazilas_in_Bangladesh&format=json&prop=wikitext"
-UA = {"User-Agent": "MedBricBD-build/1.0 (education platform; contact: dev@example.invalid)"}
+UA = {"User-Agent": "Find Medi Doctor-build/1.0 (education platform; contact: dev@example.invalid)"}
 
 req = urllib.request.Request(URL, headers=UA)
 html = urllib.request.urlopen(req, timeout=60).read().decode("utf-8")

@@ -1,4 +1,4 @@
-# Medbriq — Devil's Advocate Architecture Corrections: Review & Disposition
+# Find Medi Doctor — Devil's Advocate Architecture Corrections: Review & Disposition
 
 **Status:** REVIEWED & ADOPTED — implementation plan corrected accordingly
 **Date:** 2026-02 (supersedes the original 12-phase rollout plan)
@@ -38,7 +38,7 @@ snapshot-based pricing that the corrections demand.
 ### #1 — Global deployment is not legally permitted everywhere → **ACCEPTED**
 
 - **Correction:** Do not assume global healthcare deployment is legally permitted in every country.
-- **Disposition:** The original architecture docs described Medbriq as a "Global
+- **Disposition:** The original architecture docs described Find Medi Doctor as a "Global
   Doctor Discovery & Healthcare Platform." That framing is retired.
 - **Action taken:**
   - Initial market is **Bangladesh only**. The `Country` model remains (BD active),
@@ -87,7 +87,7 @@ snapshot-based pricing that the corrections demand.
      verification pathway (already used by our doctor verification flow via
      `regNumber`).
   3. **Licensing requirements** for a platform intermediary vs. a healthcare
-     provider — determines whether Medbriq may schedule clinical consultations
+     provider — determines whether Find Medi Doctor may schedule clinical consultations
      at all, or only chamber bookings.
   4. **Data residency:** Bangladesh has no single comprehensive data-protection
      statute in force equivalent to the EU GDPR at the time of writing ⚠
@@ -273,7 +273,7 @@ snapshot-based pricing that the corrections demand.
 
 ## 2. Phase 0 — Market Validation & Regulatory Feasibility (gate)
 
-**Objective:** establish, with evidence, what Medbriq may legally operate in
+**Objective:** establish, with evidence, what Find Medi Doctor may legally operate in
 Bangladesh before any regulated feature ships.
 
 Work items (owner: founding team + counsel; engineering supports with data):

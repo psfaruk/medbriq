@@ -11,6 +11,7 @@
  */
 
 import type { FirebaseApp } from "firebase/app";
+import type { Auth } from "firebase/auth";
 import type { Messaging } from "firebase/messaging";
 
 export function firebaseWebConfig(): Record<string, string> | null {
@@ -55,6 +56,77 @@ async function getMessaging(): Promise<Messaging> {
   return init(app);
 }
 
+/**
+ * Firebase Auth client for the Google sign-in popup flow. Reuses the same
+ * FirebaseApp as push messaging — one app, one config. The Google provider
+ * must be enabled in the Firebase console (Authentication → Sign-in method)
+ * and the deployment domain must be in the authorized-domains list.
+ */
+async function getFirebaseAuth(): Promise<Auth> {
+  const app = await getFirebaseApp();
+  const { getAuth } = await import("firebase/auth");
+  return getAuth(app);
+}
+
+/**
+ * Real Google sign-in: Firebase Auth popup → ID token → server verifies it
+ * with firebase-admin (see src/lib/google.ts) and mints the app session.
+ * Returns the ID token, or null with a human-readable `reason` when the
+ * flow cannot complete (popup dismissed, provider not enabled, domain not
+ * authorized, no config).
+ */
+export async function googlePopupSignIn(): Promise<{
+  idToken: string | null;
+  reason: string;
+}> {
+  const config = firebaseWebConfig();
+  if (!config) {
+    return {
+      idToken: null,
+      reason: "Google sign-in is not configured yet — use email or phone for now.",
+    };
+  }
+  try {
+    const auth = await getFirebaseAuth();
+    const { GoogleAuthProvider, signInWithPopup } = await import(
+      "firebase/auth"
+    );
+    const credential = await signInWithPopup(auth, new GoogleAuthProvider());
+    const idToken = await credential.user.getIdToken();
+    return { idToken, reason: "" };
+  } catch (err) {
+    const code = (err as { code?: string } | null)?.code ?? "firebase/unknown";
+    if (
+      code === "auth/popup-closed-by-user" ||
+      code === "auth/cancelled-popup-request" ||
+      code === "auth/user-cancelled"
+    ) {
+      return { idToken: null, reason: "cancelled" };
+    }
+    if (code === "auth/configuration-not-found") {
+      return {
+        idToken: null,
+        reason:
+          "Google sign-in is not enabled yet — the platform admin must turn on Google in the Firebase console (Authentication → Sign-in method).",
+      };
+    }
+    if (
+      code === "auth/unauthorized-domain" ||
+      code === "auth/operation-not-allowed"
+    ) {
+      return {
+        idToken: null,
+        reason:
+          "This domain is not authorized for Google sign-in yet — the platform admin must add it in the Firebase console (Authentication → Settings → Authorized domains).",
+      };
+    }
+    return {
+      idToken: null,
+      reason: "Google sign-in could not be completed. Please try again or use email.",
+    };
+  }
+}
+
 export interface SubscribeResult {
   ok: boolean;
   reason?:
@@ -80,7 +152,7 @@ export async function subscribeToPush(): Promise<SubscribeResult> {
 
   const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_PUSH_VAPID_KEY;
   const messaging = await getMessaging();
-  const { getToken, onTokenRefresh } = await import("firebase/messaging");
+  const { getToken } = await import("firebase/messaging");
 
   let token: string;
   try {
@@ -90,10 +162,9 @@ export async function subscribeToPush(): Promise<SubscribeResult> {
   }
   if (!token) return { ok: false, reason: "no-token" };
 
-  // Keep the registration fresh whenever FCM rotates the token.
-  onTokenRefresh(messaging, () => {
-    void registerToken();
-  });
+  // NOTE(firebase v13): onTokenRefresh was removed from the messaging API —
+  // the service worker (public/firebase-messaging-sw.js) and the idempotent
+  // server registration keep the token fresh instead.
 
   const registered = await registerToken(token);
   return registered
@@ -133,7 +204,7 @@ export async function listenForForegroundPush(): Promise<void> {
     const messaging = await getMessaging();
     const { onMessage } = await import("firebase/messaging");
     onMessage(messaging, (payload) => {
-      const title = payload.notification?.title ?? "MedBricBD";
+      const title = payload.notification?.title ?? "Find Medi Doctor";
       const body = payload.notification?.body ?? "";
       const url = payload.data?.url;
       void navigator.serviceWorker.ready.then((registration) => {

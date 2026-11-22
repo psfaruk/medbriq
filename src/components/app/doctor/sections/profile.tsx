@@ -491,10 +491,9 @@ export default function ProfileSection() {
       </SectionCard>
 
       <DemoNotice>
-        <strong className="text-foreground">Demo profile.</strong> Changes are
-        stored in the sandbox only. The demo doctor (Dr. Ayesha Rahman) is
-        BMDC-verified; newly registered doctors start unverified until an admin
-        approves them.
+        <strong className="text-foreground">Verification.</strong> Newly
+        registered doctors start unverified until an admin approves their
+        BMDC registration — verified profiles show the trust badge.
       </DemoNotice>
     </div>
   );

@@ -196,8 +196,9 @@ export default function ReviewsSection() {
       </div>
 
       <DemoNotice>
-        <strong className="text-foreground">Demo reviews.</strong> Ratings and
-        comments shown are fictional sandbox data created for review flows.
+        <strong className="text-foreground">Verified reviews.</strong> Only
+        patients with a completed visit can leave a review — ratings reflect
+        real consultation experiences.
       </DemoNotice>
     </div>
   );

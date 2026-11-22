@@ -134,7 +134,7 @@ export default function QueueSection() {
       )}
 
       <DemoNotice>
-        <strong className="text-foreground">Sandbox queue.</strong> Slots are
+        <strong className="text-foreground">Visit records.</strong> Slots are
         30 minutes long. Completing a visit records it in the patient&apos;s
         history with you and establishes returning-patient pricing eligibility.
       </DemoNotice>

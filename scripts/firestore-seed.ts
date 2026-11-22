@@ -1,5 +1,5 @@
 /**
- * Medbriq Firestore seeder — writes the shared demo data into the PRODUCTION
+ * Find Medi Doctor Firestore seeder — writes the shared demo data into the PRODUCTION
  * Firestore database (project + database id from FIREBASE_SERVICE_ACCOUNT /
  * FIREBASE_DATABASE_ID).
  *
@@ -292,9 +292,9 @@ async function main() {
     `   wrote ${ruleCount} availability rules, ${auditCount} verification audit entries`
   );
   console.log("   Demo logins (same accounts as the local SQLite seed):");
-  console.log("   admin@medbriq.dev / Admin@Medbriq123");
-  console.log("   doctor@medbriq.dev / Doctor@123   (Dr. Ayesha Rahman, VERIFIED)");
-  console.log("   patient@medbriq.dev / Patient@123 (Rahim Uddin)");
+  console.log("   admin@findmedidoctor.dev / Admin@Find Medi Doctor123");
+  console.log("   doctor@findmedidoctor.dev / Doctor@123   (Dr. Ayesha Rahman, VERIFIED)");
+  console.log("   patient@findmedidoctor.dev / Patient@123 (Rahim Uddin)");
 }
 
 main()

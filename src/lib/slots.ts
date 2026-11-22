@@ -7,7 +7,7 @@ import {
 } from "@/lib/time";
 
 /**
- * Medbriq slot engine.
+ * Find Medi Doctor slot engine.
  *
  * Slots are derived from the doctor's weekly availability rules for a
  * given Dhaka-local date, minus slots already taken by blocking appointment

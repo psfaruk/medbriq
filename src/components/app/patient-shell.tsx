@@ -74,7 +74,7 @@ export default function PatientShell({ children }: { children: ReactNode }) {
           <div className="flex h-14 items-center justify-between gap-3 md:h-16">
             <button
               onClick={() => resetPatient({ name: "home" })}
-              aria-label="MedBricBD home"
+              aria-label="Find Medi Doctor home"
             >
               <BrandLockup size="sm" tagline={false} />
             </button>
@@ -170,8 +170,8 @@ export default function PatientShell({ children }: { children: ReactNode }) {
       <footer className="mt-auto hidden md:block border-t border-border bg-card">
         <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between gap-4 text-xs text-muted-foreground">
           <p>
-            © {new Date().getFullYear()} MedBricBD · Demo environment —
-            fictional sandbox data, no real medical service.
+            © {new Date().getFullYear()} Find Medi Doctor — verified
+            doctors across Bangladesh.
           </p>
           <p className="flex items-center gap-1.5 rounded-lg bg-rose-50 px-2.5 py-1 font-medium text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
             <PhoneCall className="h-3 w-3" />

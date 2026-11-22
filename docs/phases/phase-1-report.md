@@ -24,10 +24,10 @@
   master spec’s ideal architecture honestly.
 
 **COMPLETED FEATURES:**
-- **Brand:** “Medbriq” (Med + briq/bridge — bridging patients and doctors) chosen from
+- **Brand:** “Find Medi Doctor” (Med + briq/bridge — bridging patients and doctors) chosen from
   21 evaluated candidates after authoritative RDAP checks against the Verisign registry
   (rdap.verisign.com, checked 2026-11-19): 20 candidates’ .com domains taken;
-  **medbriq.com available** (not yet purchased). Logo/wordmark implemented
+  **findmedidoctor.com available** (not yet purchased). Logo/wordmark implemented
   (bridge arch + medical cross). Full evaluation table: [architecture.md §5](../architecture.md#5-brand-evaluation-rdap-verified).
 - **Architecture:** single Next.js 16 App Router app — single-route SPA at `/` (public
   site, patient area, doctor dashboard, admin console) + versioned REST API as Route
@@ -153,7 +153,7 @@
 
 **DEPLOYMENT STATUS:**
 - **Local development environment only.** No staging, no production, no domain.
-  `medbriq.com` verified available 2026-11-19 but not purchased. Free-first cost
+  `findmedidoctor.com` verified available 2026-11-19 but not purchased. Free-first cost
   posture: **no paid service in use** — [costs.md](../costs.md).
 - Deployment path documented (Supabase Postgres → Vercel; commercial-use caveat on
   Vercel Hobby noted).
@@ -177,9 +177,9 @@
     DST-observing markets.
 
 **UNRESOLVED RISKS:**
-- **Trademark clearance not performed** — “Medbriq” is provisional; professional search
+- **Trademark clearance not performed** — “Find Medi Doctor” is provisional; professional search
   (Bangladesh + international classes) is a pending business task before launch.
-- **medbriq.com may be registered by others** before purchase (verified available
+- **findmedidoctor.com may be registered by others** before purchase (verified available
   2026-11-19; ~$10–12/yr).
 - **Video consultation cost risk** (Phase 8): metered SFU/TURN is the largest potential
   recurring cost — recommendation: defer until funded.
@@ -273,6 +273,6 @@ Legend: ✅ done (manually verified in this session) · 🟡 partial · ⛔ defe
    role/authorization matrix, slot engine timezone cases) and stop git-ignoring `/tests/`.
 2. Rename `package.json` metadata to `medbriq`; prune unused scaffold dependencies.
 3. Re-enable strict `next build` type checking; tighten ESLint rules.
-4. Business tasks in parallel: purchase medbriq.com, professional trademark search.
+4. Business tasks in parallel: purchase findmedidoctor.com, professional trademark search.
 5. Phase 6 (hospital dashboard) or Phase 7 (payment abstraction + sandbox) as the next
    vertical slice, per business priority.

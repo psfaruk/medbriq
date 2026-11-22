@@ -422,9 +422,9 @@ export default function ChambersSection() {
       )}
 
       <DemoNotice>
-        <strong className="text-foreground">Sandbox chambers.</strong> The demo
-        doctor has two chambers (Dhanmondi + Mirpur). Chambers with upcoming
-        bookings cannot be deleted — deactivate them instead.
+        <strong className="text-foreground">Chambers.</strong> Chambers with
+        upcoming bookings cannot be deleted — deactivate them instead so
+        historical records stay intact.
       </DemoNotice>
 
       {/* Add dialog */}

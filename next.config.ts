@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 /**
- * MedBricBD — Next.js configuration
+ * Find Medi Doctor — Next.js configuration
  *
  * SANDBOX NOTE (dev-server wedge immunity):
  * /home/z/my-project/upload is a network FUSE mount that can hang forever.

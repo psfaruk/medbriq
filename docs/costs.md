@@ -1,4 +1,4 @@
-# Medbriq — Costs (Free-First Policy)
+# Find Medi Doctor — Costs (Free-First Policy)
 
 > Format per the master product spec’s COSTS.md requirement (§13): for each service —
 > provider, purpose, free allowance, usage limitations, expected upgrade trigger,
@@ -56,19 +56,19 @@
 | **Provider** | Vercel |
 | **Purpose** | Hosting the Next.js app (public site + API routes) |
 | **Free allowance** | Hobby tier: non-commercial use only, ~100 GB bandwidth/mo, limited build minutes (verify current terms) |
-| **Usage limitations** | **Hobby tier prohibits commercial use** — a monetized Medbriq deployment requires the Pro plan (~$20/mo); serverless function limits apply |
+| **Usage limitations** | **Hobby tier prohibits commercial use** — a monetized Find Medi Doctor deployment requires the Pro plan (~$20/mo); serverless function limits apply |
 | **Expected upgrade trigger** | Public launch or any commercial use |
 | **Alternative provider** | Netlify, Railway, Render, or the standalone Next build on any VPS (repo already builds `output: "standalone"`) |
 | **Data portability** | High — it’s a standard Next.js app; no vendor-locked runtime features required |
 | **Cost risks** | Medium — bandwidth/function overages; mitigated by the tiny MVP footprint |
 
-### Domain — medbriq.com (**not yet purchased**)
+### Domain — findmedidoctor.com (**not yet purchased**)
 | | |
 | --- | --- |
 | **Provider** | Any ICANN registrar (Cloudflare, Porkbun, Namecheap, etc.) |
 | **Purpose** | Brand domain for the platform |
 | **Free allowance** | None — domains cost money |
-| **Usage limitations** | **medbriq.com was verified AVAILABLE via the authoritative Verisign RDAP registry on 2026-11-19** (`rdap.verisign.com/com/v1/domain/medbriq.com` → 404). It has **NOT been purchased**; availability can change at any moment |
+| **Usage limitations** | **findmedidoctor.com was verified AVAILABLE via the authoritative Verisign RDAP registry on 2026-11-19** (`rdap.verisign.com/com/v1/domain/findmedidoctor.com` → 404). It has **NOT been purchased**; availability can change at any moment |
 | **Expected upgrade trigger** | Before any public-facing launch |
 | **Alternative provider** | Alternate TLDs (.health, .care, .io) — generally pricier |
 | **Data portability** | N/A |

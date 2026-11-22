@@ -225,7 +225,7 @@ export default function NotificationBell() {
             </p>
           </div>
         ) : (
-          <ul className="medbriq-scroll max-h-96 divide-y overflow-y-auto">
+          <ul className="app-scroll max-h-96 divide-y overflow-y-auto">
             {items.map((item) => {
               const { icon: Icon, className: iconClass } = iconForType(
                 item.type

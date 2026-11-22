@@ -296,8 +296,7 @@ export default function DashboardShell({
         <footer className="mt-auto border-t border-border bg-card px-4 py-3 sm:px-6">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
             <p>
-              © {new Date().getFullYear()} MedBricBD · {roleLabel} · Demo
-              environment — sandbox data only.
+              © {new Date().getFullYear()} Find Medi Doctor · {roleLabel}
             </p>
             <p className="flex items-center gap-1.5 font-medium text-rose-600 dark:text-rose-400">
               <PhoneCall className="h-3 w-3" />

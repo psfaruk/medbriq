@@ -4,7 +4,7 @@ import { create } from "zustand";
 import type { SearchFilters, SessionUser } from "@/lib/types";
 
 /**
- * Medbriq client-side app store.
+ * Find Medi Doctor client-side app store.
  *
  * The MVP is a single-route application (SPA-style view switching on "/"),
  * so navigation state lives here instead of the URL. All view components

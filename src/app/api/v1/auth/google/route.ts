@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getStore } from "@/lib/data";
 import { ok, fail, handleRouteError } from "@/lib/api";
 import { createSession } from "@/lib/auth";
-import { getGoogleClientId, verifyGoogleIdToken } from "@/lib/google";
+import { isGoogleAuthConfigured, verifyGoogleIdToken } from "@/lib/google";
 import { toSessionUser } from "@/app/api/v1/_lib/session-user";
 
 export const dynamic = "force-dynamic";
@@ -11,9 +11,10 @@ export const dynamic = "force-dynamic";
 /**
  * POST /api/v1/auth/google — body { credential }.
  *
- * Google Identity Services sign-in. The browser button returns a JWT
- * `credential`; it is verified server-side against Google's tokeninfo
- * endpoint (audience = GOOGLE_CLIENT_ID, verified email, not expired).
+ * Google sign-in. The browser sends a `credential` — a Firebase ID token
+ * (Firebase Auth popup flow, verified with firebase-admin + the service
+ * account) or a legacy GIS JWT (verified against Google's tokeninfo
+ * endpoint with audience = GOOGLE_CLIENT_ID).
  * A matching account is linked/signed in, a new email becomes a PATIENT.
  */
 
@@ -23,8 +24,7 @@ const googleSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const clientId = getGoogleClientId();
-    if (!clientId) {
+    if (!isGoogleAuthConfigured()) {
       return fail(
         "Google sign-in is not configured on this deployment.",
         503,

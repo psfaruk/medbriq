@@ -1,4 +1,4 @@
-# Medbriq — Security Documentation
+# Find Medi Doctor — Security Documentation
 
 > Honest security documentation for the MVP. What is implemented, how it works, what is
 > knowingly deferred, and what must happen before production. Companion documents:
@@ -23,7 +23,7 @@ Implementation: [`src/lib/auth.ts`](../src/lib/auth.ts) (server-only).
   `userId`, `expiresAt`). **Every request re-validates the session against the database**,
   which makes logout and revocation *immediate* — no token remains valid after its row is
   deleted.
-- **Cookie:** name `medbriq_session`; **httpOnly** (no JS access, mitigates XSS token
+- **Cookie:** name `fmd_session`; **httpOnly** (no JS access, mitigates XSS token
   theft); **sameSite=lax** (mitigates cross-site POST CSRF for the cookie); `secure`
   (HTTPS-only) when `NODE_ENV=production`; `path=/`; 7-day max-age.
 - **Expiry:** sessions expire after 7 days; expired sessions are rejected and lazily
@@ -49,7 +49,7 @@ Implementation: [`src/lib/auth.ts`](../src/lib/auth.ts) (server-only).
   are logged server-side and returned in the API response/UI, clearly labeled. This is
   acceptable **for development only** — a production deployment must integrate a real
   provider in `src/lib/sms.ts` or disable phone OTP at the edge.
-- Phone-first accounts get a synthetic email (`p_<phone>@phone.medbriq.dev`) and an
+- Phone-first accounts get a synthetic email (`p_<phone>@phone.findmedidoctor.com`) and an
   empty password hash ("" sentinel — `verifyPassword` safely rejects it); owners can set
   a real password via Settings → Set password.
 
@@ -171,7 +171,7 @@ temporary holds with timeouts (Phase 7 payment flow requirement).
 
 ## 8. Medical Safety Rules (from the master spec, §12)
 
-Medbriq is a **healthcare discovery and communication service — not a diagnostic
+Find Medi Doctor is a **healthcare discovery and communication service — not a diagnostic
 system**. The following rules are product invariants:
 
 1. **No diagnosis** — the platform never provides medical advice or AI diagnosis.
@@ -196,7 +196,7 @@ system**. The following rules are product invariants:
 | 1 | **In-memory rate limiting** is per-instance and resets on restart | Weak brute-force protection if scaled out or restarted under attack | Redis-backed limiter before multi-instance deploy |
 | 2 | **No HTTPS termination locally** — dev serves plain HTTP | Cookies (incl. `secure=false` in dev) observable on the wire | Production must sit behind TLS (Vercel/Caddy); `secure` flag already keyed to `NODE_ENV=production` |
 | 3 | **No email verification / password recovery** yet | Accounts with unverified emails; no self-service reset | Add email provider (see [costs.md](costs.md)) + verify-email/reset flows (Phase 2 remainder) |
-| 4 | **Demo credentials seeded** (`admin@medbriq.dev` etc.) | Full admin access in any environment that runs the seed | Never deploy the seed outside local dev; production bootstrap creates a unique admin |
+| 4 | **Demo credentials seeded** (`admin@findmedidoctor.dev` etc.) | Full admin access in any environment that runs the seed | Never deploy the seed outside local dev; production bootstrap creates a unique admin |
 | 5 | **Money as `Float`** (SQLite MVP) | Rounding artifacts possible in fee math | Migrate to `Decimal` with the PostgreSQL move — [database.md §4](database.md#4-float-to-decimal-migration) |
 | 6 | **Guest booking = phone + reference code lookup** | Anyone knowing a guest’s phone *and* code can view/cancel that booking; codes are 6 chars (unambiguous alphabet ≈ 32⁶ ≈ 10⁹ combinations) | Acceptable MVP tradeoff to allow accountless booking; hardening options: rate-limit lookups (done), longer codes, or require account for sensitive actions |
 | 7 | **Session tokens stored unhashed** in DB | DB read leak → session hijack | Hash tokens at rest (see §1.2) |

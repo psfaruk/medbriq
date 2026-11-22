@@ -1,5 +1,5 @@
 /**
- * Medbriq SMS provider abstraction (server-side only — imported exclusively
+ * Find Medi Doctor SMS provider abstraction (server-side only — imported exclusively
  * by /api/v1 route handlers).
  *
  * MVP/dev: SMS_PROVIDER unset or "console" → DEV MODE. The OTP is logged
@@ -27,11 +27,11 @@ export async function sendOtpSms(
   if (isDevOtpMode()) {
     // Dev provider: the code is visible in the server log (and, clearly
     // labeled, in the API response) — good enough for local end-to-end tests.
-    console.log("[medbriq-sms] OTP for", phone, ":", code);
+    console.log("[mfmd-sms] OTP for", phone, ":", code);
     return { delivered: true };
   }
   console.warn(
-    `[medbriq-sms] SMS_PROVIDER "${process.env.SMS_PROVIDER}" is not implemented yet;` +
+    `[mfmd-sms] SMS_PROVIDER "${process.env.SMS_PROVIDER}" is not implemented yet;` +
       ` OTP for ${phone} was NOT delivered.`
   );
   return { delivered: false };

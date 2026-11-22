@@ -76,7 +76,7 @@ function vvsSecret(): string {
   if (explicit && explicit.length >= 16) return explicit;
   return crypto
     .createHash("sha256")
-    .update(`medbriq-vvs-fallback:${process.env.DATABASE_URL ?? "local"}`)
+    .update(`mfmd-vvs-fallback:${process.env.DATABASE_URL ?? "local"}`)
     .digest("hex");
 }
 
@@ -189,7 +189,7 @@ export function parseQrPayload(
   }
   const parts = raw.split("|");
   if (parts.length !== 4 || parts[0] !== VVS_QR_VERSION) {
-    return { ok: false, reason: "Unrecognized QR code — not a MedBricBD appointment form." };
+    return { ok: false, reason: "Unrecognized QR code — not a Find Medi Doctor appointment form." };
   }
   const [, referenceCode, token, sig] = parts;
   const expected = crypto

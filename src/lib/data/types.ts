@@ -1,7 +1,7 @@
 import type { AdminStats, SpecialtyInfo } from "@/lib/types";
 
 /**
- * Medbriq data layer — store-agnostic domain contract.
+ * Find Medi Doctor data layer — store-agnostic domain contract.
  *
  * Every API route under src/app/api/v1/** (plus src/lib/auth.ts and
  * src/lib/slots.ts) talks to the database EXCLUSIVELY through this interface.
@@ -514,7 +514,7 @@ export type CreatePhoneUserInput = {
   /** normalized BD number, e.g. +8801712345678 */
   phone: string;
   name: string;
-  email: string; // deterministic synthetic email, e.g. p_8801712345678@phone.medbriq.dev
+  email: string; // deterministic synthetic email, e.g. p_8801712345678@phone.findmedidoctor.com
 };
 
 export type UpsertGoogleUserInput = {

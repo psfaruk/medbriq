@@ -66,6 +66,11 @@ export async function POST(req: NextRequest) {
     const user = await store.findUserByPhone(phone);
 
     let devCode: string | undefined;
+    // SECURITY: echoing reset codes lets anyone take over any account. Only
+    // echo outside production; in production with the console provider,
+    // return no code at all (delivery is impossible without a real SMS
+    // provider, so the reset simply cannot complete either).
+    const echoDevCode = isDevOtpMode() && process.env.NODE_ENV !== "production";
     if (user) {
       const code = generateOtpCode();
       await store.createOtpCode({
@@ -75,7 +80,7 @@ export async function POST(req: NextRequest) {
         expiresAtIso: new Date(now + OTP_TTL_SECONDS * 1000).toISOString(),
       });
       await sendOtpSms(phone, code);
-      if (isDevOtpMode()) devCode = code;
+      if (echoDevCode) devCode = code;
 
       // Audit trail — never includes the code itself.
       await store.createAuditLog({
@@ -85,7 +90,7 @@ export async function POST(req: NextRequest) {
         entityId: phone,
         meta: JSON.stringify({ phone, purpose: OTP_PURPOSE.RESET }),
       });
-    } else if (isDevOtpMode()) {
+    } else if (echoDevCode) {
       // Enumeration-safe chaff: a random code that was never stored, so the
       // dev response is shape-identical but it can never actually verify.
       devCode = generateOtpCode();

@@ -1,7 +1,7 @@
 # Verified Visit System (VVS)
 
 Two-part printable A4 appointment forms + QR-based digital visit
-verification for MedBricBD. The **digital record is the source of truth**;
+verification for Find Medi Doctor. The **digital record is the source of truth**;
 the paper form is a chamber convenience (final recommendation #1).
 
 ## Workflow

@@ -73,7 +73,7 @@ export default function PortalHeader() {
         {/* Logo */}
         <PortalLink
           view={{ name: "home" }}
-          ariaLabel="MedBricBD — home"
+          ariaLabel="Find Medi Doctor — home"
           className="flex items-center gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           <BrandLogo className="h-8 w-8" />
@@ -194,7 +194,7 @@ export default function PortalHeader() {
               <SheetHeader className="border-b border-border p-4">
                 <SheetTitle className="flex items-center gap-2 font-bold">
                   <BrandLogo className="h-7 w-7" />
-                  MedBricBD
+                  Find Medi Doctor
                 </SheetTitle>
               </SheetHeader>
               <nav aria-label="Mobile" className="flex flex-col gap-1 p-3">

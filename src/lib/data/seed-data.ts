@@ -1,5 +1,5 @@
 /**
- * Medbriq demo data definitions — shared by BOTH seeders:
+ * Find Medi Doctor demo data definitions — shared by BOTH seeders:
  *
  *   - prisma/seed.ts           → local SQLite (PrismaStore)
  *   - scripts/firestore-seed.ts → production Firestore (FirestoreStore)
@@ -72,8 +72,8 @@ export const SEED_HOSPITALS = [
 // ── Demo accounts ──────────────────────────────────────────────────────
 
 export const SEED_ADMIN = {
-  email: "admin@medbriq.dev",
-  password: "Admin@Medbriq123",
+  email: "admin@findmedidoctor.dev",
+  password: "Admin@Find Medi Doctor123",
   name: "Platform Admin",
   phone: "+880 1700-000000",
   role: "ADMIN" as const,
@@ -81,21 +81,21 @@ export const SEED_ADMIN = {
 
 export const SEED_PATIENTS = [
   {
-    email: "patient@medbriq.dev",
+    email: "patient@findmedidoctor.dev",
     password: "Patient@123",
     name: "Rahim Uddin",
     phone: "+880 1811-000001",
     role: "PATIENT" as const,
   },
   {
-    email: "patient2@medbriq.dev",
+    email: "patient2@findmedidoctor.dev",
     password: "Patient@123",
     name: "Salma Khatun",
     phone: "+880 1811-000002",
     role: "PATIENT" as const,
   },
   {
-    email: "patient3@medbriq.dev",
+    email: "patient3@findmedidoctor.dev",
     password: "Patient@123",
     name: "Abdul Karim",
     phone: "+880 1811-000003",
@@ -131,7 +131,7 @@ export type DoctorSeed = {
 
 export const SEED_DOCTORS: DoctorSeed[] = [
   {
-    name: "Dr. Ayesha Rahman", email: "doctor@medbriq.dev", phone: "+880 1711-000001",
+    name: "Dr. Ayesha Rahman", email: "doctor@findmedidoctor.dev", phone: "+880 1711-000001",
     slug: "dr-ayesha-rahman", specialtySlug: "medicine-diabetology",
     bio: "Consultant physician focused on diabetes management, thyroid disorders and preventive family medicine. MBBS, FCPS (Medicine). Fictional demo profile.",
     experienceYears: 12, consultationFee: 1000, followUpFee: 600, videoConsultFee: 800,
@@ -143,7 +143,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Mahmudul Hasan", email: "dr.mahmudul@medbriq.dev", phone: "+880 1711-000002",
+    name: "Dr. Mahmudul Hasan", email: "dr.mahmudul@findmedidoctor.dev", phone: "+880 1711-000002",
     slug: "dr-mahmudul-hasan", specialtySlug: "cardiology",
     bio: "Interventional cardiologist managing hypertension, coronary artery disease and heart failure. MBBS, MD (Cardiology). Fictional demo profile.",
     experienceYears: 15, consultationFee: 1500, followUpFee: 800,
@@ -155,7 +155,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Farhana Akter", email: "dr.farhana@medbriq.dev", phone: "+880 1711-000003",
+    name: "Dr. Farhana Akter", email: "dr.farhana@findmedidoctor.dev", phone: "+880 1711-000003",
     slug: "dr-farhana-akter", specialtySlug: "dermatology",
     bio: "Dermatologist and venereologist treating acne, eczema, psoriasis and hair disorders. MBBS, DDV. Fictional demo profile.",
     experienceYears: 8, consultationFee: 800, followUpFee: 500, videoConsultFee: 700,
@@ -167,7 +167,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Tanvir Ahmed", email: "dr.tanvir@medbriq.dev", phone: "+880 1711-000004",
+    name: "Dr. Tanvir Ahmed", email: "dr.tanvir@findmedidoctor.dev", phone: "+880 1711-000004",
     slug: "dr-tanvir-ahmed", specialtySlug: "pediatrics",
     bio: "Child specialist covering newborn care, immunization, nutrition and childhood asthma. MBBS, FCPS (Paediatrics). Fictional demo profile.",
     experienceYears: 10, consultationFee: 900, followUpFee: 500,
@@ -179,7 +179,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Nusrat Jahan", email: "dr.nusrat@medbriq.dev", phone: "+880 1711-000005",
+    name: "Dr. Nusrat Jahan", email: "dr.nusrat@findmedidoctor.dev", phone: "+880 1711-000005",
     slug: "dr-nusrat-jahan", specialtySlug: "gynecology-obstetrics",
     bio: "Consultant gynecologist & obstetrician — pregnancy care, infertility counseling and minimally invasive surgery. MBBS, FCPS (Gynae). Fictional demo profile.",
     experienceYears: 14, consultationFee: 1200, followUpFee: 700,
@@ -191,7 +191,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Rafiul Islam", email: "dr.rafiul@medbriq.dev", phone: "+880 1711-000006",
+    name: "Dr. Rafiul Islam", email: "dr.rafiul@findmedidoctor.dev", phone: "+880 1711-000006",
     slug: "dr-rafiul-islam", specialtySlug: "orthopedics",
     bio: "Orthopedic surgeon — fracture care, sports injuries, knee and hip replacement. MBBS, MS (Ortho). Fictional demo profile.",
     experienceYears: 11, consultationFee: 1000, followUpFee: 600,
@@ -203,7 +203,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Sadia Karim", email: "dr.sadia@medbriq.dev", phone: "+880 1711-000007",
+    name: "Dr. Sadia Karim", email: "dr.sadia@findmedidoctor.dev", phone: "+880 1711-000007",
     slug: "dr-sadia-karim", specialtySlug: "ent",
     bio: "ENT specialist for sinusitis, tonsillitis, hearing loss and vertigo. MBBS, DLO. Fictional demo profile.",
     experienceYears: 7, consultationFee: 900, followUpFee: 500, videoConsultFee: 750,
@@ -215,7 +215,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Imran Chowdhury", email: "dr.imran@medbriq.dev", phone: "+880 1711-000008",
+    name: "Dr. Imran Chowdhury", email: "dr.imran@findmedidoctor.dev", phone: "+880 1711-000008",
     slug: "dr-imran-chowdhury", specialtySlug: "neurology",
     bio: "Neurologist treating stroke, epilepsy, migraine and neuropathy. MBBS, MD (Neurology). Fictional demo profile.",
     experienceYears: 16, consultationFee: 1600, followUpFee: 900,
@@ -227,7 +227,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Mehjabin Islam", email: "dr.mehjabin@medbriq.dev", phone: "+880 1711-000009",
+    name: "Dr. Mehjabin Islam", email: "dr.mehjabin@findmedidoctor.dev", phone: "+880 1711-000009",
     slug: "dr-mehjabin-islam", specialtySlug: "psychiatry",
     bio: "Psychiatrist for anxiety, depression, sleep disorders and CBT-based therapy. MBBS, FCPS (Psychiatry). Fictional demo profile.",
     experienceYears: 6, consultationFee: 1300, followUpFee: 800, videoConsultFee: 1100,
@@ -239,7 +239,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Arif Hossain", email: "dr.arif@medbriq.dev", phone: "+880 1711-000010",
+    name: "Dr. Arif Hossain", email: "dr.arif@findmedidoctor.dev", phone: "+880 1711-000010",
     slug: "dr-arif-hossain", specialtySlug: "dentistry",
     bio: "Dental surgeon — root canal, braces consultation and cosmetic dentistry. BDS, FCPS-I. Fictional demo profile.",
     experienceYears: 5, consultationFee: 700, followUpFee: 400,
@@ -251,7 +251,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Kamrul Hasan", email: "dr.kamrul@medbriq.dev", phone: "+880 1711-000011",
+    name: "Dr. Kamrul Hasan", email: "dr.kamrul@findmedidoctor.dev", phone: "+880 1711-000011",
     slug: "dr-kamrul-hasan", specialtySlug: "medicine-diabetology",
     bio: "General physician with special interest in hypertension and lifestyle diseases. MBBS, MCPS. Fictional demo profile.",
     experienceYears: 9, consultationFee: 800, followUpFee: 500,
@@ -263,7 +263,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Shireen Huq", email: "dr.shireen@medbriq.dev", phone: "+880 1711-000012",
+    name: "Dr. Shireen Huq", email: "dr.shireen@findmedidoctor.dev", phone: "+880 1711-000012",
     slug: "dr-shireen-huq", specialtySlug: "cardiology",
     bio: "Senior consultant cardiologist — echocardiography, heart failure clinics and preventive cardiology. MBBS, MD, FACC. Fictional demo profile.",
     experienceYears: 20, consultationFee: 2000, followUpFee: 1200,
@@ -275,7 +275,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Rezaul Karim", email: "dr.rezaul@medbriq.dev", phone: "+880 1711-000013",
+    name: "Dr. Rezaul Karim", email: "dr.rezaul@findmedidoctor.dev", phone: "+880 1711-000013",
     slug: "dr-rezaul-karim", specialtySlug: "medicine-diabetology",
     bio: "Consultant physician in Rajshahi covering diabetes, hypertension and general medicine. MBBS, FCPS (Medicine). Fictional demo profile.",
     experienceYears: 14, consultationFee: 800, followUpFee: 450,
@@ -287,7 +287,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Ishrat Jahan", email: "dr.ishrat@medbriq.dev", phone: "+880 1711-000014",
+    name: "Dr. Ishrat Jahan", email: "dr.ishrat@findmedidoctor.dev", phone: "+880 1711-000014",
     slug: "dr-ishrat-jahan", specialtySlug: "gynecology-obstetrics",
     bio: "Gynecologist and obstetrician in Sylhet focused on antenatal care, high-risk pregnancy and women's health. MBBS, FCPS (Gynae). Fictional demo profile.",
     experienceYears: 11, consultationFee: 1000, followUpFee: 600, videoConsultFee: 900,
@@ -299,7 +299,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Shahin Alam", email: "dr.shahin@medbriq.dev", phone: "+880 1711-000015",
+    name: "Dr. Shahin Alam", email: "dr.shahin@findmedidoctor.dev", phone: "+880 1711-000015",
     slug: "dr-shahin-alam", specialtySlug: "pediatrics",
     bio: "Child specialist in Rangpur covering newborn care, immunization and childhood nutrition. MBBS, DCH. Fictional demo profile.",
     experienceYears: 9, consultationFee: 700, followUpFee: 400,
@@ -311,7 +311,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Nusrat Siddiqua", email: "dr.nusrat-s@medbriq.dev", phone: "+880 1711-000016",
+    name: "Dr. Nusrat Siddiqua", email: "dr.nusrat-s@findmedidoctor.dev", phone: "+880 1711-000016",
     slug: "dr-nusrat-siddiqua", specialtySlug: "dermatology",
     bio: "Dermatologist in Cumilla treating acne, eczema, fungal infections and hair disorders. MBBS, DDV. Fictional demo profile.",
     experienceYears: 7, consultationFee: 700, followUpFee: 400,
@@ -323,7 +323,7 @@ export const SEED_DOCTORS: DoctorSeed[] = [
     password: "Doctor@123",
   },
   {
-    name: "Dr. Aminul Haque", email: "dr.aminul@medbriq.dev", phone: "+880 1711-000017",
+    name: "Dr. Aminul Haque", email: "dr.aminul@findmedidoctor.dev", phone: "+880 1711-000017",
     slug: "dr-aminul-haque", specialtySlug: "orthopedics",
     bio: "Orthopedic surgeon in Khulna managing fractures, joint pain and spine problems. MBBS, MS (Ortho). Fictional demo profile.",
     experienceYears: 13, consultationFee: 900, followUpFee: 500,
@@ -377,7 +377,7 @@ export function buildDemoAppointments(): DemoAppointmentSpec[] {
     {
       referenceCode: "MB-DEMO01",
       doctorSlug: ayesha.slug,
-      patientEmail: "patient@medbriq.dev",
+      patientEmail: "patient@findmedidoctor.dev",
       patientName: "Rahim Uddin",
       patientPhone: "+880 1811-000001",
       patientAge: 34,
@@ -415,7 +415,7 @@ export function buildDemoAppointments(): DemoAppointmentSpec[] {
     {
       referenceCode: "MB-DEMO03",
       doctorSlug: ayesha.slug,
-      patientEmail: "patient2@medbriq.dev",
+      patientEmail: "patient2@findmedidoctor.dev",
       patientName: "Salma Khatun",
       patientPhone: "+880 1811-000002",
       patientAge: 29,
@@ -435,7 +435,7 @@ export function buildDemoAppointments(): DemoAppointmentSpec[] {
     {
       referenceCode: "MB-DEMO04",
       doctorSlug: farhana.slug,
-      patientEmail: "patient@medbriq.dev",
+      patientEmail: "patient@findmedidoctor.dev",
       patientName: "Rahim Uddin",
       patientPhone: "+880 1811-000001",
       patientAge: 34,
@@ -533,7 +533,7 @@ export function buildCompletedVisits(): CompletedVisitSpec[] {
     {
       referenceCode: "MB-PAST01",
       doctorSlug: "dr-ayesha-rahman",
-      patientEmail: "patient@medbriq.dev",
+      patientEmail: "patient@findmedidoctor.dev",
       patientName: "Rahim Uddin",
       patientPhone: "+880 1811-000001",
       patientAge: 34,
@@ -548,7 +548,7 @@ export function buildCompletedVisits(): CompletedVisitSpec[] {
     {
       referenceCode: "MB-PAST02",
       doctorSlug: "dr-ayesha-rahman",
-      patientEmail: "patient3@medbriq.dev",
+      patientEmail: "patient3@findmedidoctor.dev",
       patientName: "Abdul Karim",
       patientPhone: "+880 1811-000003",
       patientAge: 51,
@@ -563,7 +563,7 @@ export function buildCompletedVisits(): CompletedVisitSpec[] {
     {
       referenceCode: "MB-PAST03",
       doctorSlug: "dr-farhana-akter",
-      patientEmail: "patient2@medbriq.dev",
+      patientEmail: "patient2@findmedidoctor.dev",
       patientName: "Salma Khatun",
       patientPhone: "+880 1811-000002",
       patientAge: 29,
@@ -588,10 +588,10 @@ export type DemoReviewSpec = {
 };
 
 export const SEED_REVIEWS: DemoReviewSpec[] = [
-  { doctorSlug: "dr-ayesha-rahman", patientEmail: "patient2@medbriq.dev", rating: 5, comment: "Very patient listener, explained my reports clearly. (demo review)" },
-  { doctorSlug: "dr-ayesha-rahman", patientEmail: "patient3@medbriq.dev", rating: 4, comment: "Good consultation, chamber was a bit busy. (demo review)" },
-  { doctorSlug: "dr-mahmudul-hasan", patientEmail: "patient2@medbriq.dev", rating: 5, comment: "Thorough cardiac evaluation. Highly recommended. (demo review)" },
-  { doctorSlug: "dr-farhana-akter", patientEmail: "patient@medbriq.dev", rating: 5, comment: "Effective treatment for my acne. (demo review)" },
-  { doctorSlug: "dr-farhana-akter", patientEmail: "patient3@medbriq.dev", rating: 4, comment: "Helpful video consultation. (demo review)" },
-  { doctorSlug: "dr-tanvir-ahmed", patientEmail: "patient@medbriq.dev", rating: 5, comment: "Great with kids, gentle and reassuring. (demo review)" },
+  { doctorSlug: "dr-ayesha-rahman", patientEmail: "patient2@findmedidoctor.dev", rating: 5, comment: "Very patient listener, explained my reports clearly. (demo review)" },
+  { doctorSlug: "dr-ayesha-rahman", patientEmail: "patient3@findmedidoctor.dev", rating: 4, comment: "Good consultation, chamber was a bit busy. (demo review)" },
+  { doctorSlug: "dr-mahmudul-hasan", patientEmail: "patient2@findmedidoctor.dev", rating: 5, comment: "Thorough cardiac evaluation. Highly recommended. (demo review)" },
+  { doctorSlug: "dr-farhana-akter", patientEmail: "patient@findmedidoctor.dev", rating: 5, comment: "Effective treatment for my acne. (demo review)" },
+  { doctorSlug: "dr-farhana-akter", patientEmail: "patient3@findmedidoctor.dev", rating: 4, comment: "Helpful video consultation. (demo review)" },
+  { doctorSlug: "dr-tanvir-ahmed", patientEmail: "patient@findmedidoctor.dev", rating: 5, comment: "Great with kids, gentle and reassuring. (demo review)" },
 ];

@@ -1,4 +1,4 @@
-# Medbriq — REST API v1 Reference
+# Find Medi Doctor — REST API v1 Reference
 
 Base URL (dev): `http://localhost:3000/api/v1`
 
@@ -25,12 +25,12 @@ Every endpoint returns JSON with a single envelope:
 - On failure, `code` is a stable machine code (see [§5 Error codes](#5-error-codes));
   when no specific code applies, the fallback is `HTTP_<status>` (e.g. `HTTP_400`).
 - Unexpected server errors return `500` with `code: "INTERNAL_ERROR"` and are logged
-  server-side (`[medbriq-api]` prefix).
+  server-side (`[mfmd-api]` prefix).
 
 ## 2. Authentication
 
 - **Mechanism:** cookie session. `POST /auth/login` (and `/auth/register`) set an
-  **httpOnly** cookie `medbriq_session` containing an opaque token (random UUID) stored
+  **httpOnly** cookie `fmd_session` containing an opaque token (random UUID) stored
   in the `Session` table. No JWTs; sessions are re-validated against the DB on every
   request, so logout/revocation is immediate. TTL: 7 days.
 - **Roles (RBAC):** `PATIENT`, `DOCTOR`, `ADMIN` — see the [matrix](#4-rbac-matrix).
@@ -44,7 +44,7 @@ Every endpoint returns JSON with a single envelope:
 # login and keep the session cookie in a jar
 curl -c cookies.txt -X POST http://localhost:3000/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"patient@medbriq.dev","password":"Patient@123"}'
+  -d '{"email":"patient@findmedidoctor.dev","password":"Patient@123"}'
 ```
 
 ## 3. Endpoints
@@ -124,7 +124,7 @@ dev mode) · `400 VALIDATION_ERROR` · `429 RATE_LIMITED` (3 requests / 10 min /
 
 #### `POST /auth/otp/verify` — verify the code and sign in (public)
 Body: `{ "phone": "…", "code": "123456", "name": "optional for new accounts" }`.
-Creates a PATIENT account on first use (synthetic email `p_<phone>@phone.medbriq.dev`,
+Creates a PATIENT account on first use (synthetic email `p_<phone>@phone.findmedidoctor.com`,
 provider `phone`, `phoneVerified: true`). Responses: `200` `{ user: SessionUser,
 isNewAccount }` · `400 INVALID_CODE` (message includes remaining attempts) ·
 `429 TOO_MANY_ATTEMPTS` (5 attempts / code) · `403 ACCOUNT_SUSPENDED`.
@@ -515,7 +515,7 @@ curl -s -c cookies.txt -X POST $BASE/auth/register \
 # 2) (Alternative) log in as the seeded demo patient
 curl -s -c cookies.txt -X POST $BASE/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"patient@medbriq.dev","password":"Patient@123"}'
+  -d '{"email":"patient@findmedidoctor.dev","password":"Patient@123"}'
 
 # 3) Search verified doctors in Dhaka, max fee 1200 BDT
 curl -s "$BASE/doctors?city=Dhaka&verified=true&maxFee=1200&sort=fee_asc"
@@ -543,12 +543,12 @@ Doctor-side flow (approve a request) and admin-side flow (verify a doctor):
 ```bash
 # Doctor approves a pending request
 curl -s -c doc.txt -X POST $BASE/auth/login -H "Content-Type: application/json" \
-  -d '{"email":"doctor@medbriq.dev","password":"Doctor@123"}'
+  -d '{"email":"doctor@findmedidoctor.dev","password":"Doctor@123"}'
 curl -s -b doc.txt -X POST $BASE/appointments/<APPOINTMENT_ID>/approve
 
 # Admin verifies a pending doctor
 curl -s -c admin.txt -X POST $BASE/auth/login -H "Content-Type: application/json" \
-  -d '{"email":"admin@medbriq.dev","password":"Admin@Medbriq123"}'
+  -d '{"email":"admin@findmedidoctor.dev","password":"Admin@Find Medi Doctor123"}'
 curl -s -b admin.txt $BASE/admin/verifications
 curl -s -b admin.txt -X POST $BASE/admin/verifications/<DOCTOR_ID>/decision \
   -H "Content-Type: application/json" \

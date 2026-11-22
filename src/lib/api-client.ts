@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Typed fetch helpers for the MedBricBD API envelope:
+ * Typed fetch helpers for the Find Medi Doctor API envelope:
  *   { ok: true, data } | { ok: false, error: { message, code } }
  *
  * `apiGet/apiPost/...` throw ApiCallError (message from the server) so

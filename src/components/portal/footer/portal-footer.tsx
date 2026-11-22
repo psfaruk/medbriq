@@ -94,7 +94,7 @@ export default function PortalFooter() {
             <div className="flex items-center gap-2">
               <BrandLogo className="h-9 w-9" />
               <span className="text-lg font-extrabold tracking-tight text-foreground">
-                MedBricBD
+                Find Medi Doctor
               </span>
             </div>
             <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
@@ -133,7 +133,7 @@ export default function PortalFooter() {
 
         <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center">
           <p>
-            © {new Date().getFullYear()} MedBricBD. {t("portal.footer.rights")}
+            © {new Date().getFullYear()} Find Medi Doctor. {t("portal.footer.rights")}
           </p>
           <p>
             {lang === "bn"

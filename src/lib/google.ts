@@ -1,12 +1,26 @@
 /**
- * Google Identity Services (GIS) — server-side ID-token verification.
+ * Google sign-in — server-side ID-token verification.
  *
- * The browser GIS button hands us a JWT `credential`. Rather than adding the
- * google-auth-library dependency, we verify it against Google's public
- * tokeninfo endpoint and enforce the same checks ourselves: audience must
- * match GOOGLE_CLIENT_ID (when configured), the email must be verified, and
- * the token must not be expired. Server-side only.
+ * Two verification paths, tried in order:
+ *
+ *  1. PRODUCTION (default): the client uses the Firebase Auth JS SDK
+ *     (signInWithPopup + GoogleAuthProvider) and sends the resulting
+ *     Firebase ID token. We verify it with firebase-admin using the
+ *     FIREBASE_SERVICE_ACCOUNT credentials — audience (our project),
+ *     issuer, expiry and email-verified flags are all checked by the
+ *     Admin SDK itself. Requires the Google sign-in provider to be
+ *     enabled in the Firebase console.
+ *
+ *  2. FALLBACK (local experiments): a Google Identity Services (GIS)
+ *     JWT is verified against Google's public tokeninfo endpoint, with
+ *     the audience enforced against GOOGLE_CLIENT_ID when configured.
+ *
+ * Server-side only.
  */
+
+import { cert, getApps, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { parseServiceAccountEnv } from "@/lib/data/firestore-store";
 
 const TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 const FETCH_TIMEOUT_MS = 10_000;
@@ -26,15 +40,62 @@ export function getGoogleClientId(): string | null {
   return clientId && clientId.length > 0 ? clientId : null;
 }
 
-/**
- * Verify a GIS ID token (`credential` from the browser button).
- * Returns the verified identity, or null when the token is invalid, expired,
- * issued for another app, or the check could not be completed (network error
- * / timeout). Callers treat every null the same way — no detail leaks.
- */
-export async function verifyGoogleIdToken(
+/** Google sign-in works when EITHER the service account (Firebase Auth) or an explicit GIS client id is configured. */
+export function isGoogleAuthConfigured(): boolean {
+  return parseServiceAccountEnv() !== null || getGoogleClientId() !== null;
+}
+
+/** Get (or lazily create) the firebase-admin app instance for Auth. */
+function getAdminApp() {
+  const serviceAccount = parseServiceAccountEnv();
+  if (!serviceAccount) return null;
+  return (
+    getApps()[0] ??
+    initializeApp({
+      credential: cert(serviceAccount as Parameters<typeof cert>[0]),
+    })
+  );
+}
+
+/** Verified Google identity — provider-agnostic shape used by the auth route. */
+export interface GoogleIdentity {
+  email: string;
+  name: string;
+  picture: string | null;
+}
+
+/** Path 1: Firebase Auth ID token, verified with the Admin SDK. */
+async function verifyFirebaseIdToken(
   credential: string
-): Promise<{ email: string; name: string; picture: string | null } | null> {
+): Promise<GoogleIdentity | null> {
+  const app = getAdminApp();
+  if (!app) return null;
+  try {
+    const decoded = await getAuth(app).verifyIdToken(credential, true);
+    // Only accept tokens minted for a Google sign-in (not phone/password
+    // sessions that might leak through the same endpoint).
+    const provider =
+      (decoded.firebase as { sign_in_provider?: string } | undefined)
+        ?.sign_in_provider ?? "google.com";
+    if (provider !== "google.com") return null;
+    if (!decoded.email) return null;
+    if (decoded.email_verified !== true) return null;
+    const email = decoded.email.toLowerCase();
+    return {
+      email,
+      name: decoded.name || email.split("@")[0] || "Google user",
+      picture: decoded.picture ?? null,
+    };
+  } catch {
+    // Invalid, expired, wrong audience/project — uniformly "no".
+    return null;
+  }
+}
+
+/** Path 2: GIS JWT, verified against Google's public tokeninfo endpoint. */
+async function verifyTokeninfoJwt(
+  credential: string
+): Promise<GoogleIdentity | null> {
   try {
     const res = await fetch(
       `${TOKENINFO_URL}?id_token=${encodeURIComponent(credential)}`,
@@ -69,4 +130,22 @@ export async function verifyGoogleIdToken(
     // Timeouts, network failures, malformed payloads — uniformly "no".
     return null;
   }
+}
+
+/**
+ * Verify a Google credential (`credential` from the browser — either a
+ * Firebase ID token or a GIS JWT). Returns the verified identity, or null
+ * when the token is invalid, expired, issued for another app, or no
+ * verification path is available. Callers treat every null the same way —
+ * no detail leaks.
+ */
+export async function verifyGoogleIdToken(
+  credential: string
+): Promise<GoogleIdentity | null> {
+  // Try the Firebase Admin path first (production). When there is no
+  // service account the admin verifier returns null immediately.
+  const viaFirebase = await verifyFirebaseIdToken(credential);
+  if (viaFirebase) return viaFirebase;
+  // Fall back to the GIS tokeninfo path.
+  return verifyTokeninfoJwt(credential);
 }

@@ -446,9 +446,9 @@ export default function ScheduleSection() {
       </div>
 
       <DemoNotice>
-        <strong className="text-foreground">Sandbox scheduling.</strong> The
-        demo doctor currently sees patients Sunday–Wednesday and Saturday
-        evenings (17:00–21:00).
+        <strong className="text-foreground">Scheduling.</strong> Availability
+        rules drive the public booking calendar — patients can only book
+        slots you publish here.
       </DemoNotice>
     </div>
   );

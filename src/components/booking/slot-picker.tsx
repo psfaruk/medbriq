@@ -152,7 +152,7 @@ export default function SlotPicker({
     <div className="space-y-4">
       {/* Date strip */}
       <div
-        className="flex gap-2 overflow-x-auto medbriq-scroll pb-2"
+        className="flex gap-2 overflow-x-auto app-scroll pb-2"
         role="tablist"
         aria-label="Select a date"
       >
@@ -225,7 +225,7 @@ export default function SlotPicker({
       ) : (
         <div
           className={cn(
-            "max-h-[24rem] space-y-4 overflow-y-auto medbriq-scroll pr-1 transition-opacity",
+            "max-h-[24rem] space-y-4 overflow-y-auto app-scroll pr-1 transition-opacity",
             loading && "opacity-60"
           )}
         >

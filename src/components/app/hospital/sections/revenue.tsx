@@ -128,8 +128,9 @@ export default function RevenueSection() {
         />
         <ErrorState message={error} onRetry={() => setReload((n) => n + 1)} />
         <DemoNotice>
-          <strong className="text-foreground">Sandbox data — simulated commission.</strong>{" "}
-          Revenue figures come from demo appointments; no real money movement.
+          <strong className="text-foreground">Commission split.</strong>{" "}
+          Revenue figures come from completed visits — platform commission is
+          settled from collected consultation fees.
         </DemoNotice>
       </div>
     );
@@ -247,8 +248,9 @@ export default function RevenueSection() {
       </SectionCard>
 
       <DemoNotice>
-        <strong className="text-foreground">Sandbox data — simulated commission.</strong>{" "}
-        Revenue figures come from demo appointments; no real money movement.
+        <strong className="text-foreground">Commission split.</strong>{" "}
+        Revenue figures come from completed visits — platform commission is
+        settled from collected consultation fees.
       </DemoNotice>
     </div>
   );

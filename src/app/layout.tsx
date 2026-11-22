@@ -3,7 +3,7 @@ import { Inter, Noto_Sans_Bengali } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
-// MedBricBD typography (master prompt §2): Inter for Latin, Noto Sans
+// Find Medi Doctor typography (master prompt §2): Inter for Latin, Noto Sans
 // Bengali for বাংলা — one stack covers both scripts seamlessly.
 const inter = Inter({
   variable: "--font-inter",
@@ -21,13 +21,13 @@ const baseUrl = process.env.APP_BASE_URL ?? "http://localhost:3000";
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: {
-    default: "MedBricBD — Find & Book Verified Doctors in Bangladesh",
-    template: "%s · MedBricBD",
+    default: "Find Medi Doctor — Verified Doctors & Easy Appointments in Bangladesh",
+    template: "%s · Find Medi Doctor",
   },
   description:
     "Search verified doctors and hospitals across Bangladesh, read free plain-language health education, and book chamber appointments with transparent new/returning patient fees. Browsing is free — no account needed.",
   keywords: [
-    "MedBricBD",
+    "Find Medi Doctor",
     "doctor appointment Bangladesh",
     "find doctors Dhaka",
     "verified doctors",
@@ -39,14 +39,14 @@ export const metadata: Metadata = {
     "ডাক্তারের অ্যাপয়েন্টমেন্ট",
     "ভেরিফায়েড ডাক্তার",
   ],
-  applicationName: "MedBricBD",
+  applicationName: "Find Medi Doctor",
   alternates: {
     canonical: "/",
   },
   openGraph: {
     type: "website",
-    siteName: "MedBricBD",
-    title: "MedBricBD — Find & Book Verified Doctors in Bangladesh",
+    siteName: "Find Medi Doctor",
+    title: "Find Medi Doctor — Verified Doctors & Easy Appointments in Bangladesh",
     description:
       "Verified doctors, hospital directory, free health education and transparent appointment fees. Browse without an account.",
     url: baseUrl,
@@ -57,13 +57,13 @@ export const metadata: Metadata = {
         url: "/images/hero-doctor.png",
         width: 864,
         height: 1152,
-        alt: "MedBricBD — verified doctor consultations",
+        alt: "Find Medi Doctor — verified doctor consultations",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "MedBricBD — Find & Book Verified Doctors",
+    title: "Find Medi Doctor — Verified Doctors & Easy Appointments",
     description:
       "Verified doctors, hospitals and honest health education — browse free, sign in only to book.",
     images: ["/images/hero-doctor.png"],
@@ -91,7 +91,7 @@ const jsonLd = {
     {
       "@type": "Organization",
       "@id": `${baseUrl}/#organization`,
-      name: "MedBricBD",
+      name: "Find Medi Doctor",
       url: baseUrl,
       description:
         "Healthcare discovery platform for finding and booking verified doctors in Bangladesh.",
@@ -101,7 +101,7 @@ const jsonLd = {
       "@type": "WebSite",
       "@id": `${baseUrl}/#website`,
       url: baseUrl,
-      name: "MedBricBD",
+      name: "Find Medi Doctor",
       inLanguage: ["en", "bn"],
       publisher: { "@id": `${baseUrl}/#organization` },
       potentialAction: {

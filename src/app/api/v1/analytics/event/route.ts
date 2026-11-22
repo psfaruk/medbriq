@@ -42,10 +42,10 @@ export type AnalyticsCounter = {
 type Agg = Map<string, AnalyticsCounter>;
 
 const globalForAnalytics = globalThis as unknown as {
-  __medbriqAnalytics: Agg | undefined;
+  __fmdAnalytics: Agg | undefined;
 };
 
-const agg: Agg = (globalForAnalytics.__medbriqAnalytics ??= new Map());
+const agg: Agg = (globalForAnalytics.__fmdAnalytics ??= new Map());
 
 const bodySchema = z.object({
   name: z.string().trim().max(60),

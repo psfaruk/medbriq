@@ -145,7 +145,7 @@ async function mkPatient(n: number): Promise<{ id: string; phone: string }> {
   const phone = `${TEST_PHONE_PREFIX}${String(n).padStart(5, "0")}`;
   const user = await db.user.create({
     data: {
-      email: `fee-test-p${n}-${Date.now()}@medbriq.test`,
+      email: `fee-test-p${n}-${Date.now()}@findmedidoctor.test`,
       passwordHash: "x",
       name: `Fee Test Patient ${n}`,
       phone,
@@ -200,7 +200,7 @@ async function cleanupFixtures(): Promise<void> {
   await db.doctorFeeSettings.deleteMany({ where: { doctorId: { in: testDoctorIds } } });
   await db.doctorProfile.deleteMany({ where: { id: { in: testDoctorIds } } });
   await db.user.deleteMany({ where: { id: { in: testPatientIds } } });
-  await db.user.deleteMany({ where: { email: { contains: "@medbriq.test" } } });
+  await db.user.deleteMany({ where: { email: { contains: "@findmedidoctor.test" } } });
   await db.appointment.deleteMany({ where: { idempotencyKey: { not: null } } });
 }
 
@@ -263,12 +263,12 @@ async function partB(): Promise<void> {
   // Doctors with deliberately different configurations
   const d1 = await mkDoctor({
     slug: `fee-test-d1-${Date.now().toString(36)}`,
-    email: `fee-test-d1-${Date.now()}@medbriq.test`,
+    email: `fee-test-d1-${Date.now()}@findmedidoctor.test`,
     feeSettings: { newPatientFee: 1200, returningPatientFee: 700, returningValidityValue: 6, returningValidityUnit: "MONTHS", followUpEnabled: true, followUpFee: 350, followUpValidityValue: 15, followUpValidityUnit: "DAYS", version: 1 },
   });
   const d2 = await mkDoctor({
     slug: `fee-test-d2-${Date.now().toString(36)}`,
-    email: `fee-test-d2-${Date.now()}@medbriq.test`,
+    email: `fee-test-d2-${Date.now()}@findmedidoctor.test`,
     feeSettings: { newPatientFee: 900, returningPatientFee: 500, returningValidityValue: 7, returningValidityUnit: "DAYS", followUpEnabled: false, followUpFee: 0, followUpValidityValue: 15, followUpValidityUnit: "DAYS", version: 1 },
   });
 

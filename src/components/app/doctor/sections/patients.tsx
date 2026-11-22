@@ -91,7 +91,7 @@ export default function PatientsSection() {
         </form>
         <p className="mt-2 text-[11px] text-muted-foreground">
           Accepts local (01…), +880 and 880 spellings — it is normalized
-          automatically. Try the demo numbers 01811-000001 or +880 1911-000002.
+          automatically.
         </p>
         {error ? (
           <p className="mt-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive" role="alert">
@@ -177,11 +177,9 @@ export default function PatientsSection() {
       </div>
 
       <DemoNotice>
-        <strong className="text-foreground">Demo tip.</strong> Salma Khatun
-        (+880 1811-000002) has a confirmed booking with you but no completed
-        visits — her history with other doctors is private. Rahim Uddin
-        (01811-000001) has one qualifying completed visit with you (
-        <Money amount={600} /> paid online).
+        <strong className="text-foreground">Privacy.</strong> A patient&apos;s
+        history with other doctors is private — you only see visits that
+        happened with you.
       </DemoNotice>
     </div>
   );
