@@ -202,7 +202,7 @@ export function PageHeader({
           <Button
             variant="outline"
             size="icon"
-            className="h-10 w-10 shrink-0 rounded-full"
+            className="h-11 w-11 shrink-0 rounded-full"
             onClick={onBack}
             aria-label="Go back"
           >
@@ -402,7 +402,7 @@ export function ErrorState({
       <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 dark:bg-rose-900/60 dark:text-rose-300">
         <AlertCircle className="h-6 w-6" />
       </span>
-      <p className="mt-3 text-sm font-semibold text-foreground">
+      <p className="mt-3 max-w-full break-words text-sm font-semibold text-foreground [overflow-wrap:anywhere]">
         {message ?? t("common.error")}
       </p>
       {onRetry ? (

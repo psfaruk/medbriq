@@ -74,7 +74,7 @@ export default function PortalHeader() {
         <PortalLink
           view={{ name: "home" }}
           ariaLabel="Find Medi Doctor — home"
-          className="flex items-center gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="flex min-h-11 items-center gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           <BrandLogo className="h-8 w-8" />
           <span className="hidden sm:block">
@@ -101,7 +101,7 @@ export default function PortalHeader() {
           ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+        <div className="ml-auto flex items-center gap-2">
           {/* Language selector */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -109,7 +109,7 @@ export default function PortalHeader() {
                 variant="ghost"
                 size="sm"
                 aria-label={`Language: ${lang === "bn" ? "বাংলা" : "English"}`}
-                className="gap-1.5 text-muted-foreground"
+                className="h-11 w-11 gap-1.5 px-0 text-muted-foreground sm:h-8 sm:w-auto sm:px-3"
               >
                 <Languages className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden text-xs font-semibold uppercase sm:inline">
@@ -173,7 +173,7 @@ export default function PortalHeader() {
           <PortalLink
             view={{ name: "doctors" }}
             ariaLabel={t("portal.nav.findDoctors")}
-            className="rounded-md p-2 text-muted-foreground hover:bg-muted lg:hidden focus-visible:outline-2 focus-visible:outline-primary"
+            className="flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:bg-muted lg:hidden focus-visible:outline-2 focus-visible:outline-primary"
           >
             <Search className="h-5 w-5" aria-hidden="true" />
           </PortalLink>
@@ -185,12 +185,15 @@ export default function PortalHeader() {
                 type="button"
                 aria-label={t("portal.nav.menu")}
                 aria-expanded={open}
-                className="rounded-md p-2 text-muted-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:hidden"
+                className="flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:hidden"
               >
                 {open ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
               </button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-80 overflow-y-auto p-0">
+            <SheetContent
+              side="right"
+              className="w-80 max-w-[calc(100vw-1rem)] overflow-y-auto p-0"
+            >
               <SheetHeader className="border-b border-border p-4">
                 <SheetTitle className="flex items-center gap-2 font-bold">
                   <BrandLogo className="h-7 w-7" />
@@ -203,7 +206,7 @@ export default function PortalHeader() {
                     key={item.key}
                     view={item.view}
                     onNavigate={() => setOpen(false)}
-                    className={`rounded-lg px-3 py-2.5 text-sm font-medium ${
+                    className={`rounded-lg px-3 py-3 text-sm font-medium ${
                       activeName(item.view)
                         ? "bg-primary-soft text-primary"
                         : "text-foreground hover:bg-muted"
@@ -216,21 +219,21 @@ export default function PortalHeader() {
                 <PortalLink
                   view={{ name: "emergency" }}
                   onNavigate={() => setOpen(false)}
-                  className="rounded-lg px-3 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50"
+                  className="rounded-lg px-3 py-3 text-sm font-semibold text-red-700 hover:bg-red-50"
                 >
                   {t("portal.cat.emergency")}
                 </PortalLink>
                 <PortalLink
                   view={{ name: "how-it-works" }}
                   onNavigate={() => setOpen(false)}
-                  className="rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted"
+                  className="rounded-lg px-3 py-3 text-sm font-medium text-foreground hover:bg-muted"
                 >
                   {t("portal.footer.howTitle")}
                 </PortalLink>
                 <PortalLink
                   view={{ name: "faq" }}
                   onNavigate={() => setOpen(false)}
-                  className="rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted"
+                  className="rounded-lg px-3 py-3 text-sm font-medium text-foreground hover:bg-muted"
                 >
                   {t("portal.footer.faqTitle")}
                 </PortalLink>
@@ -242,7 +245,7 @@ export default function PortalHeader() {
                       setOpen(false);
                       setPortalMode(false);
                     }}
-                    className="rounded-lg bg-primary px-3 py-2.5 text-center text-sm font-semibold text-primary-foreground"
+                    className="rounded-lg bg-primary px-3 py-3 text-center text-sm font-semibold text-primary-foreground"
                   >
                     {t("portal.nav.dashboard")}
                   </button>
@@ -251,14 +254,14 @@ export default function PortalHeader() {
                     <PortalLink
                       view={{ name: "auth", mode: "login" }}
                       onNavigate={() => setOpen(false)}
-                      className="rounded-lg border border-border px-3 py-2.5 text-center text-sm font-semibold text-foreground hover:bg-muted"
+                      className="rounded-lg border border-border px-3 py-3 text-center text-sm font-semibold text-foreground hover:bg-muted"
                     >
                       {t("portal.nav.login")}
                     </PortalLink>
                     <PortalLink
                       view={{ name: "for-patients" }}
                       onNavigate={() => setOpen(false)}
-                      className="rounded-lg bg-[#13A89E] px-3 py-2.5 text-center text-sm font-semibold text-white"
+                      className="rounded-lg bg-[#13A89E] px-3 py-3 text-center text-sm font-semibold text-white"
                     >
                       {t("portal.nav.join")}
                     </PortalLink>

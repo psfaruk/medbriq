@@ -63,7 +63,7 @@ export default function SystemSection() {
       ) : (
         <>
           {/* ── Status row ───────────────────────────────────────── */}
-          <div className="grid gap-5 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
             <SectionCard className="lg:col-span-1">
               <div className="flex flex-col items-start gap-3 py-2">
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">

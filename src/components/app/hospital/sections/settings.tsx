@@ -72,7 +72,7 @@ export default function SettingsSection() {
           <div className="min-w-0 flex-1">
             {editing ? (
               <form onSubmit={saveAccount} className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label htmlFor="mgr-name">Full name</Label>
                     <Input
@@ -150,7 +150,7 @@ export default function SettingsSection() {
             <Globe className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
             Choose the display language for the dashboard interface.
           </p>
-          <div className="grid gap-2 sm:grid-cols-2 sm:max-w-md">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:max-w-md">
             {LANGS.map((l) => (
               <button
                 key={l.code}

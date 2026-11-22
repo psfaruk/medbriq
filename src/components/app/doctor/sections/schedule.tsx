@@ -393,7 +393,7 @@ export default function ScheduleSection() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="ml-auto h-10 w-10 text-muted-foreground hover:text-destructive"
+                        className="ml-auto h-11 w-11 text-muted-foreground hover:text-destructive"
                         onClick={() =>
                           setDay(dayIdx, {
                             ranges: day.ranges.filter((_, i) => i !== rangeIdx),
@@ -429,7 +429,7 @@ export default function ScheduleSection() {
         </div>
 
         {validationError ? (
-          <p className="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive" role="alert">
+          <p className="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium break-words text-destructive" role="alert">
             {validationError}
           </p>
         ) : null}

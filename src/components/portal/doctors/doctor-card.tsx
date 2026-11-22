@@ -27,7 +27,7 @@ export function DoctorCard({ doctor }: { doctor: DoctorCardType }) {
   const lang = useAppStore((s) => s.lang);
 
   return (
-    <article className="group flex h-full flex-col rounded-2xl border border-border bg-card p-4 shadow-soft transition-shadow hover:shadow-md sm:p-5">
+    <article className="group flex h-full min-w-0 flex-col rounded-2xl border border-border bg-card p-4 shadow-soft transition-shadow hover:shadow-md sm:p-5">
       <div className="flex items-start gap-3">
         <UserAvatar
           name={doctor.name}
@@ -84,7 +84,7 @@ export function DoctorCard({ doctor }: { doctor: DoctorCardType }) {
         </span>
       </div>
 
-      <div className="mt-auto flex items-end justify-between gap-3 pt-4">
+      <div className="mt-auto flex flex-col gap-3 pt-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
             {t("portal.doctor.feeNew")}
@@ -93,7 +93,7 @@ export function DoctorCard({ doctor }: { doctor: DoctorCardType }) {
             <Money amount={doctor.consultationFee} currency={doctor.currency} />
           </p>
         </div>
-        <div className="flex gap-1.5">
+        <div className="grid grid-cols-2 gap-1.5">
           <Button
             variant="outline"
             size="sm"
@@ -114,7 +114,7 @@ export function DoctorCard({ doctor }: { doctor: DoctorCardType }) {
             }}
           >
             {t("portal.cta.bookAppointment")}
-            <ArrowRight className="ml-1 h-3.5 w-3.5" aria-hidden="true" />
+            <ArrowRight className="ml-1 hidden h-3.5 w-3.5 sm:inline" aria-hidden="true" />
           </Button>
         </div>
       </div>

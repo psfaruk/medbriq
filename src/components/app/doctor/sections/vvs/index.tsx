@@ -375,7 +375,7 @@ function QueueCard({
                 </button>
               )}
               {manualError ? (
-                <p className="mt-1 text-[11px] font-medium text-destructive" role="alert">
+                <p className="mt-1 text-[11px] font-medium break-words text-destructive" role="alert">
                   {manualError}
                 </p>
               ) : null}

@@ -144,7 +144,7 @@ export default function OverviewSection() {
       ) : null}
 
       {/* Stat cards */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard
           label="Today's appointments"
           value={stats?.todayTotal ?? 0}
@@ -189,7 +189,7 @@ export default function OverviewSection() {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Left: today's queue preview */}
         <SectionCard
           className="lg:col-span-2"

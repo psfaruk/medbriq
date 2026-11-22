@@ -165,7 +165,7 @@ export default function DoctorsScreen() {
 
       {/* Advanced filters */}
       {showFilters ? (
-        <div className="grid gap-3 rounded-2xl border border-border bg-card p-4 shadow-soft sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 rounded-2xl border border-border bg-card p-4 shadow-soft sm:grid-cols-3">
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-foreground">
               {t("search.specialty")}
@@ -312,7 +312,7 @@ export default function DoctorsScreen() {
                   </div>
                   <Button
                     size="sm"
-                    className="rounded-xl"
+                    className="h-11 rounded-xl sm:h-8"
                     onClick={() => pushPatient({ name: "doctor", slug: d.slug })}
                   >
                     {t("search.viewProfile")}

@@ -83,7 +83,7 @@ export default function ProfessionalApplySection() {
         </Badge>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <button
           type="button"
           onClick={() => setDialog("doctor")}
@@ -233,7 +233,7 @@ function DoctorApplyDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="apply-reg">BMDC Reg. No.</Label>
               <Input
@@ -254,7 +254,7 @@ function DoctorApplyDialog({
               />
             </div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="apply-exp">{t("doctor.experience")} (years)</Label>
               <Input
@@ -384,7 +384,7 @@ function HospitalApplyDialog({
               placeholder="e.g. Shapla Health Complex"
             />
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="apply-hcity">City</Label>
               <Input

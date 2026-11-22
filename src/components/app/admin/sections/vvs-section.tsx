@@ -131,7 +131,7 @@ export default function VvsAdminSection() {
         <p className="mb-3 text-xs text-muted-foreground">
           {t("vvs.admin.policyHint")}
         </p>
-        <div className="grid gap-2" role="radiogroup" aria-label={t("vvs.admin.policyTitle")}>
+        <div className="grid grid-cols-1 gap-2" role="radiogroup" aria-label={t("vvs.admin.policyTitle")}>
           {policies.map((p) => (
             <button
               key={p.key}

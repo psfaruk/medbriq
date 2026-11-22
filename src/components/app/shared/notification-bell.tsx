@@ -153,7 +153,7 @@ export default function NotificationBell({
         <Button
           variant="ghost"
           size="icon"
-          className={cn("relative h-10 w-10 rounded-full", className)}
+          className={cn("relative h-11 w-11 rounded-full", className)}
           aria-label={`Notifications${unread ? ` (${unread} unread)` : ""}`}
         >
           <Bell className="h-5 w-5" />

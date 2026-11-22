@@ -94,7 +94,7 @@ export default function PatientsSection() {
           automatically.
         </p>
         {error ? (
-          <p className="mt-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive" role="alert">
+          <p className="mt-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium break-words text-destructive" role="alert">
             {error}
           </p>
         ) : null}

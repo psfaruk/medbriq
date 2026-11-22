@@ -103,7 +103,7 @@ export default function SettingsSection() {
 
       {/* Account */}
       <SectionCard title="Account">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="s-name">Full name</Label>
             <Input
@@ -130,7 +130,7 @@ export default function SettingsSection() {
           </div>
         </div>
         {accountError ? (
-          <p className="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive" role="alert">
+          <p className="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium break-words text-destructive" role="alert">
             {accountError}
           </p>
         ) : null}
@@ -144,7 +144,7 @@ export default function SettingsSection() {
 
       {/* Language */}
       <SectionCard title="Language / ভাষা">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {LANGS.map((l) => {
             const active = lang === l.code;
             return (

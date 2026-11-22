@@ -64,6 +64,7 @@ import {
   ContentIcon,
 } from "../shared";
 import { DoctorCard as DoctorCardComponent } from "../doctors/doctor-card";
+import { CinematicVideo, Reveal } from "./cinematic";
 
 // ── 4. Service categories ─────────────────────────────────────────────
 
@@ -119,11 +120,12 @@ export function ServiceCategories() {
   return (
     <PortalSection
       id="categories"
+      eyebrow="Start here"
       title="Explore Healthcare"
-      subtitle="Educational guides, galleries and directories \u2014 free for everyone, no sign-in needed."
+      subtitle="Educational guides, galleries and directories — free for everyone, no sign-in needed."
     >
       {/* Education hubs (image-led) */}
-      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <Reveal as="ul" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {EXPLORE_CARDS.map((card) => (
           <li key={card.key}>
             <PortalLink
@@ -157,10 +159,10 @@ export function ServiceCategories() {
             </PortalLink>
           </li>
         ))}
-      </ul>
+      </Reveal>
 
       {/* Healthcare directory quick links */}
-      <nav
+      <Reveal as="nav" delay={0.08}
         aria-label="Healthcare directory"
         className="mt-4 flex flex-wrap gap-2.5 rounded-2xl border border-border bg-card p-3.5 shadow-soft"
       >
@@ -182,7 +184,7 @@ export function ServiceCategories() {
             {link.label}
           </PortalLink>
         ))}
-      </nav>
+      </Reveal>
     </PortalSection>
   );
 }
@@ -200,6 +202,7 @@ export function FeaturedDoctors() {
     <PortalSection
       id="featured-doctors"
       tinted
+      eyebrow="Verified network"
       title={t("portal.section.featuredDoctors")}
       subtitle={t("portal.section.featuredDoctorsSub")}
       action={<ViewAllLink view={{ name: "doctors" }} label={t("portal.cta.viewAllDoctors")} />}
@@ -211,11 +214,11 @@ export function FeaturedDoctors() {
           ))}
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Reveal className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {featured.slice(0, 6).map((doctor) => (
             <DoctorCardComponent key={doctor.slug} doctor={doctor} />
           ))}
-        </div>
+        </Reveal>
       )}
     </PortalSection>
   );
@@ -232,10 +235,28 @@ export function HospitalsPreview() {
   return (
     <PortalSection
       id="hospitals"
+      eyebrow="Care near you"
       title={t("portal.section.hospitals")}
       subtitle={t("portal.section.hospitalsSub")}
       action={<ViewAllLink view={{ name: "hospitals" }} label={t("portal.cta.viewAllHospitals")} />}
     >
+      {/* Cinematic hospital scene strip (static — keeps the data cards clean) */}
+      <Reveal className="group relative mb-6 h-32 overflow-hidden rounded-3xl border border-border shadow-soft sm:h-44">
+        <Image
+          src="/images/cinematic/scene-hospital.jpg"
+          alt="Cinematic view of a modern hospital building"
+          fill
+          sizes="(min-width: 1152px) 1152px, 100vw"
+          className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-[#0f8f87]/25"
+        />
+        <p className="absolute bottom-4 left-5 right-5 max-w-md text-sm font-bold leading-snug text-white sm:text-base">
+          From district clinics to Dhaka teaching hospitals — explore them before you book.
+        </p>
+      </Reveal>
       {loading && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
@@ -245,7 +266,7 @@ export function HospitalsPreview() {
       )}
       {error && <SectionError message={error} />}
       {data && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Reveal className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {data.items.slice(0, 4).map((h) => (
             <PortalLink
               key={h.slug}
@@ -269,69 +290,70 @@ export function HospitalsPreview() {
               </p>
             </PortalLink>
           ))}
-        </div>
+        </Reveal>
       )}
     </PortalSection>
   );
 }
 
-// ── 6.5 Care network 3D banner (wide architectural render) ───────────
+// ── 6.5 Care network cinematic video banner (full-bleed) ──────────────
 
 export function CareNetworkBanner() {
   const { t } = useT();
   return (
-    <section id="care-network" aria-labelledby="care-network-title" className="py-12 sm:py-16">
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-        <div className="relative overflow-hidden rounded-3xl border border-border shadow-soft">
-          <div className="absolute inset-0" aria-hidden="true">
-            <Image
-              src="/images/banner-medical-center.png"
-              alt=""
-              fill
-              sizes="100vw"
-              className="object-cover"
-            />
-          </div>
-          {/* colorful gradient overlay for text contrast */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 bg-gradient-to-r from-[#172B4D]/90 via-[#1769AA]/60 to-[#13A89E]/25"
-          />
-          <div className="relative flex min-h-[26rem] flex-col justify-center gap-3 p-6 sm:min-h-[24rem] sm:gap-4 sm:p-10 lg:min-h-[26rem] lg:p-14">
-            <p className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-              {t("portal.hero.badge")}
-            </p>
-            <h2
-              id="care-network-title"
-              className="max-w-lg text-2xl font-extrabold leading-tight tracking-tight text-white sm:text-3xl lg:text-4xl"
+    <section
+      id="care-network"
+      aria-labelledby="care-network-title"
+      className="relative isolate overflow-hidden bg-black text-white"
+    >
+      {/* Full-bleed looping cinematic video background */}
+      <div className="absolute inset-0" aria-hidden="true">
+        <CinematicVideo
+          src="/videos/banner-cinematic.mp4"
+          poster="/images/cinematic/scene-care-network.jpg"
+          overlayClassName="bg-gradient-to-r from-black/85 via-[#0f8f87]/40 to-black/25"
+        />
+        {/* base dim + letterbox vignettes keep white text WCAG-AA safe on any frame */}
+        <div className="absolute inset-0 bg-black/55" />
+        <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/70 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/70 to-transparent" />
+      </div>
+
+      <div className="relative mx-auto flex w-full max-w-6xl flex-col justify-center gap-3 px-4 py-16 sm:gap-4 sm:px-6 sm:py-20 lg:py-24">
+        <Reveal>
+          <p className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
+            <Sparkles className="h-3.5 w-3.5 text-[#8be0d7]" aria-hidden="true" />
+            {t("portal.hero.badge")}
+          </p>
+          <h2
+            id="care-network-title"
+            className="mt-4 max-w-lg text-2xl font-extrabold leading-tight tracking-tight text-white sm:text-3xl lg:text-4xl"
+          >
+            Modern chambers, clinics &amp; hospitals across Bangladesh
+          </h2>
+          <p className="mt-3 max-w-md text-sm leading-relaxed text-white/90 sm:text-base">
+            Browse verified doctors, compare chambers and book in-person visits with
+            transparent fees — all before you sign in.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <PortalLink
+              view={{ name: "doctors" }}
+              ctaLabel="care-network-find-doctor"
+              className="inline-flex h-11 items-center justify-center rounded-md bg-white px-5 text-sm font-bold text-[#0f8f87] shadow-soft transition-colors hover:bg-white/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
-              Modern chambers, clinics &amp; hospitals across Bangladesh
-            </h2>
-            <p className="max-w-md text-sm leading-relaxed text-white/85 sm:text-base">
-              Browse verified doctors, compare chambers and book in-person visits with
-              transparent fees — all before you sign in.
-            </p>
-            <div className="mt-2 flex flex-wrap gap-3">
-              <PortalLink
-                view={{ name: "doctors" }}
-                ctaLabel="care-network-find-doctor"
-                className="inline-flex h-11 items-center justify-center rounded-md bg-white px-5 text-sm font-bold text-[#1769AA] shadow-soft transition-colors hover:bg-white/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-              >
-                {t("portal.hero.findDoctor")}
-                <ArrowRight className="ml-1.5 h-4 w-4" aria-hidden="true" />
-              </PortalLink>
-              <PortalLink
-                view={{ name: "hospitals" }}
-                ctaLabel="care-network-hospitals"
-                className="inline-flex h-11 items-center justify-center rounded-md border border-white/40 bg-white/10 px-5 text-sm font-bold text-white backdrop-blur transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-              >
-                <Building2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
-                {t("portal.section.hospitals")}
-              </PortalLink>
-            </div>
+              {t("portal.hero.findDoctor")}
+              <ArrowRight className="ml-1.5 h-4 w-4" aria-hidden="true" />
+            </PortalLink>
+            <PortalLink
+              view={{ name: "hospitals" }}
+              ctaLabel="care-network-hospitals"
+              className="inline-flex h-11 items-center justify-center rounded-md border border-white/50 bg-white/10 px-5 text-sm font-bold text-white backdrop-blur transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              <Building2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
+              {t("portal.section.hospitals")}
+            </PortalLink>
           </div>
-        </div>
+        </Reveal>
       </div>
     </section>
   );
@@ -355,6 +377,7 @@ export function Specializations() {
   return (
     <PortalSection
       id="specialties"
+      eyebrow="Find your specialist"
       title={t("portal.section.specialties")}
       subtitle={t("portal.section.specialtiesSub")}
       action={<ViewAllLink view={{ name: "specialties" }} label={t("portal.cta.learnMore")} />}
@@ -366,7 +389,7 @@ export function Specializations() {
           ))}
         </div>
       ) : (
-        <ul className="flex flex-wrap gap-2.5">
+        <Reveal as="ul" className="flex flex-wrap gap-2.5">
           {specialties.map((s, i) => (
             <li key={s.slug}>
               <PortalLink
@@ -382,7 +405,7 @@ export function Specializations() {
               </PortalLink>
             </li>
           ))}
-        </ul>
+        </Reveal>
       )}
     </PortalSection>
   );
@@ -430,11 +453,29 @@ export function HealthArticles() {
     <PortalSection
       id="articles"
       tinted
+      eyebrow="Health library"
       title={t("portal.section.articles")}
       subtitle={t("portal.section.articlesSub")}
       action={<ViewAllLink view={{ name: "library" }} label={t("portal.cta.viewAllArticles")} />}
     >
-      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+      {/* Cinematic education still — elegant static treatment (rounded, gradient, hover scale) */}
+      <Reveal className="group relative mb-6 h-36 overflow-hidden rounded-3xl border border-border shadow-soft sm:h-48">
+        <Image
+          src="/images/cinematic/cta-education.jpg"
+          alt="Cinematic scene of a patient reading trusted health education material"
+          fill
+          sizes="(min-width: 1152px) 1152px, 100vw"
+          className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-[#0f8f87]/25"
+        />
+        <p className="absolute bottom-4 left-5 right-5 max-w-lg text-sm font-bold leading-snug text-white sm:text-base">
+          Plain-language guides, reviewed for accuracy — free for everyone, no sign-in needed.
+        </p>
+      </Reveal>
+      <Reveal className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <div>
           {loading && (
             <div className="grid gap-4 sm:grid-cols-2">
@@ -483,7 +524,7 @@ export function HealthArticles() {
             <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
           </PortalLink>
         </aside>
-      </div>
+      </Reveal>
     </PortalSection>
   );
 }
@@ -531,6 +572,7 @@ export function SymptomsSlider() {
   return (
     <PortalSection
       id="symptoms"
+      eyebrow="Understand your symptoms"
       title={t("portal.section.symptoms")}
       subtitle={t("portal.section.symptomsSub")}
       action={
@@ -629,6 +671,7 @@ export function EquipmentGallery() {
   return (
     <PortalSection
       id="equipment"
+      eyebrow="Medical technology"
       title={t("portal.section.equipment")}
       subtitle={t("portal.section.equipmentSub")}
       action={<ViewAllLink view={{ name: "equipment" }} label={t("portal.cta.viewAllEquipment")} />}
@@ -642,7 +685,7 @@ export function EquipmentGallery() {
       )}
       {error && <SectionError message={error} />}
       {data && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <Reveal className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {data.items.slice(0, 10).map((e, i) => (
             <PortalLink
               key={e.slug}
@@ -670,7 +713,7 @@ export function EquipmentGallery() {
               </span>
             </PortalLink>
           ))}
-        </div>
+        </Reveal>
       )}
     </PortalSection>
   );
@@ -688,7 +731,7 @@ const BOOKING_STEPS: { icon: LucideIcon; key: string }[] = [
   { icon: Stethoscope, key: "Attend your appointment" },
 ];
 
-// Colorful step number chips — blue · teal · emerald · amber · rose · violet · sky
+// Colorful step number chips — teal · emerald · amber · rose · violet
 const STEP_COLORS = [
   "bg-primary text-primary-foreground",
   "bg-[#13A89E] text-white",
@@ -696,7 +739,7 @@ const STEP_COLORS = [
   "bg-amber-500 text-white",
   "bg-rose-500 text-white",
   "bg-violet-600 text-white",
-  "bg-sky-600 text-white",
+  "bg-[#0f8f87] text-white",
 ];
 
 export function HowBookingWorks({ compact }: { compact?: boolean }) {
@@ -705,28 +748,37 @@ export function HowBookingWorks({ compact }: { compact?: boolean }) {
     <PortalSection
       id="how-booking"
       tinted={!compact}
+      eyebrow="Step by step"
       title={t("portal.section.bookingSteps")}
       subtitle={t("portal.section.bookingStepsSub")}
       action={
         <ViewAllLink view={{ name: "how-it-works" }} label={t("portal.footer.howTitle")} />
       }
     >
-      <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-stretch">
-        {/* 3D feature wall art */}
-        <div className="relative overflow-hidden rounded-3xl border border-border shadow-soft">
+      <Reveal className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-stretch">
+        {/* Cinematic consultation still — framed, gradient overlay, hover scale */}
+        <div className="group relative m-1 h-48 overflow-hidden rounded-3xl border border-border shadow-soft sm:h-56 lg:h-[calc(100%-0.5rem)]">
           <Image
-            src="/images/feature-3d-icons.png"
-            alt="3D illustration of a stethoscope, health shield and heartbeat monitor"
-            width={1344}
-            height={768}
+            src="/images/cinematic/scene-consultation.jpg"
+            alt="Cinematic scene of a doctor consulting a patient"
+            fill
             sizes="(min-width: 1024px) 30rem, 100vw"
-            className="h-48 w-full object-cover sm:h-56 lg:h-full"
+            className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
           />
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent"
+          />
+          <p className="absolute bottom-4 left-5 right-5 text-sm font-bold leading-snug text-white sm:text-base">
+            From first search to confirmed visit
+          </p>
         </div>
-        <ol className="grid gap-4 sm:grid-cols-2">
+        <Reveal as="ol" className="grid gap-4 sm:grid-cols-2" delay={0.08}>
           {BOOKING_STEPS.map((step, i) => (
-            <li
+            <Reveal
+              as="li"
               key={step.key}
+              delay={i * 0.05}
               className="relative flex gap-3.5 rounded-2xl border border-border bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md"
             >
               <span
@@ -740,7 +792,7 @@ export function HowBookingWorks({ compact }: { compact?: boolean }) {
                   {step.key}
                 </span>
               </span>
-            </li>
+            </Reveal>
           ))}
           <li className="flex items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 p-4">
             <PortalLink
@@ -752,8 +804,8 @@ export function HowBookingWorks({ compact }: { compact?: boolean }) {
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </PortalLink>
           </li>
-        </ol>
-      </div>
+        </Reveal>
+      </Reveal>
     </PortalSection>
   );
 }
@@ -765,33 +817,40 @@ export function OnlineConsultation() {
   return (
     <PortalSection
       id="telehealth"
+      eyebrow="Telehealth"
       title={t("portal.section.telehealth")}
       subtitle={t("portal.section.telehealthSub")}
     >
-      <div className="flex flex-col items-start gap-5 rounded-2xl border border-border bg-card p-6 shadow-soft sm:flex-row sm:items-center sm:p-8">
-        <div className="relative w-full shrink-0 overflow-hidden rounded-2xl border border-border sm:w-72">
-          <Image
-            src="/images/telehealth-3d.png"
-            alt="3D illustration of a video consultation between a doctor and a patient"
-            width={1344}
-            height={768}
-            sizes="(min-width: 640px) 18rem, 100vw"
-            className="h-40 w-full object-cover sm:h-44"
+      {/* Stacked on mobile, side-by-side from lg — cinematic telehealth video on the left */}
+      <Reveal className="grid overflow-hidden rounded-3xl border border-border bg-card shadow-soft lg:grid-cols-[0.95fr_1.05fr] lg:items-stretch">
+        <div className="relative h-52 overflow-hidden sm:h-60 lg:h-auto lg:min-h-[19rem]">
+          <CinematicVideo
+            src="/videos/scene-telehealth.mp4"
+            poster="/images/cinematic/scene-telehealth.jpg"
+            overlayClassName="bg-gradient-to-t from-black/90 via-black/40 to-transparent"
           />
+          <span className="sr-only">
+            Cinematic illustration of a future video consultation between a doctor and a patient
+          </span>
+          <p className="absolute bottom-4 left-5 right-5 text-xs font-semibold uppercase tracking-widest text-white">
+            Illustrative preview — not yet available
+          </p>
         </div>
-        <div className="flex-1">
+        <div className="flex flex-col gap-4 p-6 sm:p-8">
           <h3 className="text-base font-bold text-foreground">
             Video consultations — coming after compliance review
           </h3>
-          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
             Telehealth is a regulated service in Bangladesh. Find Medi Doctor keeps video
             consultations switched off until the required regulatory and clinical
             review is complete. Today, all bookings are in-person visits at the
             doctor&apos;s chamber — with transparent fees shown before you confirm.
           </p>
+          <div className="mt-auto">
+            <BadgeNotice>Honest by design</BadgeNotice>
+          </div>
         </div>
-        <BadgeNotice>Honest by design</BadgeNotice>
-      </div>
+      </Reveal>
     </PortalSection>
   );
 }
@@ -811,6 +870,7 @@ export function ForDoctorsBand() {
   return (
     <CtaBand
       id="for-doctors"
+      eyebrow="For providers"
       icon={Stethoscope}
       title={t("portal.section.forDoctors")}
       subtitle={t("portal.section.forDoctorsSub")}
@@ -821,7 +881,11 @@ export function ForDoctorsBand() {
         "Free listing while you verify your credentials",
       ]}
       cta={{ label: t("portal.cta.joinAsDoctor"), view: { name: "for-doctors" } }}
-      image={{ src: "/images/cta-doctors-3d.png", alt: "3D render of a Bangladeshi doctor with a holographic appointment schedule" }}
+      video={{
+        src: "/videos/cta-doctors.mp4",
+        poster: "/images/cinematic/cta-doctors.jpg",
+        label: "Cinematic scene of a doctor reviewing patient appointments",
+      }}
       ctaClassName="bg-[#13A89E] text-white hover:bg-[#0f8f87] focus-visible:outline-[#13A89E]"
       chipClassName="bg-[#13A89E]/10 text-[#0f8f87]"
     />
@@ -833,6 +897,7 @@ export function ForHospitalsBand() {
   return (
     <CtaBand
       id="for-hospitals"
+      eyebrow="For institutions"
       icon={Building2}
       title={t("portal.section.forHospitals")}
       subtitle={t("portal.section.forHospitalsSub")}
@@ -843,7 +908,11 @@ export function ForHospitalsBand() {
         "Appointment and schedule oversight",
       ]}
       cta={{ label: t("portal.cta.joinAsHospital"), view: { name: "for-hospitals" } }}
-      image={{ src: "/images/cta-hospitals-3d.png", alt: "Isometric 3D render of a modern hospital building" }}
+      video={{
+        src: "/videos/cta-hospitals.mp4",
+        poster: "/images/cinematic/cta-hospitals.jpg",
+        label: "Cinematic scene of a modern hospital building and staff",
+      }}
       ctaClassName="bg-primary text-primary-foreground hover:bg-primary/90"
       chipClassName="bg-primary-soft text-primary"
       tinted
@@ -853,48 +922,66 @@ export function ForHospitalsBand() {
 
 function CtaBand({
   id,
+  eyebrow,
   icon: Icon,
   title,
   subtitle,
   bullets,
   cta,
   tinted,
+  video,
   image,
   ctaClassName,
   chipClassName,
 }: {
   id: string;
+  eyebrow?: string;
   icon: LucideIcon;
   title: string;
   subtitle: string;
   bullets: string[];
   cta: { label: string; view: Parameters<typeof PortalLink>[0]["view"] };
   tinted?: boolean;
+  /** Cinematic looping video panel (preferred over a static image). */
+  video?: { src: string; poster: string; label: string };
   image?: { src: string; alt: string };
   ctaClassName?: string;
   chipClassName?: string;
 }) {
   return (
-    <PortalSection id={id} tinted={tinted} title={title} subtitle={subtitle}>
-      <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-stretch">
-        {/* 3D illustration panel */}
-        {image && (
-          <div className="relative m-1 overflow-hidden rounded-3xl border border-border shadow-soft">
-            <Image
-              src={image.src}
-              alt={image.alt}
-              width={1344}
-              height={768}
-              sizes="(min-width: 1024px) 32rem, 100vw"
-              className="h-48 w-full object-cover sm:h-60 lg:h-[calc(100%-0.5rem)]"
+    <PortalSection id={id} eyebrow={eyebrow} tinted={tinted} title={title} subtitle={subtitle}>
+      <Reveal className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-stretch">
+        {/* Cinematic video panel (or 3D illustration fallback) */}
+        {video ? (
+          <div className="relative m-1 h-48 overflow-hidden rounded-3xl border border-border shadow-soft sm:h-60 lg:h-[calc(100%-0.5rem)]">
+            <CinematicVideo
+              src={video.src}
+              poster={video.poster}
+              overlayClassName="bg-gradient-to-t from-black/50 via-transparent to-transparent"
             />
+            <span className="sr-only">{video.label}</span>
           </div>
+        ) : (
+          image && (
+            <div className="relative m-1 overflow-hidden rounded-3xl border border-border shadow-soft">
+              <Image
+                src={image.src}
+                alt={image.alt}
+                width={1344}
+                height={768}
+                sizes="(min-width: 1024px) 32rem, 100vw"
+                className="h-48 w-full object-cover sm:h-60 lg:h-[calc(100%-0.5rem)]"
+              />
+            </div>
+          )
         )}
         <div>
           <ul className="grid gap-4 sm:grid-cols-2">
-            {bullets.map((b) => (
-              <div
+            {bullets.map((b, i) => (
+              <Reveal
+                as="li"
                 key={b}
+                delay={i * 0.05}
                 className="flex items-start gap-2.5 rounded-2xl border border-border bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md"
               >
                 <span
@@ -903,7 +990,7 @@ function CtaBand({
                   <Icon className="h-4.5 w-4.5" aria-hidden="true" />
                 </span>
                 <p className="text-sm font-medium leading-snug text-foreground">{b}</p>
-              </div>
+              </Reveal>
             ))}
           </ul>
           <PortalLink
@@ -917,7 +1004,7 @@ function CtaBand({
             <ArrowRight className="ml-1.5 h-4 w-4" aria-hidden="true" />
           </PortalLink>
         </div>
-      </div>
+      </Reveal>
     </PortalSection>
   );
 }
@@ -962,13 +1049,34 @@ export function PatientBenefits() {
   return (
     <PortalSection
       id="benefits"
+      eyebrow="Patient-first"
       title={t("portal.section.benefits")}
       subtitle={t("portal.section.benefitsSub")}
     >
-      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Cinematic care-network still — elegant static treatment */}
+      <Reveal className="group relative mb-6 h-36 overflow-hidden rounded-3xl border border-border shadow-soft sm:h-48">
+        <Image
+          src="/images/cinematic/scene-care-network.jpg"
+          alt="Cinematic wide shot of a connected hospital care network"
+          fill
+          sizes="(min-width: 1152px) 1152px, 100vw"
+          className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-[#0f8f87]/25"
+        />
+        <p className="absolute bottom-4 left-5 right-5 max-w-lg text-sm font-bold leading-snug text-white sm:text-base">
+          A connected network of chambers, clinics and hospitals — built around what is
+          best for patients.
+        </p>
+      </Reveal>
+      <Reveal as="ul" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {BENEFITS.map((b, i) => (
-          <li
+          <Reveal
+            as="li"
             key={b.title}
+            delay={i * 0.05}
             className="flex gap-3.5 rounded-2xl border border-border bg-card p-5 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md"
           >
             <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${TINTS[i % TINTS.length]}`}>
@@ -978,9 +1086,9 @@ export function PatientBenefits() {
               <h3 className="text-sm font-bold text-foreground">{b.title}</h3>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{b.desc}</p>
             </div>
-          </li>
+          </Reveal>
         ))}
-      </ul>
+      </Reveal>
     </PortalSection>
   );
 }
@@ -1020,27 +1128,36 @@ export function TrustSection() {
     <PortalSection
       id="trust"
       tinted
+      eyebrow="Safety first"
       title={t("portal.section.trust")}
       subtitle={t("portal.section.trustSub")}
       action={<ViewAllLink view={{ name: "verification" }} label={t("portal.footer.verifyTitle")} />}
     >
-      <div className="grid gap-6 lg:grid-cols-[0.62fr_1.38fr] lg:items-stretch">
-        {/* 3D verification shield art */}
-        <div className="relative m-1 overflow-hidden rounded-3xl border border-border shadow-soft">
-          <Image
-            src="/images/trust-shield-3d.png"
-            alt="3D render of a medical verification shield with a checkmark"
-            width={1024}
-            height={1024}
-            sizes="(min-width: 1024px) 22rem, 100vw"
-            className="h-48 w-full object-cover sm:h-64 lg:h-[calc(100%-0.5rem)]"
+      <Reveal className="grid gap-6 lg:grid-cols-[0.62fr_1.38fr] lg:items-stretch">
+        {/* Cinematic surgical-care video panel — trust & quality vibe */}
+        <div className="relative m-1 h-56 overflow-hidden rounded-3xl border border-border shadow-soft sm:h-64 lg:h-[calc(100%-0.5rem)]">
+          <CinematicVideo
+            src="/videos/scene-surgery.mp4"
+            poster="/images/cinematic/scene-surgery.jpg"
+            overlayClassName="bg-gradient-to-t from-black/90 via-black/50 to-black/5"
           />
+          <div className="absolute inset-x-0 bottom-0 p-5">
+            <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#8be0d7]">
+              <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+              Verified care
+            </p>
+            <p className="mt-1.5 text-sm font-bold leading-snug text-white sm:text-base">
+              Every credential checked before your visit
+            </p>
+          </div>
         </div>
         <div>
           <div className="grid gap-4 sm:grid-cols-2">
             {TRUST_STEPS.map((s, i) => (
-              <div
+              <Reveal
+                as="div"
                 key={s.title}
+                delay={i * 0.05}
                 className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md"
               >
                 <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${TINTS[i % TINTS.length]}`}>
@@ -1048,7 +1165,7 @@ export function TrustSection() {
                 </span>
                 <h3 className="mt-3 text-sm font-bold text-foreground">{s.title}</h3>
                 <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{s.desc}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
           <p className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -1066,7 +1183,7 @@ export function TrustSection() {
             </span>
           </p>
         </div>
-      </div>
+      </Reveal>
     </PortalSection>
   );
 }
@@ -1079,11 +1196,13 @@ export function HomeFaq() {
   return (
     <PortalSection
       id="faq"
+      eyebrow="Questions"
       title={t("portal.section.faq")}
       subtitle={t("portal.section.faqSub")}
       action={<ViewAllLink view={{ name: "faq" }} label={t("portal.cta.learnMore")} />}
     >
-      <Accordion type="single" collapsible className="rounded-2xl border border-border bg-card px-5 shadow-soft">
+      <Reveal>
+        <Accordion type="single" collapsible className="rounded-2xl border border-border bg-card px-5 shadow-soft">
         {general.map((item, i) => (
           <AccordionItem key={i} value={`faq-${i}`} className="border-border last:border-0">
             <AccordionTrigger className="py-4 text-left text-sm font-bold text-foreground hover:no-underline sm:text-base">
@@ -1094,7 +1213,8 @@ export function HomeFaq() {
             </AccordionContent>
           </AccordionItem>
         ))}
-      </Accordion>
+        </Accordion>
+      </Reveal>
     </PortalSection>
   );
 }

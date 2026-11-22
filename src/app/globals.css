@@ -57,7 +57,7 @@
 
 /* ────────────────────────────────────────────────────────────────────────
    Find Medi Doctor design tokens — master prompt §2
-   Primary #1769AA · Secondary #13A89E · Background #F4F8FC · Surface #FFF
+   Primary #0F8F87 · Secondary #13A89E · Background #F4F8FC · Surface #FFF
    Text #172B4D · Muted #718096 · Success #16A34A · Warning #D97706 ·
    Error #DC2626. Rounded cards 12–16px, subtle shadows, high contrast.
    ──────────────────────────────────────────────────────────────────────── */
@@ -69,11 +69,11 @@
   --card-foreground: #172b4d;
   --popover: #ffffff;
   --popover-foreground: #172b4d;
-  /* #1769AA — trustworthy medical blue */
-  --primary: #1769aa;
+  /* #0F8F87 — trustworthy medical teal */
+  --primary: #0f8f87;
   --primary-foreground: #ffffff;
-  /* soft blue tint for chips / hover surfaces */
-  --primary-soft: #e8f1f9;
+  /* soft teal tint for chips / hover surfaces */
+  --primary-soft: #e6f5f4;
   /* #13A89E — teal partner accent */
   --secondary: #13a89e;
   --secondary-foreground: #ffffff;
@@ -87,24 +87,24 @@
   --destructive-foreground: #ffffff;
   --border: #e3eaf3;
   --input: #dbe4ef;
-  --ring: #1769aa;
+  --ring: #0f8f87;
   --success: #16a34a;
   --success-foreground: #ffffff;
   --warning: #d97706;
   --warning-foreground: #ffffff;
-  --chart-1: #1769aa;
+  --chart-1: #0f8f87;
   --chart-2: #13a89e;
-  --chart-3: #7ea6d9;
+  --chart-3: #7ec8c2;
   --chart-4: #d97706;
   --chart-5: #dc2626;
   --sidebar: #ffffff;
   --sidebar-foreground: #172b4d;
-  --sidebar-primary: #1769aa;
+  --sidebar-primary: #0f8f87;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e8f1f9;
-  --sidebar-accent-foreground: #1769aa;
+  --sidebar-accent: #e6f5f4;
+  --sidebar-accent-foreground: #0f8f87;
   --sidebar-border: #e3eaf3;
-  --sidebar-ring: #1769aa;
+  --sidebar-ring: #0f8f87;
 }
 
 .dark {
@@ -114,9 +114,9 @@
   --card-foreground: #e7eef7;
   --popover: #16223a;
   --popover-foreground: #e7eef7;
-  --primary: #5b9bd5;
-  --primary-foreground: #0b1524;
-  --primary-soft: #1c3050;
+  --primary: #13a89e;
+  --primary-foreground: #04211f;
+  --primary-soft: #123533;
   --secondary: #2cc4b8;
   --secondary-foreground: #062622;
   --brand-teal: #2cc4b8;
@@ -128,24 +128,24 @@
   --destructive-foreground: #ffffff;
   --border: #24334e;
   --input: #2a3b58;
-  --ring: #5b9bd5;
+  --ring: #13a89e;
   --success: #22c55e;
   --success-foreground: #062012;
   --warning: #f59e0b;
   --warning-foreground: #2a1a03;
-  --chart-1: #5b9bd5;
+  --chart-1: #13a89e;
   --chart-2: #2cc4b8;
-  --chart-3: #7ea6d9;
+  --chart-3: #5fd6cc;
   --chart-4: #f59e0b;
   --chart-5: #ef4444;
   --sidebar: #131e33;
   --sidebar-foreground: #e7eef7;
-  --sidebar-primary: #5b9bd5;
-  --sidebar-primary-foreground: #0b1524;
-  --sidebar-accent: #1c3050;
-  --sidebar-accent-foreground: #9cc3ea;
+  --sidebar-primary: #13a89e;
+  --sidebar-primary-foreground: #04211f;
+  --sidebar-accent: #123533;
+  --sidebar-accent-foreground: #7ee0d8;
   --sidebar-border: #24334e;
-  --sidebar-ring: #5b9bd5;
+  --sidebar-ring: #13a89e;
 }
 
 @layer base {
@@ -163,31 +163,31 @@
 
 /* ── Find Medi Doctor signature utilities ──────────────────────────────────── */
 
-/* Blue → teal gradient for hero bands and primary surfaces */
+/* Teal gradient for hero bands and primary surfaces */
 .bg-brand-gradient {
-  background: linear-gradient(135deg, #1769aa 0%, #1487b8 55%, #13a89e 130%);
+  background: linear-gradient(135deg, #0f8f87 0%, #12a49b 55%, #13a89e 130%);
 }
 
 .bg-brand-gradient-soft {
   background: linear-gradient(
     150deg,
-    #e8f1f9 0%,
+    #e6f5f4 0%,
     #eaf6f5 55%,
     #f4f8fc 100%
   );
 }
 
 .text-gradient {
-  background: linear-gradient(120deg, #1769aa, #13a89e);
+  background: linear-gradient(120deg, #0f8f87, #13a89e);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
-/* Hero backdrop: soft radial blue/teal glows over the light background */
+/* Hero backdrop: soft radial teal glows over the light background */
 .bg-hero-mesh {
   background:
-    radial-gradient(42rem 30rem at 85% 12%, rgba(23, 105, 170, 0.10), transparent 60%),
+    radial-gradient(42rem 30rem at 85% 12%, rgba(15, 143, 135, 0.12), transparent 60%),
     radial-gradient(36rem 26rem at 5% 85%, rgba(19, 168, 158, 0.10), transparent 60%),
     linear-gradient(180deg, #ffffff 0%, #f4f8fc 60%);
 }
@@ -202,7 +202,7 @@
 .card-lift:hover {
   transform: translateY(-3px);
   box-shadow:
-    0 10px 24px -10px rgba(23, 105, 170, 0.18),
+    0 10px 24px -10px rgba(15, 143, 135, 0.20),
     0 3px 10px -4px rgba(23, 43, 77, 0.08);
 }
 

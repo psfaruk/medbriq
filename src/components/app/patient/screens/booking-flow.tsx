@@ -645,7 +645,7 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
           </h2>
 
           {/* self vs family */}
-          <div className="grid gap-2.5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             <button
               type="button"
               onClick={selectSelf}
@@ -725,7 +725,7 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
             </button>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="bk-name">
                 {t("booking.patientName")}{" "}
@@ -797,7 +797,7 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
           </div>
 
           {validation ? (
-            <p className="text-xs font-medium text-destructive" role="alert">
+            <p className="text-xs font-medium break-words text-destructive" role="alert">
               {validation}
             </p>
           ) : null}
@@ -852,7 +852,7 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
             <h2 className="text-sm font-semibold text-foreground">
               {t("booking.paymentMethod")}
             </h2>
-            <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+            <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               <button
                 type="button"
                 aria-pressed={!payOnline}
@@ -949,11 +949,12 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
       ) : null}
 
       {/* ── wizard footer (sticky above the mobile tab bar) ─────── */}
-      <div className="sticky bottom-24 z-30 -mx-4 px-4 md:bottom-4">
+      {/* bottom-28: clears the fixed bottom nav incl. iOS safe-area inset */}
+      <div className="sticky bottom-28 z-30 -mx-4 px-4 md:bottom-4">
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card/95 p-3 shadow-soft-lg backdrop-blur">
           <Button
             variant="outline"
-            className="h-10"
+            className="h-11"
             onClick={back}
             disabled={submitting}
           >
@@ -963,7 +964,7 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
           <Button
             onClick={next}
             disabled={!canContinue}
-            className="h-10 min-w-32"
+            className="h-11 min-w-32"
           >
             {submitting ? (
               <>
@@ -1057,7 +1058,7 @@ function SuccessView({
         <Button
           variant="outline"
           size="icon"
-          className="h-10 w-10 shrink-0 rounded-full"
+          className="h-11 w-11 shrink-0 rounded-full"
           onClick={copyRef}
           aria-label={t("booking.copyReference")}
         >

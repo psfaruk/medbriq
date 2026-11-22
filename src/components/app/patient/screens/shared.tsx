@@ -460,7 +460,7 @@ function FamilyMemberForm({
         </div>
       </div>
       {formError ? (
-        <p className="text-xs font-medium text-destructive" role="alert">
+        <p className="text-xs font-medium break-words text-destructive" role="alert">
           {formError}
         </p>
       ) : null}

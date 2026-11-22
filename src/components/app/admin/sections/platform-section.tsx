@@ -269,7 +269,7 @@ export default function PlatformSection() {
         <ErrorState message={error ?? undefined} onRetry={reload} />
       ) : (
         <>
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             {/* ── Feature flags ─────────────────────────────────── */}
             <SectionCard title="Feature flags">
               <ul className="space-y-3">
@@ -364,7 +364,8 @@ export default function PlatformSection() {
             title={`Operating countries (${data.platform.countries.length})`}
             contentClassName="p-0"
           >
-            <div className="overflow-x-auto">
+            {/* Desktop table (mobile gets stacked rows below) */}
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-card hover:bg-card">
@@ -413,6 +414,41 @@ export default function PlatformSection() {
                 </TableBody>
               </Table>
             </div>
+
+            {/* Mobile stacked rows */}
+            <ul className="divide-y divide-border/70 md:hidden">
+              {data.platform.countries.map((c) => (
+                <li
+                  key={c.id}
+                  className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5"
+                >
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <span className="font-mono">{c.code}</span>
+                      <span className="truncate">{c.name}</span>
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                      {c.currency} · {c.phoneCode}
+                    </p>
+                  </div>
+                  {c.isActive ? (
+                    <Badge
+                      variant="outline"
+                      className="shrink-0 border-emerald-200 bg-emerald-50 font-medium text-emerald-700"
+                    >
+                      Active
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="shrink-0 border-slate-200 bg-slate-100 font-medium text-slate-500"
+                    >
+                      Inactive
+                    </Badge>
+                  )}
+                </li>
+              ))}
+            </ul>
           </SectionCard>
 
           {/* ── Specializations ────────────────────────────────── */}

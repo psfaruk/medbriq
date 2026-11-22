@@ -213,7 +213,7 @@ export default function ProfileScreen() {
       {/* ── account ─────────────────────────────────────────────── */}
       <SectionCard title={t("profile.account")}>
         <form onSubmit={saveProfile} className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="pf-name">{t("auth.name")}</Label>
               <Input
@@ -235,7 +235,7 @@ export default function ProfileScreen() {
             </div>
           </div>
           {profileError ? (
-            <p className="text-xs font-medium text-destructive" role="alert">
+            <p className="text-xs font-medium break-words text-destructive" role="alert">
               {profileError}
             </p>
           ) : null}
@@ -255,7 +255,7 @@ export default function ProfileScreen() {
         <RadioGroup
           value={lang}
           onValueChange={(v) => setLang(v === "bn" ? "bn" : "en")}
-          className="grid gap-2.5 sm:grid-cols-2"
+          className="grid grid-cols-1 gap-2.5 sm:grid-cols-2"
         >
           <label
             htmlFor="lang-en"
@@ -357,7 +357,7 @@ export default function ProfileScreen() {
       {/* ── help & support ──────────────────────────────────────── */}
       <SectionCard title={t("profile.help")}>
         <form onSubmit={submitTicket} className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-[1fr_180px]">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_180px]">
             <div className="space-y-1.5">
               <Label htmlFor="tk-subject">{t("profile.subject")}</Label>
               <Input
@@ -395,7 +395,7 @@ export default function ProfileScreen() {
             />
           </div>
           {ticketError ? (
-            <p className="text-xs font-medium text-destructive" role="alert">
+            <p className="text-xs font-medium break-words text-destructive" role="alert">
               {ticketError}
             </p>
           ) : null}

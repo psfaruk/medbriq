@@ -208,7 +208,7 @@ function DeleteDepartmentButton({
         <Button
           variant="ghost"
           size="icon"
-          className="h-10 w-10 text-destructive hover:bg-destructive/5 hover:text-destructive"
+          className="h-11 w-11 text-destructive hover:bg-destructive/5 hover:text-destructive"
           aria-label={`Delete ${department.name}`}
         >
           <Trash2 className="h-3.5 w-3.5" />
@@ -318,11 +318,11 @@ export default function DepartmentsSection() {
                         {fmtDate(d.createdAt)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-2">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-10 w-10"
+                            className="h-11 w-11"
                             aria-label={`Edit ${d.name}`}
                             onClick={() => setEditing(d)}
                           >
@@ -357,11 +357,11 @@ export default function DepartmentsSection() {
                       Created {fmtDate(d.createdAt)}
                     </p>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-2">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-10 w-10"
+                      className="h-11 w-11"
                       aria-label={`Edit ${d.name}`}
                       onClick={() => setEditing(d)}
                     >

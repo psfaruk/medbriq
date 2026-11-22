@@ -4,11 +4,11 @@
  * Portal hero (spec §3): headline, subcopy, unified search with live
  * suggestions (doctors / hospitals / specialties), city selector, primary
  * CTA (Find a Doctor) and secondary CTA (Join as a Healthcare Provider),
- * plus real platform stats. The hero image is NOT lazy-loaded (spec §15).
+ * plus real platform stats. The hero visual is a cinematic looping video
+ * (poster-first, reduced-motion safe) — not lazy-loaded (spec §15).
  */
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import {
   Search,
   MapPin,
@@ -33,6 +33,7 @@ import { track } from "@/lib/analytics";
 import { useT } from "@/components/app/shared/ui-kit";
 import { cn } from "@/lib/utils";
 import { PortalLink, usePortalData, useTrackPageView } from "../shared";
+import { CinematicVideo } from "./cinematic";
 
 type Suggestions = {
   doctors: { slug: string; name: string; specialty: string | null; city: string }[];
@@ -128,7 +129,12 @@ export function PortalHero() {
   const stats = meta.data?.platformStats;
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-primary-soft/70 via-accent/50 to-white">
+    <section className="relative overflow-hidden bg-gradient-to-b from-[#0f8f87]/15 via-accent/60 to-white">
+      {/* subtle dark-teal depth gradient at the very top */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-[#0f8f87]/20 to-transparent"
+      />
       {/* colorful decorative shapes (CSS only — no image weight) */}
       <div
         aria-hidden="true"
@@ -172,8 +178,10 @@ export function PortalHero() {
               ref={boxRef}
               className="relative rounded-2xl border border-border bg-white p-2 shadow-soft"
             >
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <div className="relative flex-1">
+              {/* Two-row cinematic search: full-width query input on top,
+                  division / district / submit below (stacked on phones). */}
+              <div className="flex flex-col gap-2">
+                <div className="relative w-full">
                   <Search
                     className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
                     aria-hidden="true"
@@ -191,11 +199,11 @@ export function PortalHero() {
                     className="h-11 border-0 pl-9 text-base shadow-none focus-visible:ring-0"
                   />
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                   <Select value={division} onValueChange={(v) => { setDivision(v); setDistrict("all"); }}>
                     <SelectTrigger
                       aria-label="Division"
-                      className="h-11 min-w-[120px] flex-1 sm:flex-none sm:w-[150px]"
+                      className="h-11 w-full sm:w-[184px]"
                     >
                       <MapPin className="mr-1 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                       <SelectValue />
@@ -212,7 +220,7 @@ export function PortalHero() {
                   <Select value={district} onValueChange={setDistrict} disabled={division === "all"}>
                     <SelectTrigger
                       aria-label="District"
-                      className="h-11 min-w-[120px] flex-1 sm:flex-none sm:w-[140px]"
+                      className="h-11 w-full sm:w-[150px]"
                     >
                       <SelectValue />
                     </SelectTrigger>
@@ -228,7 +236,7 @@ export function PortalHero() {
                   <Button
                     type="submit"
                     size="lg"
-                    className="h-11 flex-1 basis-full px-5 font-semibold sm:basis-auto sm:flex-none"
+                    className="h-11 w-full px-5 font-semibold sm:flex-1"
                   >
                     {t("portal.hero.findDoctor")}
                   </Button>
@@ -324,18 +332,17 @@ export function PortalHero() {
           </dl>
         </div>
 
-        {/* Hero 3D illustration — eager (above the fold), fixed dimensions to prevent CLS */}
+        {/* Hero cinematic video card — eager (above the fold), fixed 3:4 aspect
+            to prevent CLS. Poster matches the card aspect; floating badges
+            sit on top of the rounded-3xl frame. */}
         <div className="relative mx-auto w-full max-w-sm lg:max-w-md" aria-hidden="true">
-          <div className="absolute -inset-3 rounded-[2rem] bg-gradient-to-br from-[#13A89E]/30 via-amber-200/40 to-rose-200/40 blur-md" />
-          <div className="relative overflow-hidden rounded-3xl border border-border bg-white shadow-soft">
-            <Image
-              src="/images/hero-3d-doctor.png"
-              alt=""
-              width={864}
-              height={1152}
-              priority
-              sizes="(min-width: 1024px) 28rem, 90vw"
-              className="h-auto w-full object-cover"
+          <div className="absolute -inset-3 rounded-[2rem] bg-gradient-to-br from-[#0f8f87]/40 via-[#13A89E]/25 to-[#0f8f87]/25 blur-lg" />
+          <div className="relative aspect-[3/4] overflow-hidden rounded-3xl border border-border bg-[#0f8f87]/10 shadow-soft">
+            <CinematicVideo
+              eager
+              src="/videos/hero-cinematic.mp4"
+              poster="/images/cinematic/hero-portrait.jpg"
+              overlayClassName="bg-gradient-to-t from-black/40 via-transparent to-black/15"
             />
           </div>
           <div className="absolute -bottom-4 -left-4 rounded-2xl border border-border bg-white/95 px-4 py-3 shadow-soft backdrop-blur">

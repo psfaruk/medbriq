@@ -166,7 +166,7 @@ export default function ProfileSection() {
       {/* Editable profile form */}
       <SectionCard title="Hospital information">
         <form onSubmit={save} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="hp-name">Hospital name</Label>
               <Input
@@ -200,7 +200,7 @@ export default function ProfileSection() {
               ) : null}
             </div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="hp-address">Address</Label>
               <Input
@@ -288,7 +288,7 @@ export default function ProfileSection() {
               type="button"
               variant="outline"
               size="icon"
-              className="h-10 w-10 shrink-0"
+              className="h-11 w-11 shrink-0"
               onClick={copySlug}
               aria-label="Copy slug"
             >

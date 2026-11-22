@@ -65,7 +65,7 @@ function NavList({
               onNavigate?.();
             }}
             className={cn(
-              "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all",
+              "flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-all",
               active
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:bg-primary-soft hover:text-primary"
@@ -165,13 +165,16 @@ export default function DashboardShell({
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-10 w-10 shrink-0 rounded-full"
+                  className="h-11 w-11 shrink-0 rounded-full"
                   aria-label="Open navigation"
                 >
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-72 p-0">
+              <SheetContent
+                side="left"
+                className="w-72 max-w-[calc(100vw-1.5rem)] p-0"
+              >
                 <SheetTitle className="sr-only">Navigation</SheetTitle>
                 <div className="flex h-16 items-center border-b border-border px-5">
                   <BrandLockup size="sm" tagline={false} />
@@ -195,7 +198,9 @@ export default function DashboardShell({
                 </div>
               </SheetContent>
             </Sheet>
-            <BrandLockup size="sm" tagline={false} />
+            <span className="flex min-h-11 min-w-0 items-center">
+              <BrandLockup size="sm" tagline={false} />
+            </span>
           </div>
 
           {/* Desktop: section title */}
@@ -203,7 +208,7 @@ export default function DashboardShell({
             {activeItem?.label ?? roleLabel}
           </h1>
 
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-2">
             {/* Back to the public portal (spec: dashboards link to the site) */}
             <Button
               variant="ghost"
@@ -219,7 +224,7 @@ export default function DashboardShell({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="gap-2 rounded-full text-muted-foreground"
+                  className="h-11 w-11 gap-2 rounded-full px-0 text-muted-foreground sm:h-8 sm:w-auto sm:px-3"
                   aria-label="Language"
                 >
                   <Globe className="h-4 w-4" />
@@ -246,7 +251,7 @@ export default function DashboardShell({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex h-11 w-11 items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   aria-label="Account menu"
                 >
                   <UserAvatar
@@ -284,8 +289,9 @@ export default function DashboardShell({
         {/* Content */}
         <main className="flex-1 animate-rise-in">
           <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
-            {/* Mobile section title */}
-            <h1 className="mb-4 text-xl font-bold tracking-tight lg:hidden">
+            {/* Mobile section title — matches the desktop size so the
+                dashboard reads proportionate on phones (app-like, not billboard). */}
+            <h1 className="mb-4 text-lg font-bold tracking-tight lg:hidden">
               {activeItem?.label ?? roleLabel}
             </h1>
             {children}

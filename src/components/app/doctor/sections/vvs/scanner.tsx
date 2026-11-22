@@ -268,7 +268,7 @@ export default function VvsScanner({ onCompleted }: { onCompleted: () => void })
         <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
           {t("vvs.doctor.manualHint")}
         </p>
-        <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
           <div>
             <Label htmlFor="vvs-ref" className="sr-only">
               {t("vvs.doctor.reference")}
@@ -342,7 +342,7 @@ export default function VvsScanner({ onCompleted }: { onCompleted: () => void })
           }
         >
           <div className="space-y-3">
-            <div className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">
               <Info label={t("common.patient")} value={a.patientName} />
               <Info label="Phone" value={a.patientPhone} mono />
               <Info

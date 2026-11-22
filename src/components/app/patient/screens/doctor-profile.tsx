@@ -336,7 +336,7 @@ export default function DoctorProfileScreen({ slug }: { slug: string }) {
             {t("doctor.scheduleNotPublished")}
           </p>
         ) : (
-          <ul className="grid gap-1.5 sm:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
             {[...detail.weeklySchedule]
               .sort(
                 (a, b) =>

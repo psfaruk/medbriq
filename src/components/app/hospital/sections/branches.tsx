@@ -121,7 +121,7 @@ function BranchFormFields({
           required
         />
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="branch-city">City</Label>
           <Input
@@ -377,7 +377,7 @@ export default function BranchesSection() {
           }
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {items.map((b) => (
             <BranchCard
               key={b.id}

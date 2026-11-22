@@ -250,7 +250,7 @@ export function DoctorCardRow({ doctor }: { doctor: DoctorCard }) {
               ) : null}
               <Button
                 size="sm"
-                className="h-9"
+                className="h-11 sm:h-9"
                 onClick={() => pushPatient({ name: "doctor", slug: doctor.slug })}
               >
                 {t("home.bookNow")}
@@ -523,7 +523,7 @@ function FamilyMemberForm({
         </div>
       </div>
       {formError ? (
-        <p className="text-xs font-medium text-destructive" role="alert">
+        <p className="text-xs font-medium break-words text-destructive" role="alert">
           {formError}
         </p>
       ) : null}

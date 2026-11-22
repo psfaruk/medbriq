@@ -156,7 +156,7 @@ export default function RevenueSection() {
         subtitle="Completed-visit revenue and the platform commission split."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Gross revenue"
           value={fmtMoney(totals.grossRevenue, totals.currency)}
@@ -203,47 +203,80 @@ export default function RevenueSection() {
             No completed-visit payments yet.
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <Table className="min-w-[820px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>Doctor</TableHead>
-                  <TableHead>Patient</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Method</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.payments.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                      {fmtDate(p.slotStart)}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs font-medium">
-                      {p.referenceCode}
-                    </TableCell>
-                    <TableCell className="text-sm">{p.doctorName}</TableCell>
-                    <TableCell className="text-sm">{p.patientName}</TableCell>
-                    <TableCell className="whitespace-nowrap text-right text-sm font-semibold">
-                      <Money amount={p.fee} currency={p.currency} />
-                    </TableCell>
-                    <TableCell
-                      className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                      title={p.txnRef ?? undefined}
-                    >
-                      {p.method ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      <PaymentStatusBadge status={p.paymentStatus} />
-                    </TableCell>
+          <>
+            {/* Desktop table */}
+            <div className="hidden overflow-x-auto md:block">
+              <Table className="min-w-[820px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Reference</TableHead>
+                    <TableHead>Doctor</TableHead>
+                    <TableHead>Patient</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Method</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {data.payments.map((p) => (
+                    <TableRow key={p.id}>
+                      <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                        {fmtDate(p.slotStart)}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs font-medium">
+                        {p.referenceCode}
+                      </TableCell>
+                      <TableCell className="text-sm">{p.doctorName}</TableCell>
+                      <TableCell className="text-sm">{p.patientName}</TableCell>
+                      <TableCell className="whitespace-nowrap text-right text-sm font-semibold">
+                        <Money amount={p.fee} currency={p.currency} />
+                      </TableCell>
+                      <TableCell
+                        className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                        title={p.txnRef ?? undefined}
+                      >
+                        {p.method ?? "—"}
+                      </TableCell>
+                      <TableCell>
+                        <PaymentStatusBadge status={p.paymentStatus} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile cards */}
+            <ul className="divide-y divide-border/70 md:hidden">
+              {data.payments.map((p) => (
+                <li key={p.id} className="px-4 py-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {p.patientName}
+                      </p>
+                      <p className="font-mono text-[11px] text-muted-foreground">
+                        {p.referenceCode}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-sm font-semibold">
+                      <Money amount={p.fee} currency={p.currency} />
+                    </span>
+                  </div>
+                  <p className="mt-1.5 truncate text-xs text-muted-foreground">
+                    {p.doctorName} · {fmtDate(p.slotStart)}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                    <span className="font-semibold uppercase tracking-wide">
+                      {p.method ?? "—"}
+                    </span>
+                    <PaymentStatusBadge status={p.paymentStatus} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </SectionCard>
 

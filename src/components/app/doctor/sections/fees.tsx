@@ -236,7 +236,7 @@ export default function FeesSection() {
           </Badge>
         }
       >
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-border/70 bg-primary-soft/50 px-4 py-3">
             <p className="text-xs font-medium text-primary">New patient</p>
             <p className="mt-1 text-xl font-bold tabular-nums text-foreground">
@@ -438,7 +438,7 @@ export default function FeesSection() {
 
           {form ? (
             <div className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="fee-new">New patient fee (৳)</Label>
                   <Input
@@ -548,7 +548,7 @@ export default function FeesSection() {
                 </div>
                 {form.followUpEnabled ? (
                   <div className="space-y-3">
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="space-y-1.5">
                         <Label htmlFor="fee-fu">Follow-up fee (৳)</Label>
                         <Input
@@ -612,7 +612,7 @@ export default function FeesSection() {
               </div>
 
               {formError ? (
-                <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive" role="alert">
+                <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium break-words text-destructive" role="alert">
                   {formError}
                 </p>
               ) : null}

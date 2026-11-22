@@ -128,7 +128,7 @@ export default function OverviewSection({
       ) : null}
 
       {/* KPI cards */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Doctors"
           value={stats.doctorCount}
@@ -177,7 +177,7 @@ export default function OverviewSection({
       </div>
 
       {/* Quick links */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <QuickLink
           label="Review appointments"
           icon={<CalendarDays className="h-4 w-4" />}
@@ -221,54 +221,87 @@ export default function OverviewSection({
             No appointments yet — they appear here once patients book your doctors.
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <Table className="min-w-[780px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Patient</TableHead>
-                  <TableHead>Doctor</TableHead>
-                  <TableHead>Chamber</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Payment</TableHead>
-                  <TableHead className="text-right">Fee</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {overview.recentAppointments.map((a) => (
-                  <TableRow key={a.id}>
-                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                      <span className="font-medium text-foreground">
-                        {fmtDate(a.slotStart)}
-                      </span>{" "}
-                      · {fmtTime(a.slotStart)}
-                    </TableCell>
-                    <TableCell>
-                      <p className="text-sm font-medium text-foreground">
+          <>
+            {/* Desktop table */}
+            <div className="hidden overflow-x-auto md:block">
+              <Table className="min-w-[780px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Time</TableHead>
+                    <TableHead>Patient</TableHead>
+                    <TableHead>Doctor</TableHead>
+                    <TableHead>Chamber</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Payment</TableHead>
+                    <TableHead className="text-right">Fee</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {overview.recentAppointments.map((a) => (
+                    <TableRow key={a.id}>
+                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground">
+                          {fmtDate(a.slotStart)}
+                        </span>{" "}
+                        · {fmtTime(a.slotStart)}
+                      </TableCell>
+                      <TableCell>
+                        <p className="text-sm font-medium text-foreground">
+                          {a.patientName}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {a.referenceCode}
+                        </p>
+                      </TableCell>
+                      <TableCell className="text-sm">{a.doctorName}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {a.chamberName ?? "—"}
+                      </TableCell>
+                      <TableCell>
+                        <AppointmentStatusBadge status={a.status} />
+                      </TableCell>
+                      <TableCell>
+                        <PaymentStatusBadge status={a.paymentStatus} />
+                      </TableCell>
+                      <TableCell className="text-right text-sm font-semibold">
+                        <Money amount={a.fee} currency={a.currency} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile cards */}
+            <ul className="divide-y divide-border/70 md:hidden">
+              {overview.recentAppointments.map((a) => (
+                <li key={a.id} className="px-4 py-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">
                         {a.patientName}
                       </p>
                       <p className="text-[11px] text-muted-foreground">
-                        {a.referenceCode}
+                        {a.referenceCode} · {fmtDate(a.slotStart)} ·{" "}
+                        {fmtTime(a.slotStart)}
                       </p>
-                    </TableCell>
-                    <TableCell className="text-sm">{a.doctorName}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {a.chamberName ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      <AppointmentStatusBadge status={a.status} />
-                    </TableCell>
-                    <TableCell>
-                      <PaymentStatusBadge status={a.paymentStatus} />
-                    </TableCell>
-                    <TableCell className="text-right text-sm font-semibold">
+                    </div>
+                    <span className="shrink-0 text-sm font-semibold">
                       <Money amount={a.fee} currency={a.currency} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                    </span>
+                  </div>
+                  <p className="mt-1.5 truncate text-xs text-muted-foreground">
+                    {a.doctorName}
+                    {a.chamberName ? ` · ${a.chamberName}` : ""}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <AppointmentStatusBadge status={a.status} />
+                    <PaymentStatusBadge status={a.paymentStatus} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </SectionCard>
 

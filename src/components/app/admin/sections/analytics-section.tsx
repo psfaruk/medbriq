@@ -99,7 +99,7 @@ export default function AnalyticsSection() {
 
       {data && (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
               label="Page views"
               value={String(data.funnel.pageViews)}
@@ -122,7 +122,7 @@ export default function AnalyticsSection() {
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Card className="shadow-soft">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm">
@@ -151,35 +151,65 @@ export default function AnalyticsSection() {
               <CardTitle className="text-sm">All events ({data.total} total)</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Event</TableHead>
-                    <TableHead className="text-right">Count</TableHead>
-                    <TableHead className="text-right">Last seen</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.events.map((e) => (
-                    <TableRow key={e.name}>
-                      <TableCell className="font-mono text-xs">{e.name}</TableCell>
-                      <TableCell className="text-right font-bold tabular-nums">
-                        {e.count}
-                      </TableCell>
-                      <TableCell className="text-right text-xs text-muted-foreground">
-                        {new Date(e.lastAt).toLocaleTimeString()}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {data.events.length === 0 && (
+              {/* Desktop table (mobile gets stacked rows below) */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={3} className="py-8 text-center text-sm text-muted-foreground">
-                        No events recorded yet — browse the public portal to generate some.
-                      </TableCell>
+                      <TableHead>Event</TableHead>
+                      <TableHead className="text-right">Count</TableHead>
+                      <TableHead className="text-right">Last seen</TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {data.events.map((e) => (
+                      <TableRow key={e.name}>
+                        <TableCell className="font-mono text-xs">{e.name}</TableCell>
+                        <TableCell className="text-right font-bold tabular-nums">
+                          {e.count}
+                        </TableCell>
+                        <TableCell className="text-right text-xs text-muted-foreground">
+                          {new Date(e.lastAt).toLocaleTimeString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {data.events.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={3} className="py-8 text-center text-sm text-muted-foreground">
+                          No events recorded yet — browse the public portal to generate some.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile stacked rows */}
+              <ul className="divide-y divide-border/70 md:hidden">
+                {data.events.map((e) => (
+                  <li
+                    key={e.name}
+                    className="flex items-center justify-between gap-3 px-4 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="break-all font-mono text-xs font-semibold text-foreground">
+                        {e.name}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        Last seen {new Date(e.lastAt).toLocaleTimeString()}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-sm font-bold tabular-nums text-foreground">
+                      {e.count}
+                    </span>
+                  </li>
+                ))}
+                {data.events.length === 0 && (
+                  <li className="px-4 py-8 text-center text-sm text-muted-foreground">
+                    No events recorded yet — browse the public portal to generate some.
+                  </li>
+                )}
+              </ul>
             </CardContent>
           </Card>
           <p className="text-xs text-muted-foreground">

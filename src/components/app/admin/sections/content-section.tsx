@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { apiGet, apiPatch } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
 import { useT, ErrorState } from "@/components/app/shared/ui-kit";
 
 type ContentStatus = "DRAFT" | "EDITOR_REVIEW" | "MEDICAL_REVIEW" | "APPROVED" | "PUBLISHED";
@@ -240,7 +241,8 @@ export default function ContentSection() {
       {data && (
         <Card className="shadow-soft">
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            {/* Desktop table */}
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -327,6 +329,82 @@ export default function ContentSection() {
                 </TableBody>
               </Table>
             </div>
+
+            {/* Mobile cards */}
+            <ul className="divide-y divide-border/70 md:hidden">
+              {filtered.map((item) => {
+                const meta = COLLECTION_META[item.collection];
+                const Icon = meta.icon;
+                return (
+                  <li key={item.key} className="px-4 py-3.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-start gap-2">
+                        <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">
+                            {item.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {meta.label} · {item.category}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={cn("shrink-0", STATUS_STYLES[item.status])}
+                      >
+                        {item.status.replaceAll("_", " ")}
+                      </Badge>
+                    </div>
+                    <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                        <span>
+                          Review:{" "}
+                          {item.medicalReviewer ?? (
+                            <span className="font-medium text-amber-700">
+                              Pending
+                            </span>
+                          )}
+                        </span>
+                        {item.served ? (
+                          <span className="inline-flex items-center gap-1 font-semibold text-emerald-700">
+                            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                            Served
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 font-semibold text-muted-foreground">
+                            <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
+                            Hidden
+                          </span>
+                        )}
+                        {item.override !== null && (
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                            OVERRIDE
+                          </span>
+                        )}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant={item.served ? "outline" : "default"}
+                        disabled={busyKey === item.key}
+                        onClick={() => togglePublication(item)}
+                        className="shrink-0"
+                      >
+                        {busyKey === item.key && (
+                          <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                        )}
+                        {item.served ? "Unpublish" : "Publish"}
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+              {filtered.length === 0 && (
+                <li className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  No items match the filters.
+                </li>
+              )}
+            </ul>
           </CardContent>
         </Card>
       )}

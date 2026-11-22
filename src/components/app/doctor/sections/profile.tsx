@@ -301,7 +301,7 @@ export default function ProfileSection() {
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-1.5">
                 <Label htmlFor="p-exp">Experience (years)</Label>
                 <Input
@@ -437,7 +437,7 @@ export default function ProfileSection() {
             </div>
 
             {formError ? (
-              <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive" role="alert">
+              <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium break-words text-destructive" role="alert">
                 {formError}
               </p>
             ) : null}

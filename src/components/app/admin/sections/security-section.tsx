@@ -124,7 +124,8 @@ export default function SecuritySection() {
         title="Role permission matrix"
         contentClassName="p-0"
       >
-        <div className="overflow-x-auto">
+        {/* Desktop table */}
+        <div className="hidden overflow-x-auto md:block">
           <Table>
             <TableHeader>
               <TableRow className="bg-card hover:bg-card">
@@ -157,13 +158,48 @@ export default function SecuritySection() {
             </TableBody>
           </Table>
         </div>
+
+        {/* Mobile: stacked capability cards (matrix rows become chips) */}
+        <ul className="divide-y divide-border/70 md:hidden">
+          {CAPABILITIES.map((cap) => (
+            <li key={cap.key} className="px-4 py-3.5">
+              <p className="text-sm font-medium text-foreground">{cap.label}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{cap.hint}</p>
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {ROLE_COLUMNS.map((r) => {
+                  const allowed = cap.roles[r.key];
+                  return (
+                    <span
+                      key={r.key}
+                      className={
+                        allowed
+                          ? "inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+                          : "inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground/70"
+                      }
+                    >
+                      {allowed ? (
+                        <Check className="h-3 w-3" aria-hidden="true" />
+                      ) : (
+                        <X className="h-3 w-3" aria-hidden="true" />
+                      )}
+                      {r.label}
+                      <span className="sr-only">
+                        {allowed ? " allowed" : " not allowed"}
+                      </span>
+                    </span>
+                  );
+                })}
+              </div>
+            </li>
+          ))}
+        </ul>
         <p className="border-t border-border/70 px-4 py-2.5 text-[11px] text-muted-foreground sm:px-5">
           Enforced server-side by role guards on every API route — the UI hides
           what the API would reject anyway.
         </p>
       </SectionCard>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* ── Sessions ───────────────────────────────────────────── */}
         <SectionCard title="Sessions & access">
           <ul className="space-y-3 text-sm">

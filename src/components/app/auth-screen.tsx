@@ -163,7 +163,7 @@ export default function AuthScreen({
           muted
           loop
           playsInline
-          preload="metadata"
+          preload="none"
           poster="/images/auth-side.png"
         >
           <source src="/videos/login-wall.mp4" type="video/mp4" />
@@ -199,7 +199,7 @@ export default function AuthScreen({
                 onClick={onBack}
                 aria-label={backLabel ?? "Back to site"}
                 title={backLabel ?? "Back to site"}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/90 shadow-sm backdrop-blur transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:px-3.5"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-2 text-xs font-semibold text-white/90 shadow-sm backdrop-blur transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:min-h-0 sm:px-3.5 sm:py-1.5"
               >
                 <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
                 <span className="hidden sm:inline">{backLabel ?? "Back to site"}</span>
@@ -210,7 +210,7 @@ export default function AuthScreen({
                 <button
                   key={l.code}
                   onClick={() => setLang(l.code)}
-                  className={`rounded-full px-2.5 py-1 text-xs font-semibold transition-colors sm:px-3 ${
+                  className={`rounded-full px-3 py-2.5 text-xs font-semibold transition-colors sm:px-3 sm:py-1.5 ${
                     lang === l.code
                       ? "bg-white text-[#1769AA] shadow"
                       : "text-white/85 hover:text-white"
@@ -381,7 +381,7 @@ function WelcomeView() {
             </p>
           </div>
         </div>
-        <div className="mt-4 grid gap-2">
+        <div className="mt-4 grid grid-cols-1 gap-2">
           <Button className="h-11" onClick={() => setAuthView("register")}>
             {t("auth.signUp")}
           </Button>
@@ -478,7 +478,7 @@ function LoginView({
     <div>
       <button
         onClick={() => setAuthView("welcome")}
-        className="mb-4 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+        className="mb-2 inline-flex items-center gap-1 rounded-md py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         {t("common.back")}
@@ -502,6 +502,12 @@ function LoginView({
           </TabsTrigger>
         </TabsList>
       </Tabs>
+
+      {config && !config.phoneOtpEnabled ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          SMS sign-in is temporarily unavailable — please use email or Google.
+        </p>
+      ) : null}
 
       {tab === "email" ? (
         <form onSubmit={submitEmail} className="mt-4 space-y-3">
@@ -686,7 +692,7 @@ function OtpView({
     <div className="text-center">
       <button
         onClick={() => setAuthView("login")}
-        className="mb-4 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+        className="mb-2 inline-flex items-center gap-1 rounded-md py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         {t("common.back")}
@@ -784,7 +790,7 @@ function ForgotView() {
     <div>
       <button
         onClick={() => setAuthView("login")}
-        className="mb-4 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+        className="mb-2 inline-flex items-center gap-1 rounded-md py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         {t("common.back")}
@@ -878,7 +884,7 @@ function RegisterView({
     <div>
       <button
         onClick={() => setAuthView("welcome")}
-        className="mb-4 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+        className="mb-2 inline-flex items-center gap-1 rounded-md py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         {t("common.back")}
@@ -891,7 +897,7 @@ function RegisterView({
       </p>
 
       <form onSubmit={submit} className="mt-4 space-y-3">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="reg-name">{t("auth.name")}</Label>
             <Input
@@ -915,7 +921,7 @@ function RegisterView({
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="reg-email">{t("auth.email")}</Label>
             <Input

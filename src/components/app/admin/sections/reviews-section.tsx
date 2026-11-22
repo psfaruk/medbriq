@@ -90,7 +90,7 @@ export default function ReviewsSection() {
           title={`Recent reviews (${items.length})`}
           contentClassName="p-4 sm:p-5"
         >
-          <ul className="grid gap-3 md:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {items.map((r) => (
               <li
                 key={r.id}

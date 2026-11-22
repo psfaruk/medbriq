@@ -134,7 +134,7 @@ export function PortalSection({
         <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-2xl">
             {eyebrow && (
-              <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-[#13A89E]">
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-[#0f8f87]">
                 {eyebrow}
               </p>
             )}

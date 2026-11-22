@@ -112,7 +112,7 @@ export default function EarningsSection() {
         subtitle="Revenue from completed consultations. Platform commission 10% — payouts settled monthly."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Gross revenue"
           value={stats ? fmtMoney(stats.earnings.completedRevenue, currency) : "—"}
@@ -167,7 +167,7 @@ export default function EarningsSection() {
             }}
           />
         ) : breakdown ? (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="rounded-xl border border-border/70 bg-emerald-50/50 px-4 py-3 dark:bg-emerald-950/20">
               <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
                 <CreditCard className="h-3.5 w-3.5" />

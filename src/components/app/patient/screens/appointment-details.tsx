@@ -150,7 +150,10 @@ function RescheduleDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        {/* min-w-0: DialogContent is display:grid — without it the flex
+            date strip's min-content blows the grid track past the dialog
+            edge instead of scrolling inside it (fixed on mobile widths). */}
+        <div className="min-w-0 space-y-4">
           <DateStrip value={date} onChange={changeDate} />
           {slotsLoading ? (
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -471,7 +474,7 @@ function ReviewDialog({
             />
           </div>
           {error ? (
-            <p className="text-xs font-medium text-destructive" role="alert">
+            <p className="text-xs font-medium break-words text-destructive" role="alert">
               {error}
             </p>
           ) : null}
@@ -608,7 +611,7 @@ export default function AppointmentDetailsScreen({ id }: { id: string }) {
           <Button
             variant="outline"
             size="icon"
-            className="h-10 w-10 shrink-0 rounded-full"
+            className="h-11 w-11 shrink-0 rounded-full"
             onClick={copyRef}
             aria-label={t("booking.copyReference")}
           >
@@ -756,7 +759,7 @@ export default function AppointmentDetailsScreen({ id }: { id: string }) {
       {/* ── actions ─────────────────────────────────────────────── */}
       {canManage ? (
         <SectionCard title={t("appointments.actions")}>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <Button variant="outline" onClick={() => setRescheduleOpen(true)}>
               <CalendarClock className="h-4 w-4" aria-hidden="true" />
               {t("appointments.reschedule")}

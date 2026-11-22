@@ -247,7 +247,7 @@ export default function ChambersSection() {
 
   const dialogBody = (
     <>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1.5 sm:col-span-2">
           <Label htmlFor="ch-name">Chamber name</Label>
           <Input
@@ -298,7 +298,7 @@ export default function ChambersSection() {
         </div>
       </div>
       {formError ? (
-        <p className="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive" role="alert">
+        <p className="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium break-words text-destructive" role="alert">
           {formError}
         </p>
       ) : null}
@@ -335,7 +335,7 @@ export default function ChambersSection() {
           }
         />
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {items.map((chamber) => (
             <SectionCard key={chamber.id}>
               <div className="flex items-start justify-between gap-3">
@@ -395,11 +395,11 @@ export default function ChambersSection() {
                     {chamber.isActive ? "Bookable" : "Not bookable"}
                   </Label>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-9 gap-1.5"
+                    className="h-11 gap-1.5 px-4"
                     onClick={() => openEdit(chamber)}
                   >
                     <PencilLine className="h-3.5 w-3.5" />
@@ -408,7 +408,7 @@ export default function ChambersSection() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-10 w-10 text-muted-foreground hover:text-destructive"
+                    className="h-11 w-11 text-muted-foreground hover:text-destructive"
                     onClick={() => setDeleteTarget(chamber)}
                     aria-label={`Delete ${chamber.name}`}
                   >

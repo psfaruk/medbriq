@@ -111,7 +111,7 @@ export default function ReviewsSection() {
         subtitle="Patients can review you after a completed consultation. Reviews are public on your profile."
       />
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <SectionCard title="Rating summary" className="lg:col-span-1">
           <div className="flex flex-col items-center py-2">
             <p className="text-2xl font-bold tracking-tight tabular-nums text-foreground sm:text-5xl">

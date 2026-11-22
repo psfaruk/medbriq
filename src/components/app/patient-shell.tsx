@@ -75,7 +75,7 @@ export default function PatientShell({ children }: { children: ReactNode }) {
             <button
               onClick={() => resetPatient({ name: "home" })}
               aria-label="Find Medi Doctor home"
-              className="min-w-0"
+              className="flex min-h-11 min-w-0 items-center"
             >
               <BrandLockup size="sm" tagline={false} />
             </button>
@@ -99,12 +99,12 @@ export default function PatientShell({ children }: { children: ReactNode }) {
               ))}
             </nav>
 
-            <div className="flex shrink-0 items-center gap-1.5">
+            <div className="flex shrink-0 items-center gap-2">
               <NotificationBell />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
-                    className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex h-11 w-11 items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     aria-label="Account menu"
                   >
                     <UserAvatar
@@ -163,7 +163,8 @@ export default function PatientShell({ children }: { children: ReactNode }) {
       </header>
 
       {/* ── Content ─────────────────────────────────────────────── */}
-      <main className="flex-1 w-full pb-24 md:pb-8 animate-rise-in">
+      {/* pb-28: clears the fixed bottom nav incl. iOS safe-area inset */}
+      <main className="flex-1 w-full pb-28 md:pb-8 animate-rise-in">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-5">{children}</div>
       </main>
 
