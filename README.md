@@ -174,7 +174,7 @@ account definitions and password hashing).
 ## Repository Structure
 
 ```
-medbriq/
+find-medi-doctor/
 ├── .github/workflows/ci.yml      # CI: install → prisma generate → lint → tsc
 ├── apps/
 │   ├── patient-mobile/           # PLANNED Flutter patient app (placeholder, no code yet)

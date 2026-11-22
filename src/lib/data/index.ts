@@ -18,17 +18,17 @@ import { FirestoreStore, parseServiceAccountEnv } from "./firestore-store";
 
 const globalForStore = globalThis as unknown as {
   __fmdDataStore: DataStore | undefined;
-  __medbriqStoreKind: StoreKind | undefined;
+  __fmdStoreKind: StoreKind | undefined;
 };
 
 /** Which backing store is active for this process. */
 export function storeKind(): StoreKind {
-  if (!globalForStore.__medbriqStoreKind) {
-    globalForStore.__medbriqStoreKind = parseServiceAccountEnv()
+  if (!globalForStore.__fmdStoreKind) {
+    globalForStore.__fmdStoreKind = parseServiceAccountEnv()
       ? "firestore"
       : "prisma";
   }
-  return globalForStore.__medbriqStoreKind;
+  return globalForStore.__fmdStoreKind;
 }
 
 /** The process-wide DataStore instance (Firestore in production, Prisma locally). */

@@ -818,7 +818,7 @@ export function ForDoctorsBand() {
         "Your own new/returning patient fee structure",
         "Automatic patient classification (new / returning / follow-up)",
         "Chamber, schedule and appointment management",
-        "Free listing during the demo phase",
+        "Free listing while you verify your credentials",
       ]}
       cta={{ label: t("portal.cta.joinAsDoctor"), view: { name: "for-doctors" } }}
       image={{ src: "/images/cta-doctors-3d.png", alt: "3D render of a Bangladeshi doctor with a holographic appointment schedule" }}
@@ -1058,7 +1058,7 @@ export function TrustSection() {
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Star className="h-3.5 w-3.5 text-amber-500" aria-hidden="true" />
-              {ratingCount}+ patient reviews across the demo dataset
+              {ratingCount}+ patient reviews across the platform
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
