@@ -2,8 +2,8 @@ import { getStore, storeKind } from "@/lib/data";
 import { getCurrentUser } from "@/lib/auth";
 import { handleRouteError, ok } from "@/lib/api";
 import { cached } from "@/lib/cache";
-import { getGoogleClientId } from "@/lib/google";
-import { isDevOtpMode } from "@/lib/sms";
+import { getGoogleClientId, isGoogleAuthConfigured } from "@/lib/google";
+import { isDevOtpMode, isPhoneOtpSafe } from "@/lib/sms";
 import {
   doctorsPage,
   HOME_DOCTORS_QUERY,
@@ -78,9 +78,15 @@ export async function GET() {
 async function buildAuthConfig(): Promise<AuthConfig> {
   const googleClientId = getGoogleClientId();
   return {
-    googleEnabled: googleClientId !== null,
+    // Same rule as /api/v1/auth/config: Google works via the Firebase
+    // service account (popup + server-side token verification) even when
+    // no legacy GOOGLE_CLIENT_ID is set.
+    googleEnabled: isGoogleAuthConfigured(),
     googleClientId,
-    phoneOtpEnabled: true,
+    // BUGFIX: this was hardcoded `true`, so the production UI showed an
+    // enabled phone tab that then failed with 503 — no SMS provider is
+    // configured. Use the shared gate so the tab state matches reality.
+    phoneOtpEnabled: isPhoneOtpSafe(),
     devOtpMode: isDevOtpMode(),
   };
 }

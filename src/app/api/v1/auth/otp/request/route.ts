@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getStore } from "@/lib/data";
 import { ok, fail, handleRouteError } from "@/lib/api";
 import { normalizeBdPhone } from "@/lib/phone";
-import { sendOtpSms, isDevOtpMode } from "@/lib/sms";
+import { sendOtpSms, isDevOtpMode, isRealProviderConfigured } from "@/lib/sms";
 import { OTP_PURPOSE, OTP_TTL_SECONDS } from "@/lib/constants";
 import {
   generateOtpCode,
@@ -35,8 +35,12 @@ export async function POST(req: NextRequest) {
 
     // SECURITY: with the console SMS provider the OTP is echoed back in the
     // response — in production that would let anyone take over any phone
-    // number. Refuse phone OTP entirely until a real provider is wired up.
-    if (isDevOtpMode() && process.env.NODE_ENV === "production") {
+    // number. Refuse phone OTP entirely until a real provider is wired up
+    // (also when a provider is selected but its credentials are incomplete).
+    if (
+      (isDevOtpMode() || !isRealProviderConfigured()) &&
+      process.env.NODE_ENV === "production"
+    ) {
       return fail(
         "Phone sign-in is temporarily unavailable. Please use email or Google.",
         503,
@@ -80,8 +84,19 @@ export async function POST(req: NextRequest) {
       expiresAtIso: new Date(now + OTP_TTL_SECONDS * 1000).toISOString(),
     });
 
-    await sendOtpSms(phone, code);
+    const delivery = await sendOtpSms(phone, code);
     recordOtpRequest(phone, now);
+
+    // Honest responses: if the provider could not deliver (missing or bad
+    // Twilio credentials, network failure), say so instead of pretending
+    // the SMS went out — the user would otherwise wait for a code forever.
+    if (!delivery.delivered) {
+      return fail(
+        "SMS delivery is not working right now. Please use email sign-in instead.",
+        503,
+        "SMS_NOT_DELIVERED"
+      );
+    }
 
     // Audit trail — never includes the code itself, only its request context.
     await store.createAuditLog({

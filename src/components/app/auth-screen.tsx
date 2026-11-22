@@ -86,10 +86,13 @@ export default function AuthScreen({
         apiGet<AuthConfig>("/api/v1/auth/config")
           .then((d) => setConfig(d))
           .catch(() =>
+            // Safe fallback: if the config cannot load, hide phone OTP
+            // (the API would refuse it in production anyway) rather than
+            // showing a tab that then fails.
             setConfig({
               googleEnabled: false,
               googleClientId: null,
-              phoneOtpEnabled: true,
+              phoneOtpEnabled: false,
               devOtpMode: true,
             })
           );

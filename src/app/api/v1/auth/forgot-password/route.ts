@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getStore } from "@/lib/data";
 import { ok, fail, handleRouteError } from "@/lib/api";
 import { normalizeBdPhone } from "@/lib/phone";
-import { sendOtpSms, isDevOtpMode } from "@/lib/sms";
+import { sendOtpSms, isDevOtpMode, isRealProviderConfigured } from "@/lib/sms";
 import { OTP_PURPOSE, OTP_TTL_SECONDS } from "@/lib/constants";
 import {
   generateOtpCode,
@@ -62,6 +62,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // HONESTY + SECURITY: with the console SMS provider no real SMS can be
+    // delivered, so in production the reset can never complete — say so
+    // instead of letting the user wait for a code that will never arrive.
+    // (Also refuses when a real provider is selected but its credentials
+    // are incomplete — checked before the user lookup so the response does
+    // not leak whether the account exists.)
+    if (
+      (isDevOtpMode() || !isRealProviderConfigured()) &&
+      process.env.NODE_ENV === "production"
+    ) {
+      return fail(
+        "Password reset by SMS is not available yet. Please sign in with your email and password, or contact support.",
+        503,
+        "OTP_NOT_AVAILABLE"
+      );
+    }
+
     const store = getStore();
     const user = await store.findUserByPhone(phone);
 
@@ -79,7 +96,17 @@ export async function POST(req: NextRequest) {
         purpose: OTP_PURPOSE.RESET,
         expiresAtIso: new Date(now + OTP_TTL_SECONDS * 1000).toISOString(),
       });
-      await sendOtpSms(phone, code);
+      const delivery = await sendOtpSms(phone, code);
+      if (!delivery.delivered) {
+        // The provider accepted the request but failed to deliver — the
+        // stored code stays unusable (the user never sees it), and we say
+        // so instead of pretending the SMS went out.
+        return fail(
+          "SMS delivery is not working right now. Please try again later or contact support.",
+          503,
+          "SMS_NOT_DELIVERED"
+        );
+      }
       if (echoDevCode) devCode = code;
 
       // Audit trail — never includes the code itself.

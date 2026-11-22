@@ -1,6 +1,6 @@
 import { ok, handleRouteError } from "@/lib/api";
 import { getGoogleClientId, isGoogleAuthConfigured } from "@/lib/google";
-import { isDevOtpMode } from "@/lib/sms";
+import { isDevOtpMode, isPhoneOtpSafe } from "@/lib/sms";
 import type { AuthConfig } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -20,11 +20,6 @@ export const dynamic = "force-dynamic";
  * echoed back in API responses — anyone could take over any phone number —
  * so the tab is disabled there until a real provider is wired up.
  */
-function isPhoneOtpSafe(): boolean {
-  if (!isDevOtpMode()) return true; // real provider implemented
-  return process.env.NODE_ENV !== "production";
-}
-
 export async function GET() {
   try {
     const googleClientId = getGoogleClientId();
