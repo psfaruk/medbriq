@@ -273,8 +273,8 @@ export default function DoctorsSection({
         <ErrorState message={error} onRetry={reload} />
       ) : (
         <Tabs defaultValue="queue">
-          <TabsList className="mb-1">
-            <TabsTrigger value="queue" className="gap-1.5">
+          <TabsList className="mb-1 h-auto w-full flex-wrap justify-start gap-1 sm:w-fit">
+            <TabsTrigger value="queue" className="gap-1.5 px-3 py-1.5 text-xs sm:px-4 sm:text-sm">
               Verification queue
               {queue.length > 0 ? (
                 <Badge className="ml-1 rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-700 hover:bg-amber-100">
@@ -282,7 +282,9 @@ export default function DoctorsSection({
                 </Badge>
               ) : null}
             </TabsTrigger>
-            <TabsTrigger value="all">All doctors ({doctors.length})</TabsTrigger>
+            <TabsTrigger value="all" className="px-3 py-1.5 text-xs sm:px-4 sm:text-sm">
+              All doctors ({doctors.length})
+            </TabsTrigger>
           </TabsList>
 
           {/* ── Verification queue ──────────────────────────────── */}

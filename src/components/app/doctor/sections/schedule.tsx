@@ -393,7 +393,7 @@ export default function ScheduleSection() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="ml-auto h-8 w-8 text-muted-foreground hover:text-destructive"
+                        className="ml-auto h-10 w-10 text-muted-foreground hover:text-destructive"
                         onClick={() =>
                           setDay(dayIdx, {
                             ranges: day.ranges.filter((_, i) => i !== rangeIdx),

@@ -356,7 +356,7 @@ function QueueCard({
               {manualOpen ? (
                 <div className="flex flex-col gap-1.5 sm:flex-row">
                   <input
-                    className="h-8 w-full rounded-lg border bg-background px-2.5 font-mono text-xs uppercase placeholder:normal-case sm:w-32"
+                    className="h-9 w-full rounded-lg border bg-background px-2.5 font-mono text-xs uppercase placeholder:normal-case sm:w-32"
                     placeholder={t("vvs.doctor.manualCode")}
                     value={manualCode}
                     onChange={(e) => setManualCode(e.target.value.toUpperCase())}
@@ -396,7 +396,7 @@ function QueueCard({
             <div className="w-full sm:w-auto">
               <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center">
                 <input
-                  className="h-8 w-full rounded-lg border bg-background px-2.5 font-mono text-sm tracking-widest sm:w-28"
+                  className="h-9 w-full rounded-lg border bg-background px-2.5 font-mono text-sm tracking-widest sm:w-28"
                   placeholder="000000"
                   inputMode="numeric"
                   maxLength={6}

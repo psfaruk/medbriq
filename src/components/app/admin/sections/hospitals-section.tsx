@@ -456,7 +456,7 @@ export default function HospitalsSection({
           if (!open) setTarget(null);
         }}
       >
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{target?.name}</DialogTitle>
             <DialogDescription>

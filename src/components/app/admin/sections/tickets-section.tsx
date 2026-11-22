@@ -218,7 +218,7 @@ export default function TicketsSection({
           if (!open) setTarget(null);
         }}
       >
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="pr-6">{target?.subject}</DialogTitle>
             <DialogDescription>

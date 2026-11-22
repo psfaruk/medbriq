@@ -114,7 +114,7 @@ export default function ReviewsSection() {
       <div className="grid gap-4 lg:grid-cols-3">
         <SectionCard title="Rating summary" className="lg:col-span-1">
           <div className="flex flex-col items-center py-2">
-            <p className="text-5xl font-bold tracking-tight tabular-nums text-foreground">
+            <p className="text-2xl font-bold tracking-tight tabular-nums text-foreground sm:text-5xl">
               {ratingAvg != null ? ratingAvg.toFixed(1) : "—"}
             </p>
             {ratingAvg != null ? (

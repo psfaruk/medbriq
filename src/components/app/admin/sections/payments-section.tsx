@@ -222,8 +222,8 @@ export default function PaymentsSection() {
                       className="rounded-2xl border border-border bg-background/40 p-4"
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <span>
-                          <span className="block font-mono text-xs font-semibold text-foreground">
+                        <span className="min-w-0">
+                          <span className="block truncate font-mono text-xs font-semibold text-foreground">
                             {p.referenceCode}
                           </span>
                           <span className="mt-0.5 block text-xs text-muted-foreground">

@@ -399,7 +399,7 @@ export default function ChambersSection() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="gap-1.5"
+                    className="h-9 gap-1.5"
                     onClick={() => openEdit(chamber)}
                   >
                     <PencilLine className="h-3.5 w-3.5" />
@@ -408,7 +408,7 @@ export default function ChambersSection() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    className="h-10 w-10 text-muted-foreground hover:text-destructive"
                     onClick={() => setDeleteTarget(chamber)}
                     aria-label={`Delete ${chamber.name}`}
                   >

@@ -415,12 +415,12 @@ function DoctorRow({ doctor }: { doctor: DoctorCard }) {
   const pushPatient = useAppStore((s) => s.pushPatient);
   return (
     <article className="card-lift rounded-2xl border border-border bg-card p-4 shadow-soft">
-      <div className="flex items-start gap-3.5">
+      <div className="flex flex-wrap items-start gap-x-3.5 gap-y-2">
         <button
           type="button"
+          className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           onClick={() => pushPatient({ name: "doctor", slug: doctor.slug })}
           aria-label={doctor.name}
-          className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <UserAvatar
             name={doctor.name}
@@ -432,7 +432,7 @@ function DoctorRow({ doctor }: { doctor: DoctorCard }) {
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              className="truncate text-sm font-bold text-foreground hover:text-primary"
+              className="min-w-0 truncate text-sm font-bold text-foreground hover:text-primary"
               onClick={() => pushPatient({ name: "doctor", slug: doctor.slug })}
             >
               {doctor.name}
@@ -455,8 +455,8 @@ function DoctorRow({ doctor }: { doctor: DoctorCard }) {
             </span>
           </div>
         </div>
-        <div className="flex shrink-0 flex-col items-end justify-between gap-2 self-stretch">
-          <div className="text-right">
+        <div className="flex w-full flex-row items-center justify-between gap-2 self-stretch sm:w-auto sm:shrink-0 sm:flex-col sm:items-end sm:justify-between">
+          <div className="min-w-0 text-right">
             <Money
               amount={doctor.consultationFee}
               currency={doctor.currency}

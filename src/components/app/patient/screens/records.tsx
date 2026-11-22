@@ -244,7 +244,7 @@ export default function RecordsScreen() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9 rounded-full"
+                    className="h-10 w-10 rounded-full"
                     onClick={() => openEdit(m)}
                     aria-label={`${t("common.edit")} ${m.name}`}
                   >
@@ -253,7 +253,7 @@ export default function RecordsScreen() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    className="h-10 w-10 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
                     onClick={() => setDeleteTarget(m)}
                     aria-label={`${t("common.delete")} ${m.name}`}
                   >

@@ -43,7 +43,7 @@ export function BrandWordmark({
   showSuffix?: boolean;
 }) {
   return (
-    <span className={`font-bold tracking-tight ${className}`}>
+    <span className={`min-w-0 truncate font-bold tracking-tight ${className}`}>
       <span className="text-secondary">Find </span>
       <span className="text-primary">Medi </span>
       <span className="text-foreground">Doctor</span>
@@ -64,9 +64,9 @@ export function BrandLockup({
   const dim = size === "sm" ? "h-7 w-7" : "h-9 w-9";
   const text = size === "sm" ? "text-base" : "text-xl";
   return (
-    <span className="flex items-center gap-2">
-      <BrandLogo className={dim} />
-      <span className="flex flex-col leading-none">
+    <span className="flex min-w-0 items-center gap-2">
+      <BrandLogo className={`${dim} shrink-0`} />
+      <span className="flex min-w-0 flex-col leading-none">
         <BrandWordmark className={text} />
         {tagline ? (
           <span className="hidden sm:block text-[10px] font-medium tracking-wide text-muted-foreground mt-0.5">

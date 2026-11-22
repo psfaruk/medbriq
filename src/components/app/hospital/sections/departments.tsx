@@ -208,7 +208,7 @@ function DeleteDepartmentButton({
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-destructive hover:bg-destructive/5 hover:text-destructive"
+          className="h-10 w-10 text-destructive hover:bg-destructive/5 hover:text-destructive"
           aria-label={`Delete ${department.name}`}
         >
           <Trash2 className="h-3.5 w-3.5" />
@@ -322,7 +322,7 @@ export default function DepartmentsSection() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8"
+                            className="h-10 w-10"
                             aria-label={`Edit ${d.name}`}
                             onClick={() => setEditing(d)}
                           >
@@ -361,7 +361,7 @@ export default function DepartmentsSection() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-10 w-10"
                       aria-label={`Edit ${d.name}`}
                       onClick={() => setEditing(d)}
                     >

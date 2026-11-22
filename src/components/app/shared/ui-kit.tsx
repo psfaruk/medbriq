@@ -202,7 +202,7 @@ export function PageHeader({
           <Button
             variant="outline"
             size="icon"
-            className="h-9 w-9 shrink-0 rounded-full"
+            className="h-10 w-10 shrink-0 rounded-full"
             onClick={onBack}
             aria-label="Go back"
           >
@@ -294,9 +294,11 @@ export function SectionCard({
       )}
     >
       {title || action ? (
-        <header className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3 sm:px-5">
+        <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 px-4 py-3 sm:gap-3 sm:px-5">
           {title ? (
-            <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+            <h2 className="min-w-0 text-sm font-semibold text-foreground">
+              {title}
+            </h2>
           ) : null}
           {action}
         </header>

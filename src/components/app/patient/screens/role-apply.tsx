@@ -221,7 +221,7 @@ function DoctorApplyDialog({
           <div className="space-y-1.5">
             <Label>{t("search.specialty")}</Label>
             <Select value={specialtySlug} onValueChange={setSpecialtySlug}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder={t("search.anySpecialty")} />
               </SelectTrigger>
               <SelectContent>

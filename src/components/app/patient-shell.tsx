@@ -75,6 +75,7 @@ export default function PatientShell({ children }: { children: ReactNode }) {
             <button
               onClick={() => resetPatient({ name: "home" })}
               aria-label="Find Medi Doctor home"
+              className="min-w-0"
             >
               <BrandLockup size="sm" tagline={false} />
             </button>
@@ -98,7 +99,7 @@ export default function PatientShell({ children }: { children: ReactNode }) {
               ))}
             </nav>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex shrink-0 items-center gap-1.5">
               <NotificationBell />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

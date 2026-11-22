@@ -951,11 +951,20 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
       {/* ── wizard footer (sticky above the mobile tab bar) ─────── */}
       <div className="sticky bottom-24 z-30 -mx-4 px-4 md:bottom-4">
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card/95 p-3 shadow-soft-lg backdrop-blur">
-          <Button variant="outline" onClick={back} disabled={submitting}>
+          <Button
+            variant="outline"
+            className="h-10"
+            onClick={back}
+            disabled={submitting}
+          >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             {t("common.back")}
           </Button>
-          <Button onClick={next} disabled={!canContinue} className="min-w-32">
+          <Button
+            onClick={next}
+            disabled={!canContinue}
+            className="h-10 min-w-32"
+          >
             {submitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -1038,17 +1047,17 @@ function SuccessView({
         </p>
       </div>
 
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex flex-wrap items-center justify-center gap-2">
         <Badge
           variant="outline"
-          className="gap-1.5 bg-muted/60 px-3 py-1.5 font-mono text-sm"
+          className="min-w-0 max-w-full truncate gap-1.5 bg-muted/60 px-3 py-1.5 font-mono text-sm"
         >
           {t("booking.reference")}: {appt.referenceCode}
         </Badge>
         <Button
           variant="outline"
           size="icon"
-          className="h-9 w-9 rounded-full"
+          className="h-10 w-10 shrink-0 rounded-full"
           onClick={copyRef}
           aria-label={t("booking.copyReference")}
         >

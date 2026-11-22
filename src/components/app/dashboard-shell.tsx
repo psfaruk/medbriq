@@ -157,15 +157,15 @@ export default function DashboardShell({
       {/* ── Main column ─────────────────────────────────────────── */}
       <div className="flex min-h-screen flex-col lg:pl-64">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-border bg-card/90 px-4 backdrop-blur-lg sm:px-6 md:h-16">
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-border bg-card/90 px-4 backdrop-blur-lg sm:gap-3 sm:px-6 md:h-16">
           {/* Mobile: hamburger + brand */}
-          <div className="flex items-center gap-2 lg:hidden">
+          <div className="flex min-w-0 items-center gap-2 lg:hidden">
             <Sheet>
               <SheetTrigger asChild>
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-9 w-9 rounded-full"
+                  className="h-10 w-10 shrink-0 rounded-full"
                   aria-label="Open navigation"
                 >
                   <Menu className="h-5 w-5" />
@@ -203,7 +203,7 @@ export default function DashboardShell({
             {activeItem?.label ?? roleLabel}
           </h1>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-1.5">
             {/* Back to the public portal (spec: dashboards link to the site) */}
             <Button
               variant="ghost"

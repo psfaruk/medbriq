@@ -116,12 +116,12 @@ export default function HomeScreen() {
               }
             }}
             placeholder={t("home.searchPlaceholder")}
-            className="h-9 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            className="h-10 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
             aria-label={t("home.searchPlaceholder")}
           />
           <Button
             size="sm"
-            className="h-9 shrink-0"
+            className="h-10 shrink-0"
             onClick={() => {
               if (query.trim()) {
                 setSearchPreset({ q: query.trim() });
@@ -186,7 +186,7 @@ export default function HomeScreen() {
             {t("home.specialties")}
           </h2>
           <button
-            className="text-xs font-semibold text-primary hover:underline"
+            className="py-1 text-xs font-semibold text-primary hover:underline"
             onClick={() => pushPatient({ name: "specialties" })}
           >
             {t("common.viewAll")}
@@ -233,7 +233,7 @@ export default function HomeScreen() {
             {t("home.upcoming")}
           </h2>
           <button
-            className="text-xs font-semibold text-primary hover:underline"
+            className="py-1 text-xs font-semibold text-primary hover:underline"
             onClick={() => resetPatient({ name: "bookings" })}
           >
             {t("common.viewAll")}
@@ -259,20 +259,20 @@ export default function HomeScreen() {
                 onClick={() => pushPatient({ name: "appointment", id: a.id })}
                 className="card-lift flex w-full items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 text-left shadow-soft"
               >
-                <div className="flex items-center gap-3">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-soft text-primary">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
                     <CalendarCheck className="h-5 w-5" />
                   </span>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">
                       {a.doctor?.name ?? "Appointment"}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="truncate text-xs text-muted-foreground">
                       {fmtDateTime(a.slotStart)}
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="shrink-0 text-right">
                   <Money
                     amount={a.fee}
                     className="text-sm font-bold text-foreground"
@@ -294,7 +294,7 @@ export default function HomeScreen() {
             {t("home.topDoctors")}
           </h2>
           <button
-            className="text-xs font-semibold text-primary hover:underline"
+            className="py-1 text-xs font-semibold text-primary hover:underline"
             onClick={() => resetPatient({ name: "doctors" })}
           >
             {t("common.viewAll")}

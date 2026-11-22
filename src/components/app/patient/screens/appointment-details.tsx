@@ -313,7 +313,7 @@ function PayDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>{t("booking.payOnline")}</DialogTitle>
           <DialogDescription>
@@ -421,7 +421,7 @@ function ReviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>{t("appointments.rateTitle", { name: doctorName })}</DialogTitle>
           <DialogDescription>{t("appointments.rateSubtitle")}</DialogDescription>
@@ -598,17 +598,17 @@ export default function AppointmentDetailsScreen({ id }: { id: string }) {
           <PaymentStatusBadge status={a.paymentStatus} />
           {a.patientType ? <PatientTypeBadge type={a.patientType} /> : null}
         </div>
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <Badge
             variant="outline"
-            className="gap-1.5 bg-muted/60 px-3 py-1.5 font-mono text-sm"
+            className="min-w-0 max-w-full truncate gap-1.5 bg-muted/60 px-3 py-1.5 font-mono text-sm"
           >
             {t("booking.reference")}: {a.referenceCode}
           </Badge>
           <Button
             variant="outline"
             size="icon"
-            className="h-9 w-9 rounded-full"
+            className="h-10 w-10 shrink-0 rounded-full"
             onClick={copyRef}
             aria-label={t("booking.copyReference")}
           >

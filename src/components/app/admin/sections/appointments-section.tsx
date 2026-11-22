@@ -197,14 +197,14 @@ export default function AppointmentsSection({
                   {data.doctors.map((d) => (
                     <li key={d.id} className="px-4 py-3.5">
                       <div className="flex items-center justify-between gap-3">
-                        <span className="flex items-center gap-2.5">
-                          <UserAvatar name={d.name} photoUrl={d.photoUrl} className="h-9 w-9" />
-                          <span>
-                            <span className="block text-sm font-semibold text-foreground">
+                        <span className="flex min-w-0 flex-1 items-center gap-2.5">
+                          <UserAvatar name={d.name} photoUrl={d.photoUrl} className="h-9 w-9 shrink-0" />
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-semibold text-foreground">
                               {d.name}
                             </span>
                             <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <MapPin className="h-3 w-3" />
+                              <MapPin className="h-3 w-3 shrink-0" />
                               {d.city}
                             </span>
                           </span>

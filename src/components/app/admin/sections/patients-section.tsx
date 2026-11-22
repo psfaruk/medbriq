@@ -220,15 +220,15 @@ export default function PatientsSection() {
                     className="rounded-2xl border border-border bg-background/40 p-4"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <span className="flex items-center gap-2.5">
-                        <UserAvatar name={u.name} className="h-9 w-9" />
-                        <span>
-                          <span className="block text-sm font-semibold text-foreground">
+                      <span className="flex min-w-0 flex-1 items-center gap-2.5">
+                        <UserAvatar name={u.name} className="h-9 w-9 shrink-0" />
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-semibold text-foreground">
                             {u.name}
                           </span>
-                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Mail className="h-3 w-3" />
-                            {u.email}
+                          <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                            <Mail className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{u.email}</span>
                           </span>
                         </span>
                       </span>

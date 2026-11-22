@@ -250,6 +250,7 @@ export function DoctorCardRow({ doctor }: { doctor: DoctorCard }) {
               ) : null}
               <Button
                 size="sm"
+                className="h-9"
                 onClick={() => pushPatient({ name: "doctor", slug: doctor.slug })}
               >
                 {t("home.bookNow")}
@@ -552,7 +553,7 @@ export function FamilyMemberDialog({
   const { t } = useT();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
             {member ? "Edit family member" : t("records.addMember")}

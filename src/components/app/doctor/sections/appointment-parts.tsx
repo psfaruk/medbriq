@@ -356,7 +356,7 @@ export function AppointmentActionDialogs({
   // ── Complete (optional consultation note) ──
   return (
     <Dialog open onOpenChange={(open) => !open && resetAndClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Complete consultation</DialogTitle>
           <DialogDescription>

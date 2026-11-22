@@ -240,8 +240,9 @@ export default function DoctorsScreen() {
               key={d.id}
               className="card-lift rounded-2xl border border-border bg-card p-4 shadow-soft"
             >
-              <div className="flex items-start gap-3.5">
+              <div className="flex flex-wrap items-start gap-x-3.5 gap-y-2">
                 <button
+                  className="shrink-0 rounded-full"
                   onClick={() => pushPatient({ name: "doctor", slug: d.slug })}
                   aria-label={d.name}
                 >
@@ -254,7 +255,7 @@ export default function DoctorsScreen() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <button
-                      className="truncate text-sm font-bold text-foreground hover:text-primary"
+                      className="min-w-0 truncate text-sm font-bold text-foreground hover:text-primary"
                       onClick={() =>
                         pushPatient({ name: "doctor", slug: d.slug })
                       }
@@ -298,8 +299,8 @@ export default function DoctorsScreen() {
                     )}
                   </div>
                 </div>
-                <div className="flex shrink-0 flex-col items-end justify-between gap-2 self-stretch">
-                  <div className="text-right">
+                <div className="flex w-full flex-row items-center justify-between gap-2 self-stretch sm:w-auto sm:shrink-0 sm:flex-col sm:items-end sm:justify-between">
+                  <div className="min-w-0 text-right">
                     <Money
                       amount={d.consultationFee}
                       currency={d.currency}
