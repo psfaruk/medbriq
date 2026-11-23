@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "crypto";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import { cached, invalidateMemoryCache } from "@/lib/cache";
+import { FEE_DEFAULTS } from "@/lib/constants";
 import { canonicalPhone, normalizePhone } from "@/lib/phone";
 import type {
   ActiveOtpCode,
@@ -25,23 +26,27 @@ import type {
   DataStore,
   DoctorProfilePatch,
   DoctorRecord,
+  FeeSettingsHistoryRecord,
+  FeeSettingsRecord,
   HospitalContextRecord,
   HospitalRecord,
   ListDoctorsOptions,
   ModerationReviewRecord,
   NewAvailabilityRule,
   NotificationRecord,
+  PatientLookup,
+  PatientVisitRecord,
   ReferenceMeta,
   ReviewRecord,
   SearchDoctorsFilters,
   SessionRecord,
   SpecialtyRecord,
   UpdateAppointmentOptions,
+  UpdateFeeSettingsInput,
   UpsertGoogleUserInput,
   UserProfilePatch,
 } from "./types";
 import {
-  FeeModuleUnavailableError,
   ReferenceCodeCollisionError,
   SlotConflictError,
   StatusTransitionError,
@@ -60,6 +65,9 @@ import {
  *   availability_rules/{doctorId}_{dayOfWeek}_{startMinute}   → mirrors @@unique([doctorId, dayOfWeek, startMinute])
  *   appointments/{doctorId}_{slotStartISO}                    → THE double-booking guard, mirrors @@unique([doctorId, slotStart]).
  *                             The stable logical id lives INSIDE the doc (`id` field) so it survives reschedule.
+ *   fee_settings/{doctorId}   per-doctor fee configuration (doc id IS the doctorId — unique by construction)
+ *   fee_history/{uuid}        one immutable row per fee-settings version (auditable defaults + changes)
+ *   patient_visits/{appointmentId}  → mirrors @@unique([appointmentId]) — one row per completed appointment
  *   reviews/{doctorId}_{patientId}                            → mirrors @@unique([doctorId, patientId])
  *   otp_codes/{uuid}          {phone, codeHash, purpose, attempts, consumed, expiresAt, createdAt}
  *   notifications/{uuid}      {userId, type, title, body, meta, readAt, createdAt}
@@ -77,7 +85,7 @@ import {
  * and identical to the JSON the API already returns.
  */
 
-// ─────────────────────────── Firestore bootstrap ───────────────────────────
+// ─────────────────────── Firestore bootstrap ───────────────────────
 
 /**
  * Read + parse FIREBASE_SERVICE_ACCOUNT. Returns null when the variable is
@@ -135,7 +143,7 @@ function isAlreadyExistsError(err: unknown): boolean {
   );
 }
 
-// ─────────────────────────── Document shapes ───────────────────────────
+// ─────────────────────── Document shapes ───────────────────────
 
 type UserDoc = {
   email: string;
@@ -271,12 +279,54 @@ type NotificationDoc = {
   createdAt: string;
 };
 
+type FeeSettingsDoc = {
+  doctorId: string;
+  newPatientFee: number;
+  returningPatientFee: number;
+  returningValidityValue: number;
+  returningValidityUnit: string; // DAYS | MONTHS
+  followUpEnabled: boolean;
+  followUpFee: number;
+  followUpValidityValue: number;
+  followUpValidityUnit: string; // DAYS | MONTHS
+  version: number;
+  updatedAt: string;
+};
+
+type FeeHistoryDoc = {
+  doctorId: string;
+  version: number;
+  newPatientFee: number;
+  returningPatientFee: number;
+  returningValidityValue: number;
+  returningValidityUnit: string;
+  followUpEnabled: boolean;
+  followUpFee: number;
+  followUpValidityValue: number;
+  followUpValidityUnit: string;
+  changeReason?: string | null;
+  changedBy?: string | null;
+  createdAt: string;
+};
+
+type PatientVisitDoc = {
+  doctorId: string;
+  appointmentId: string;
+  patientId?: string | null;
+  patientPhone: string;
+  slotStart: string;
+  completedAt: string;
+  qualifying: boolean;
+  paymentStatusAtCompletion: string;
+  recordedAt: string;
+};
+
 /** Doc id of an appointment = the (doctorId, slotStart) uniqueness guard. */
 function appointmentDocId(doctorId: string, slotStartIso: string): string {
   return `${doctorId}_${slotStartIso}`;
 }
 
-// ─────────────────────────── The store ───────────────────────────
+// ─────────────────────── The store ───────────────────────
 
 export class FirestoreStore implements DataStore {
   private client: Firestore | null = null;
@@ -470,7 +520,7 @@ export class FirestoreStore implements DataStore {
     return { ...this.assembleAppointmentRecord(doc), doctor: join };
   }
 
-  // ── Auth / users / sessions ──────────────────────────────────────────
+  // ── Auth / users / sessions ──────────────────────────────────────
 
   async findUserByEmail(email: string): Promise<AuthUserWithCredentials | null> {
     const snap = await this.fs
@@ -906,7 +956,7 @@ export class FirestoreStore implements DataStore {
     };
   }
 
-  // ── Doctors ──────────────────────────────────────────────────────────
+  // ── Doctors ──────────────────────────────────────────────────────
 
   async searchDoctors(filters: SearchDoctorsFilters): Promise<DoctorRecord[]> {
     const ctx = await this.loadDirectoryContext();
@@ -1337,30 +1387,334 @@ export class FirestoreStore implements DataStore {
 
   // ── Doctor-wise fee system (docs/FEE_SYSTEM.md) ─────────────────────
   //
-  // The fee module is NOT available on the Firestore store: it stores
-  // patient visit history, which must not leave the approved region before
-  // the Phase 0 data-residency decision (docs/ARCHITECTURE_CORRECTIONS.md
-  // #5/#6). Booking routes check requireModule("appointmentBooking") first
-  // and answer 503 MODULE_DISABLED; these stubs make accidental use fail
-  // loudly instead of silently writing patient data to a foreign region.
+  // OWNER OVERRIDE (2026-11-23): the platform owner explicitly directed that
+  // booking data persist in the project's Firestore database (medifindbd),
+  // superseding the foreign-region freeze recorded under
+  // docs/ARCHITECTURE_CORRECTIONS.md #5 ("make the data save in the Firestore
+  // database"). The fee module and the booking engine therefore run on the
+  // Firestore store with full Prisma parity below. The in-region
+  // BOOKING_DATABASE_URL path remains the recommended production target
+  // before commercial launch.
 
-  async getFeeSettings(): Promise<never> {
-    throw new FeeModuleUnavailableError();
+  private toFeeSettingsRecord(
+    doctorId: string,
+    doc: FeeSettingsDoc
+  ): FeeSettingsRecord {
+    return {
+      id: doctorId,
+      doctorId,
+      newPatientFee: doc.newPatientFee,
+      returningPatientFee: doc.returningPatientFee,
+      returningValidityValue: doc.returningValidityValue,
+      returningValidityUnit: doc.returningValidityUnit,
+      followUpEnabled: doc.followUpEnabled,
+      followUpFee: doc.followUpFee,
+      followUpValidityValue: doc.followUpValidityValue,
+      followUpValidityUnit: doc.followUpValidityUnit,
+      version: doc.version,
+      updatedAt: doc.updatedAt,
+    };
   }
-  async updateFeeSettings(): Promise<never> {
-    throw new FeeModuleUnavailableError();
+
+  private toPatientVisitRecord(id: string, doc: PatientVisitDoc): PatientVisitRecord {
+    return {
+      id,
+      doctorId: doc.doctorId,
+      appointmentId: doc.appointmentId,
+      patientId: doc.patientId ?? null,
+      patientPhone: doc.patientPhone,
+      slotStart: doc.slotStart,
+      completedAt: doc.completedAt,
+      qualifying: doc.qualifying,
+      paymentStatusAtCompletion: doc.paymentStatusAtCompletion,
+      recordedAt: doc.recordedAt,
+    };
   }
-  async listFeeSettingsHistory(): Promise<never> {
-    throw new FeeModuleUnavailableError();
+
+  /**
+   * Visit-history identity match (docs/FEE_SYSTEM.md §2.1): the canonical
+   * phone plus every normalization variant, so a patient's history can never
+   * fork across phone spellings (017…, 88017…, +88017…). ONE indexed equality
+   * (doctorId); the patient match + qualifying flag are applied in JavaScript
+   * (no composite indexes — see header).
+   */
+  private async loadPatientVisits(
+    doctorId: string,
+    patient: PatientLookup,
+    qualifyingOnly: boolean
+  ): Promise<Array<{ id: string; doc: PatientVisitDoc }>> {
+    if (!patient.patientId && !patient.phone) return [];
+    const variants = new Set(
+      [
+        canonicalPhone(patient.phone),
+        normalizePhone(patient.phone),
+        patient.phone.trim(),
+      ].filter((v) => v.length > 0)
+    );
+    const snap = await this.fs
+      .collection("patient_visits")
+      .where("doctorId", "==", doctorId)
+      .get();
+    return snap.docs
+      .map((d) => ({ id: d.id, doc: d.data() as PatientVisitDoc }))
+      .filter(
+        ({ doc }) =>
+          (qualifyingOnly ? doc.qualifying : true) &&
+          ((patient.patientId !== null && doc.patientId === patient.patientId) ||
+            variants.has(doc.patientPhone))
+      )
+      .sort((a, b) => b.doc.completedAt.localeCompare(a.doc.completedAt));
   }
-  async findLatestQualifyingVisit(): Promise<never> {
-    throw new FeeModuleUnavailableError();
+
+  async getFeeSettings(doctorId: string): Promise<FeeSettingsRecord> {
+    const ref = this.fs.collection("fee_settings").doc(doctorId);
+    const existing = await ref.get();
+    if (existing.exists) {
+      return this.toFeeSettingsRecord(doctorId, existing.data() as FeeSettingsDoc);
+    }
+
+    // First read for this doctor — auto-create with platform defaults
+    // (spec: new BDT 1000, returning BDT 600, 6 months) inside a transaction
+    // so two concurrent readers cannot both write a v1 history row, and
+    // record v1 in history so even implicit defaults are auditable.
+    const now = new Date().toISOString();
+    const defaults: FeeSettingsDoc = {
+      doctorId,
+      newPatientFee: FEE_DEFAULTS.NEW_PATIENT_FEE,
+      returningPatientFee: FEE_DEFAULTS.RETURNING_PATIENT_FEE,
+      returningValidityValue: FEE_DEFAULTS.RETURNING_VALIDITY_VALUE,
+      returningValidityUnit: FEE_DEFAULTS.RETURNING_VALIDITY_UNIT,
+      followUpEnabled: FEE_DEFAULTS.FOLLOW_UP_ENABLED,
+      followUpFee: FEE_DEFAULTS.FOLLOW_UP_FEE,
+      followUpValidityValue: FEE_DEFAULTS.FOLLOW_UP_VALIDITY_VALUE,
+      followUpValidityUnit: FEE_DEFAULTS.FOLLOW_UP_VALIDITY_UNIT,
+      version: 1,
+      updatedAt: now,
+    };
+    return this.fs.runTransaction(async (txn) => {
+      const fresh = await txn.get(ref);
+      if (fresh.exists) {
+        return this.toFeeSettingsRecord(doctorId, fresh.data() as FeeSettingsDoc);
+      }
+      txn.set(ref, defaults);
+      txn.set(this.fs.collection("fee_history").doc(randomUUID()), {
+        doctorId,
+        version: defaults.version,
+        newPatientFee: defaults.newPatientFee,
+        returningPatientFee: defaults.returningPatientFee,
+        returningValidityValue: defaults.returningValidityValue,
+        returningValidityUnit: defaults.returningValidityUnit,
+        followUpEnabled: defaults.followUpEnabled,
+        followUpFee: defaults.followUpFee,
+        followUpValidityValue: defaults.followUpValidityValue,
+        followUpValidityUnit: defaults.followUpValidityUnit,
+        changeReason: "Auto-created with platform defaults",
+        changedBy: null,
+        createdAt: now,
+      });
+      return this.toFeeSettingsRecord(doctorId, defaults);
+    });
   }
-  async listPatientVisitsForDoctor(): Promise<never> {
-    throw new FeeModuleUnavailableError();
+
+  async updateFeeSettings(
+    doctorId: string,
+    input: UpdateFeeSettingsInput,
+    actorId: string | null
+  ): Promise<FeeSettingsRecord> {
+    const now = new Date().toISOString();
+    const ref = this.fs.collection("fee_settings").doc(doctorId);
+    return this.fs.runTransaction(async (txn) => {
+      const snap = await txn.get(ref);
+      if (!snap.exists) {
+        throw new Error("Fee settings row missing; read settings first.");
+      }
+      const current = snap.data() as FeeSettingsDoc;
+      const version = current.version + 1;
+      const next: FeeSettingsDoc = {
+        doctorId,
+        newPatientFee: input.newPatientFee,
+        returningPatientFee: input.returningPatientFee,
+        returningValidityValue: input.returningValidityValue,
+        returningValidityUnit: input.returningValidityUnit,
+        followUpEnabled: input.followUpEnabled,
+        followUpFee: input.followUpFee,
+        followUpValidityValue: input.followUpValidityValue,
+        followUpValidityUnit: input.followUpValidityUnit,
+        version,
+        updatedAt: now,
+      };
+
+      txn.set(ref, next);
+
+      // Immutable history row — confirmed appointments keep pointing at the
+      // version they were priced under.
+      txn.set(this.fs.collection("fee_history").doc(randomUUID()), {
+        doctorId,
+        version,
+        newPatientFee: next.newPatientFee,
+        returningPatientFee: next.returningPatientFee,
+        returningValidityValue: next.returningValidityValue,
+        returningValidityUnit: next.returningValidityUnit,
+        followUpEnabled: next.followUpEnabled,
+        followUpFee: next.followUpFee,
+        followUpValidityValue: next.followUpValidityValue,
+        followUpValidityUnit: next.followUpValidityUnit,
+        changeReason: input.changeReason,
+        changedBy: actorId,
+        createdAt: now,
+      });
+
+      // Keep the legacy profile fields in sync so search/cards/admin keep
+      // working unchanged (docs/FEE_SYSTEM.md §5).
+      txn.update(this.fs.collection("doctors").doc(doctorId), {
+        consultationFee: next.newPatientFee,
+        followUpFee: next.followUpEnabled ? next.followUpFee : 0,
+        updatedAt: now,
+      });
+
+      // Standing rule #5: a money-affecting configuration change is audited.
+      txn.set(this.fs.collection("audit_logs").doc(randomUUID()), {
+        actorId,
+        action: "FEE_SETTINGS_UPDATED",
+        entity: "DoctorFeeSettings",
+        entityId: doctorId,
+        meta: JSON.stringify({
+          version,
+          before: {
+            newPatientFee: current.newPatientFee,
+            returningPatientFee: current.returningPatientFee,
+            returningValidityValue: current.returningValidityValue,
+            returningValidityUnit: current.returningValidityUnit,
+            followUpEnabled: current.followUpEnabled,
+            followUpFee: current.followUpFee,
+            followUpValidityValue: current.followUpValidityValue,
+            followUpValidityUnit: current.followUpValidityUnit,
+          },
+          after: {
+            newPatientFee: next.newPatientFee,
+            returningPatientFee: next.returningPatientFee,
+            returningValidityValue: next.returningValidityValue,
+            returningValidityUnit: next.returningValidityUnit,
+            followUpEnabled: next.followUpEnabled,
+            followUpFee: next.followUpFee,
+            followUpValidityValue: next.followUpValidityValue,
+            followUpValidityUnit: next.followUpValidityUnit,
+          },
+          reason: input.changeReason,
+        }),
+        createdAt: now,
+      });
+
+      return this.toFeeSettingsRecord(doctorId, next);
+    });
   }
-  async completeAppointmentWithVisit(): Promise<never> {
-    throw new FeeModuleUnavailableError();
+
+  async listFeeSettingsHistory(
+    doctorId: string,
+    limit: number
+  ): Promise<FeeSettingsHistoryRecord[]> {
+    const snap = await this.fs
+      .collection("fee_history")
+      .where("doctorId", "==", doctorId)
+      .get();
+    return snap.docs
+      .map((d) => ({ id: d.id, doc: d.data() as FeeHistoryDoc }))
+      .sort((a, b) => b.doc.version - a.doc.version)
+      .slice(0, Math.max(1, Math.min(limit, 200)))
+      .map(({ id, doc }) => ({
+        id,
+        doctorId: doc.doctorId,
+        version: doc.version,
+        newPatientFee: doc.newPatientFee,
+        returningPatientFee: doc.returningPatientFee,
+        returningValidityValue: doc.returningValidityValue,
+        returningValidityUnit: doc.returningValidityUnit,
+        followUpEnabled: doc.followUpEnabled,
+        followUpFee: doc.followUpFee,
+        followUpValidityValue: doc.followUpValidityValue,
+        followUpValidityUnit: doc.followUpValidityUnit,
+        changeReason: doc.changeReason ?? null,
+        changedBy: doc.changedBy ?? null,
+        createdAt: doc.createdAt,
+      }));
+  }
+
+  async findLatestQualifyingVisit(
+    doctorId: string,
+    patient: PatientLookup
+  ): Promise<PatientVisitRecord | null> {
+    const rows = await this.loadPatientVisits(doctorId, patient, true);
+    return rows[0] ? this.toPatientVisitRecord(rows[0].id, rows[0].doc) : null;
+  }
+
+  async listPatientVisitsForDoctor(
+    doctorId: string,
+    patient: PatientLookup
+  ): Promise<PatientVisitRecord[]> {
+    const rows = (await this.loadPatientVisits(doctorId, patient, false)).slice(0, 100);
+    return rows.map(({ id, doc }) => this.toPatientVisitRecord(id, doc));
+  }
+
+  async completeAppointmentWithVisit(
+    id: string,
+    input: { consultationNote: string | null }
+  ): Promise<AppointmentRecord> {
+    const found = await this.getAppointmentDoc(id);
+    if (!found) throw new Error(`Appointment ${id} not found.`);
+    const now = new Date().toISOString();
+    const updated = await this.fs.runTransaction(async (txn) => {
+      const fresh = await txn.get(found.ref);
+      if (!fresh.exists) throw new Error(`Appointment ${id} not found.`);
+      const data = fresh.data() as AppointmentDoc;
+
+      // CONDITIONAL TRANSITION (status machine guard): only a CONFIRMED
+      // appointment may be completed. Without this, a race between complete
+      // and cancel/no-show could resurrect a cancelled appointment or turn a
+      // NO_SHOW into a money-qualifying visit (docs/FEE_SYSTEM.md §2.2).
+      if (data.status !== "CONFIRMED") {
+        throw new StatusTransitionError(data.status);
+      }
+
+      // NOTE: Firestore transactions require ALL reads before ANY writes —
+      // the visit upsert check below happens before txn.set calls.
+      const visitRef = this.fs.collection("patient_visits").doc(id);
+      const visitSnap = await txn.get(visitRef);
+
+      // COMPLETED is a slot-BLOCKING status — the doc stays on its occupancy
+      // id (parity: the Prisma write does not touch slotKey either).
+      const next: AppointmentDoc = {
+        ...data,
+        status: "COMPLETED",
+        consultationStatus: "COMPLETED",
+        ...(input.consultationNote !== null
+          ? { consultationNote: input.consultationNote }
+          : {}),
+        updatedAt: now,
+      };
+      txn.set(found.ref, next);
+
+      // Upsert by appointmentId — safe to re-run. The create branch
+      // snapshots qualifying/paymentStatusAtCompletion; the update branch
+      // intentionally does NOT rewrite history (later payment changes never
+      // alter an already-recorded visit).
+      if (!visitSnap.exists) {
+        txn.set(visitRef, {
+          doctorId: data.doctorId,
+          appointmentId: id,
+          patientId: data.patientId ?? null,
+          patientPhone: canonicalPhone(data.patientPhone),
+          slotStart: data.slotStart,
+          completedAt: now,
+          qualifying:
+            (data.paymentStatus ?? "NOT_REQUIRED") === "NOT_REQUIRED" ||
+            (data.paymentStatus ?? "NOT_REQUIRED") === "PAID",
+          paymentStatusAtCompletion: data.paymentStatus ?? "NOT_REQUIRED",
+          recordedAt: now,
+        });
+      }
+      return next;
+    });
+    return this.withDoctorJoin(updated);
   }
 
   async listAppointmentsByPatient(patientId: string) {
@@ -1481,10 +1835,42 @@ export class FirestoreStore implements DataStore {
   }
 
   async expireStalePendingAppointments(doctorId: string): Promise<number> {
-    // Frozen with the fee module (Phase 0 residency gate): sweeping statuses
-    // is a booking-module WRITE and must not run against a foreign region.
-    // Callers additionally gate on isModuleEnabled("appointmentBooking").
-    throw new FeeModuleUnavailableError();
+    // EXPIRED lifecycle: un-reviewed PENDING_APPROVAL requests whose slot has
+    // passed sweep to EXPIRED (slot released) so they stop blocking the
+    // calendar. Lazy sweep — called by slot/doctor-appointment reads, which
+    // gate on isModuleEnabled("appointmentBooking"). Released appointments
+    // are relocated off the {doctorId}_{slotStart} occupancy doc id to their
+    // own id-keyed doc (parity with updateAppointment's release path).
+    const snap = await this.fs
+      .collection("appointments")
+      .where("doctorId", "==", doctorId)
+      .get();
+    const nowIso = new Date().toISOString();
+    const stale = snap.docs
+      .map((doc) => ({ ref: doc.ref, data: doc.data() as AppointmentDoc }))
+      .filter(
+        ({ data }) =>
+          data.status === "PENDING_APPROVAL" && data.slotStart < nowIso
+      );
+    if (stale.length === 0) return 0;
+    const batch = this.fs.batch();
+    for (const { ref, data } of stale) {
+      const released: AppointmentDoc = {
+        ...data,
+        status: "EXPIRED",
+        updatedAt: nowIso,
+      };
+      if (ref.id === appointmentDocId(data.doctorId, data.slotStart)) {
+        batch.set(this.fs.collection("appointments").doc(data.id), released);
+        batch.delete(ref);
+      } else {
+        // Defensive: a stale PENDING row already off its occupancy doc —
+        // sweep in place.
+        batch.update(ref, { status: "EXPIRED", updatedAt: nowIso });
+      }
+    }
+    await batch.commit();
+    return stale.length;
   }
 
   async rescheduleAppointment(
@@ -1830,7 +2216,7 @@ export class FirestoreStore implements DataStore {
     return snap.docs.map((doc) => (doc.data() as { token: string }).token);
   }
 
-  // ── Reviews (write + moderation) ────────────────────────────────────
+  // ── Reviews (write + moderation) ────────────────────────────────
 
   async findReviewByDoctorAndPatient(doctorId: string, patientId: string): Promise<ReviewRecord | null> {
     const ref = this.fs.collection("reviews").doc(`${doctorId}_${patientId}`);
@@ -1916,7 +2302,7 @@ export class FirestoreStore implements DataStore {
     return true;
   }
 
-  // ── Hospitals (public directory) ────────────────────────────────────
+  // ── Hospitals (public directory) ────────────────────────────────
 
   async listHospitals(): Promise<HospitalRecord[]> {
     const [hospitalsSnap, doctorsSnap] = await Promise.all([
@@ -1963,7 +2349,7 @@ export class FirestoreStore implements DataStore {
     };
   }
 
-  // ── Admin user directory ────────────────────────────────────────────
+  // ── Admin user directory ────────────────────────────────────────
 
   async listUsers(filters: { role?: string; q?: string }): Promise<AdminUserRecord[]> {
     const [usersSnap, doctorsSnap] = await Promise.all([
