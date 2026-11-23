@@ -36,6 +36,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# service-account keys — NEVER commit (rotate + store in GitHub/Vercel secrets)
+*service-account*.json
+*serviceAccount*.json
+*service_account*.json
+gcloud-key*.json
 
 # typescript
 *.tsbuildinfo
