@@ -1,0 +1,19 @@
+rules_version = '2';
+
+// Find Medi Doctor — Cloud Storage security rules (PRODUCTION LOCK-DOWN)
+//
+// The application never writes to Firebase Storage from a browser. Doctor
+// photos, hospital logos and VVS documents are all handled server-side
+// (Next.js API routes) or stored as URLs in Firestore. Therefore the correct
+// posture is: deny every client-side read and write.
+//
+// If server-side uploads are added later, keep the client denied and perform
+// them with the admin SDK (which bypasses these rules), or introduce scoped
+// rules then — with a reviewed ownership check, never `if true`.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
