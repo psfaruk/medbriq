@@ -48,6 +48,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/app-state";
+import { getPreloadedBoot, fetchModuleFlags } from "@/lib/boot-data";
 import { ApiCallError, apiGet, apiPost } from "@/lib/api-client";
 import type {
   AppointmentDto,
@@ -269,6 +270,29 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
   const [preview, setPreview] = useState<PricePreviewDto | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+
+  // Payments module gate (bootstrap snapshot) — same pattern as
+  // doctor-profile.tsx's booking gate: when the payments module is
+  // disabled, the pay-online option is muted up front with its gate
+  // reason instead of letting the user select it, book, and only then hit
+  // the post-booking 503. The preloaded snapshot can age out (60s TTL) on
+  // a long-lived wizard, so a cache miss REFRESHES from the bootstrap
+  // endpoint instead of failing open.
+  const [paymentsModule, setPaymentsModule] = useState(
+    () => getPreloadedBoot()?.modules?.payments ?? null
+  );
+  useEffect(() => {
+    if (paymentsModule !== null) return;
+    let active = true;
+    void fetchModuleFlags().then((flags) => {
+      if (active && flags?.payments) setPaymentsModule(flags.payments);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+  const paymentsDisabled = paymentsModule?.enabled === false;
+
   const [payOnline, setPayOnline] = useState(false);
   const [payMethod, setPayMethod] = useState<PayMethod>("BKASH");
   const [submitting, setSubmitting] = useState(false);
@@ -289,6 +313,22 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
   useEffect(() => {
     if (step !== 4) idempotencyKeyRef.current = null;
   }, [step]);
+
+  // ── date rollover guard ─────────────────────────────────────────
+  // `date` is seeded once at mount; a user dwelling on the wizard past
+  // Dhaka midnight would otherwise re-enter the slots step with "today"
+  // already in the past and every slot gone. Re-check whenever the slots
+  // step is entered and roll the selection forward only when the chosen
+  // day has actually slipped into the past.
+  useEffect(() => {
+    if (step !== 2) return;
+    const today = dhakaToday();
+    if (date < today) {
+      setDate(today);
+      setSlot(null);
+      setSlotsLoading(true);
+    }
+  }, [step, date]);
 
   // ── doctor detail ─────────────────────────────────────────────
   useEffect(() => {
@@ -372,6 +412,10 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
   // ── step guards ───────────────────────────────────────────────
   const detailsValid =
     name.trim().length >= 2 && isValidBdPhone(phone.trim());
+  // Step 3 deliberately keeps Continue ENABLED with invalid fields: next()
+  // runs the same checks and surfaces the validation message (role=alert),
+  // so the user sees WHY they cannot proceed (e.g. a family member saved
+  // without a phone) instead of a silently dead button.
   const canContinue =
     step === 1
       ? Boolean(detail) &&
@@ -379,7 +423,7 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
       : step === 2
         ? slot !== null
         : step === 3
-          ? detailsValid
+          ? true
           : Boolean(preview) && !submitting;
 
   const selectSelf = () => {
@@ -982,11 +1026,19 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
                 type="button"
                 aria-pressed={payOnline}
                 onClick={() => setPayOnline(true)}
+                disabled={paymentsDisabled}
+                title={
+                  paymentsDisabled
+                    ? (paymentsModule?.disabledReason ?? undefined)
+                    : undefined
+                }
                 className={cn(
                   "flex items-center gap-3 rounded-xl border p-3.5 text-left transition-colors",
-                  payOnline
-                    ? "border-primary bg-primary-soft/50 ring-1 ring-primary/40"
-                    : "border-border bg-background hover:border-primary/50"
+                  paymentsDisabled && "cursor-not-allowed opacity-60",
+                  !paymentsDisabled &&
+                    (payOnline
+                      ? "border-primary bg-primary-soft/50 ring-1 ring-primary/40"
+                      : "border-border bg-background hover:border-primary/50")
                 )}
               >
                 <CreditCard className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -1000,6 +1052,11 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
                 </span>
               </button>
             </div>
+            {paymentsDisabled && paymentsModule?.disabledReason ? (
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                {paymentsModule.disabledReason}
+              </p>
+            ) : null}
             {payOnline ? (
               <div className="mt-3 grid grid-cols-3 gap-2">
                 {(["BKASH", "NAGAD", "CARD"] as PayMethod[]).map((m) => (

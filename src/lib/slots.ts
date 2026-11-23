@@ -123,9 +123,19 @@ export async function validateBookableSlot(
   chamberId?: string | null
 ): Promise<SlotInfo | null> {
   const slots = await getSlotsForDate(doctorId, dateStr, chamberId);
-  return slots.find(
-    (s) => s.startIso === slotIso && !s.taken && !s.past
-  ) ?? null;
+  // Compare as INSTANTS, not raw strings: equivalent ISO spellings of the
+  // same slot (…Z vs …000Z vs +00:00) must not read as a different slot.
+  // A malformed slotIso (NaN) matches nothing, exactly as intended.
+  const instant = new Date(slotIso).getTime();
+  return (
+    slots.find(
+      (s) =>
+        Number.isFinite(instant) &&
+        new Date(s.startIso).getTime() === instant &&
+        !s.taken &&
+        !s.past
+    ) ?? null
+  );
 }
 
 /** Generate a guest-friendly reference code, e.g. "MB-7K2P9Q". */

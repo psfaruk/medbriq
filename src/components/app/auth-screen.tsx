@@ -37,7 +37,7 @@ import type {
 import { LANGS } from "@/lib/i18n";
 import { track } from "@/lib/analytics";
 import { BrandLogo } from "@/components/app/shared/brand";
-import { useT } from "@/components/app/shared/ui-kit";
+import { useT, dhakaToday } from "@/components/app/shared/ui-kit";
 
 /**
  * Find Medi Doctor authentication (master prompt §3.1-8 + §8 flows).
@@ -451,11 +451,19 @@ function LoginView({
     e.preventDefault();
     setBusy(true);
     try {
-      const data = await apiPost<{ sent: boolean; devCode?: string }>(
-        "/api/v1/auth/otp/request",
-        { phone }
-      );
+      const data = await apiPost<{
+        sent: boolean;
+        expiresInSeconds?: number;
+        devCode?: string;
+      }>("/api/v1/auth/otp/request", { phone });
       setOtpPhone(phone);
+      // Remember the code's expiry so the OTP view can count it down.
+      lastOtpExpiryEpochMs =
+        Date.now() +
+        (typeof data.expiresInSeconds === "number"
+          ? data.expiresInSeconds
+          : OTP_TTL_FALLBACK_SECONDS) *
+          1000;
       setAuthView("otp");
       toast({
         title: "Code sent",
@@ -497,7 +505,13 @@ function LoginView({
       >
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="email">{t("auth.email")}</TabsTrigger>
-          <TabsTrigger value="phone" disabled={!!config && !config.phoneOtpEnabled}>
+          {/* BUGFIX: also disable while the config is still loading
+              (config === null) — a clickable tab that later 503s is worse
+              than a briefly disabled one. */}
+          <TabsTrigger
+            value="phone"
+            disabled={config === null || !config.phoneOtpEnabled}
+          >
             {t("auth.phone")}
           </TabsTrigger>
         </TabsList>
@@ -633,20 +647,70 @@ function LoginView({
 }
 
 /* ── OTP ──────────────────────────────────────────────────────────── */
+
+/**
+ * Expiry (epoch ms) of the most recently requested LOGIN OTP. Set by
+ * LoginView when it navigates here and refreshed by OtpView on resend —
+ * module-scoped because both views live in this file and the app state
+ * carries no request metadata.
+ */
+let lastOtpExpiryEpochMs = 0;
+
+/** Fallback OTP lifetime (mirrors the server's OTP_TTL_SECONDS, 5 min). */
+const OTP_TTL_FALLBACK_SECONDS = 300;
+/** Cooldown before the OTP view offers a resend. */
+const OTP_RESEND_COOLDOWN_SECONDS = 60;
+
+/** Bengali numerals — countdown labels localize digits for bn. */
+const BN_DIGITS = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
+
+/** "m:ss" countdown label; Bengali digits when the bn locale is active. */
+function countdownLabel(seconds: number, lang: string): string {
+  const label = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  return lang === "bn"
+    ? label.replace(/\d/g, (d) => BN_DIGITS[Number(d)])
+    : label;
+}
+
 function OtpView({
   onAuthenticated,
 }: {
   onAuthenticated: (user: SessionUser) => void;
 }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const { setAuthView, otpPhone } = useAppStore();
   const { toast } = useToast();
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [resending, setResending] = useState(false);
+  // Code lifetime (from the request response) + 60s resend cooldown.
+  const [expiryLeft, setExpiryLeft] = useState(() =>
+    lastOtpExpiryEpochMs > 0
+      ? Math.max(0, Math.ceil((lastOtpExpiryEpochMs - Date.now()) / 1000))
+      : OTP_TTL_FALLBACK_SECONDS
+  );
+  const [resendLeft, setResendLeft] = useState(OTP_RESEND_COOLDOWN_SECONDS);
+  const isBn = lang === "bn";
+
+  // BUGFIX: stale-state guard — the login view stores otpPhone before
+  // switching here; if it is empty, bounce back to login instead of
+  // rendering a form that would POST phone: "" and fail with a generic 400.
+  useEffect(() => {
+    if (!otpPhone) setAuthView("login");
+  }, [otpPhone, setAuthView]);
+
+  // One 1s ticker drives both countdowns (code expiry + resend cooldown).
+  useEffect(() => {
+    const id = setInterval(() => {
+      setExpiryLeft((s) => Math.max(0, s - 1));
+      setResendLeft((s) => Math.max(0, s - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const verify = async () => {
-    if (code.length !== 6) return;
+    if (busy || code.length !== 6) return;
     setBusy(true);
     try {
       const data = await apiPost<{ user: SessionUser; isNewAccount: boolean }>(
@@ -660,7 +724,7 @@ function OtpView({
       onAuthenticated(data.user);
     } catch (err) {
       toast({
-        title: "Verification failed",
+        title: isBn ? "ভেরিফিকেশন ব্যর্থ হয়েছে" : "Verification failed",
         description: err instanceof ApiCallError ? err.message : undefined,
         variant: "destructive",
       });
@@ -670,23 +734,36 @@ function OtpView({
   };
 
   const resend = async () => {
+    if (resending || resendLeft > 0) return;
+    setResending(true);
     try {
-      const data = await apiPost<{ devCode?: string }>(
-        "/api/v1/auth/otp/request",
-        { phone: otpPhone }
-      );
+      const data = await apiPost<{
+        devCode?: string;
+        expiresInSeconds?: number;
+      }>("/api/v1/auth/otp/request", { phone: otpPhone });
+      const ttl =
+        typeof data.expiresInSeconds === "number"
+          ? data.expiresInSeconds
+          : OTP_TTL_FALLBACK_SECONDS;
+      lastOtpExpiryEpochMs = Date.now() + ttl * 1000;
+      setExpiryLeft(ttl);
+      setResendLeft(OTP_RESEND_COOLDOWN_SECONDS);
       toast({
-        title: "Code resent",
+        title: isBn ? "কোড আবার পাঠানো হয়েছে" : "Code resent",
         description: data.devCode ? `Sandbox OTP: ${data.devCode}` : undefined,
       });
     } catch (err) {
       toast({
-        title: "Could not resend",
+        title: isBn ? "আবার পাঠানো যায়নি" : "Could not resend",
         description: err instanceof ApiCallError ? err.message : undefined,
         variant: "destructive",
       });
+    } finally {
+      setResending(false);
     }
   };
+
+  if (!otpPhone) return null;
 
   return (
     <div className="text-center">
@@ -719,6 +796,24 @@ function OtpView({
         </InputOTP>
       </div>
 
+      {/* Code lifetime hint — the server stays authoritative; the countdown
+          is a UX affordance so users know when to hit resend instead. */}
+      <p
+        className={
+          expiryLeft > 0
+            ? "mt-3 text-xs text-muted-foreground"
+            : "mt-3 text-xs font-medium text-destructive"
+        }
+      >
+        {expiryLeft > 0
+          ? isBn
+            ? `কোডের মেয়াদ ${countdownLabel(expiryLeft, lang)} পরে শেষ`
+            : `Code expires in ${countdownLabel(expiryLeft, lang)}`
+          : isBn
+            ? "কোডের মেয়াদ শেষ — নতুন কোড নিন।"
+            : "This code has expired — request a new one."}
+      </p>
+
       <div className="mt-4 space-y-1.5 text-left">
         <Label htmlFor="otp-name">
           {t("auth.name")}{" "}
@@ -742,42 +837,74 @@ function OtpView({
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("common.confirm")}
       </Button>
 
-      <button
-        onClick={resend}
-        className="mt-3 text-xs font-medium text-primary hover:underline"
-      >
-        {t("auth.otpResend")}
-      </button>
+      {resendLeft > 0 ? (
+        <p className="mt-3 text-xs text-muted-foreground">
+          {isBn
+            ? `আবার পাঠানো যাবে ${countdownLabel(resendLeft, lang)} পরে`
+            : `Resend in ${countdownLabel(resendLeft, lang)}`}
+        </p>
+      ) : (
+        <button
+          onClick={resend}
+          disabled={resending}
+          className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline disabled:pointer-events-none disabled:opacity-60"
+        >
+          {resending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+          ) : null}
+          {t("auth.otpResend")}
+        </button>
+      )}
     </div>
   );
 }
 
 /* ── Forgot password ──────────────────────────────────────────────── */
 function ForgotView() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const { setAuthView } = useAppStore();
   const { toast } = useToast();
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
+  const isBn = lang === "bn";
 
-  const submit = async (e: React.FormEvent) => {
+  // BUGFIX: the flow used to dead-end after "code sent" (back to login,
+  // nowhere to enter the code). Step 2 now collects the reset code + a new
+  // password and completes the flow via POST /api/v1/auth/reset-password.
+  const [step, setStep] = useState<"request" | "reset">("request");
+  const [code, setCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [devCode, setDevCode] = useState<string | null>(null);
+
+  const request = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (busy) return;
     setBusy(true);
     try {
-      const data = await apiPost<{ sent: boolean; devCode?: string }>(
-        "/api/v1/auth/forgot-password",
-        { phone }
-      );
+      const data = await apiPost<{
+        sent: boolean;
+        expiresInSeconds?: number;
+        devCode?: string;
+      }>("/api/v1/auth/forgot-password", { phone });
+      setDevCode(data.devCode ?? null);
+      setCode("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setFormError(null);
+      setStep("reset");
       toast({
-        title: "Reset code sent",
+        title: isBn ? "রিসেট কোড পাঠানো হয়েছে" : "Reset code sent",
         description: data.devCode
           ? `Sandbox reset code: ${data.devCode}`
-          : `If the number is registered, a reset code is on its way.`,
+          : isBn
+            ? "নম্বরটি নিবন্ধিত থাকলে একটি রিসেট কোড পাঠানো হয়েছে।"
+            : "If the number is registered, a reset code is on its way.",
       });
-      setAuthView("login");
     } catch (err) {
       toast({
-        title: "Could not send code",
+        title: isBn ? "কোড পাঠানো যায়নি" : "Could not send code",
         description: err instanceof ApiCallError ? err.message : undefined,
         variant: "destructive",
       });
@@ -786,33 +913,177 @@ function ForgotView() {
     }
   };
 
+  const submitReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (busy) return;
+    setFormError(null);
+    if (code.length !== 6) {
+      setFormError(
+        isBn
+          ? "ফোনে পাঠানো ৬ সংখ্যার কোডটি লিখুন।"
+          : "Enter the 6-digit code sent to your phone."
+      );
+      return;
+    }
+    if (newPassword.length < 8) {
+      setFormError(
+        isBn
+          ? "পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে।"
+          : "Password must be at least 8 characters."
+      );
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setFormError(
+        isBn ? "পাসওয়ার্ড দুটি মেলেনি।" : "Passwords do not match."
+      );
+      return;
+    }
+    setBusy(true);
+    try {
+      await apiPost("/api/v1/auth/reset-password", {
+        phone,
+        code,
+        newPassword,
+      });
+      toast({
+        title: isBn ? "পাসওয়ার্ড রিসেট হয়েছে" : "Password reset",
+        description: isBn
+          ? "নতুন পাসওয়ার্ড দিয়ে সাইন ইন করুন।"
+          : "Sign in with your new password.",
+      });
+      setAuthView("login");
+    } catch (err) {
+      setFormError(
+        err instanceof Error
+          ? err.message
+          : isBn
+            ? "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"
+            : "Something went wrong. Please try again."
+      );
+      toast({
+        title: isBn ? "রিসেট হয়নি" : "Reset failed",
+        description: err instanceof ApiCallError ? err.message : undefined,
+        variant: "destructive",
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (step === "request") {
+    return (
+      <div>
+        <button
+          onClick={() => setAuthView("login")}
+          className="mb-2 inline-flex items-center gap-1 rounded-md py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          {t("common.back")}
+        </button>
+        <h1 className="text-2xl font-bold tracking-tight">{t("auth.forgot")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {isBn
+            ? "আপনার নিবন্ধিত মোবাইল নম্বর লিখুন — আমরা একটি রিসেট কোড পাঠাব।"
+            : "Enter your registered mobile number — we&apos;ll send a reset code."}
+        </p>
+        <form onSubmit={request} className="mt-5 space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="forgot-phone">{t("auth.phone")}</Label>
+            <Input
+              id="forgot-phone"
+              type="tel"
+              required
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="01XXXXXXXXX"
+            />
+          </div>
+          <Button type="submit" className="w-full h-11" disabled={busy}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("common.continue")}
+          </Button>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div>
       <button
-        onClick={() => setAuthView("login")}
+        onClick={() => setStep("request")}
         className="mb-2 inline-flex items-center gap-1 rounded-md py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         {t("common.back")}
       </button>
-      <h1 className="text-2xl font-bold tracking-tight">{t("auth.forgot")}</h1>
+      <h1 className="text-2xl font-bold tracking-tight">
+        {isBn ? "নতুন পাসওয়ার্ড দিন" : "Set a new password"}
+      </h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Enter your registered mobile number — we&apos;ll send a reset code.
+        {isBn
+          ? `${phone} নম্বরে পাঠানো ৬ সংখ্যার কোডটি লিখুন এবং একটি নতুন পাসওয়ার্ড দিন।`
+          : `Enter the 6-digit code sent to ${phone} and choose a new password.`}
       </p>
-      <form onSubmit={submit} className="mt-5 space-y-3">
+      {devCode ? (
+        <p className="mt-3 rounded-lg bg-muted/60 px-2.5 py-1.5 text-[11px] leading-relaxed text-muted-foreground">
+          Sandbox reset code: <span className="font-semibold">{devCode}</span>{" "}
+          (no SMS provider configured)
+        </p>
+      ) : null}
+      <form onSubmit={submitReset} className="mt-5 space-y-3">
         <div className="space-y-1.5">
-          <Label htmlFor="forgot-phone">{t("auth.phone")}</Label>
+          <Label htmlFor="reset-code">{isBn ? "রিসেট কোড" : "Reset code"}</Label>
+          <div className="flex justify-center pt-1.5">
+            <InputOTP maxLength={6} value={code} onChange={setCode}>
+              <InputOTPGroup>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <InputOTPSlot key={i} index={i} />
+                ))}
+              </InputOTPGroup>
+            </InputOTP>
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="reset-new-password">
+            {isBn ? "নতুন পাসওয়ার্ড" : "New password"}
+          </Label>
           <Input
-            id="forgot-phone"
-            type="tel"
+            id="reset-new-password"
+            type="password"
+            autoComplete="new-password"
             required
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="01XXXXXXXXX"
+            minLength={8}
+            maxLength={100}
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder={isBn ? "কমপক্ষে ৮ অক্ষর" : "At least 8 characters"}
           />
         </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="reset-confirm-password">
+            {isBn ? "নতুন পাসওয়ার্ড আবার লিখুন" : "Confirm new password"}
+          </Label>
+          <Input
+            id="reset-confirm-password"
+            type="password"
+            autoComplete="new-password"
+            required
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="••••••••"
+          />
+        </div>
+        {formError ? (
+          <p className="text-xs font-medium break-words text-destructive" role="alert">
+            {formError}
+          </p>
+        ) : null}
         <Button type="submit" className="w-full h-11" disabled={busy}>
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("common.continue")}
+          {busy ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            isBn ? "পাসওয়ার্ড রিসেট করুন" : "Reset password"
+          )}
         </Button>
       </form>
     </div>
@@ -914,7 +1185,10 @@ function RegisterView({
               id="reg-dob"
               type="date"
               required
-              max={new Date().toISOString().slice(0, 10)}
+              // BUGFIX: the UTC "today" string (toISOString) lets users pick
+              // tomorrow during Dhaka evening hours — clamp to the local
+              // Dhaka date instead (shared ui-kit helper).
+              max={dhakaToday()}
               value={dateOfBirth}
               onChange={(e) => setDateOfBirth(e.target.value)}
             />

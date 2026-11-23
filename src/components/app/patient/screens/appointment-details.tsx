@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/app-state";
+import { getPreloadedBoot, fetchModuleFlags } from "@/lib/boot-data";
 import { ApiCallError, apiGet, apiPost } from "@/lib/api-client";
 import type { AppointmentDto, SlotInfoDto } from "@/lib/types";
 import {
@@ -323,6 +324,27 @@ function PayDialog({
   const [method, setMethod] = useState<PayMethod>("BKASH");
   const [saving, setSaving] = useState(false);
 
+  // Payments module gate (bootstrap snapshot) — twin of the screen-level
+  // pay-now gate: if the dialog is ever opened while the payments module
+  // is disabled, mute the methods and the pay action with the gate reason
+  // instead of letting the POST answer 503. A cache miss REFRESHES from
+  // the bootstrap endpoint (the 60s TTL can age out mid-session) instead
+  // of failing open.
+  const [paymentsModule, setPaymentsModule] = useState(
+    () => getPreloadedBoot()?.modules?.payments ?? null
+  );
+  useEffect(() => {
+    if (paymentsModule !== null) return;
+    let active = true;
+    void fetchModuleFlags().then((flags) => {
+      if (active && flags?.payments) setPaymentsModule(flags.payments);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+  const paymentsDisabled = paymentsModule?.enabled === false;
+
   const submit = async () => {
     setSaving(true);
     try {
@@ -361,17 +383,25 @@ function PayDialog({
               type="button"
               aria-pressed={method === m}
               onClick={() => setMethod(m)}
+              disabled={paymentsDisabled}
               className={cn(
                 "rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors",
-                method === m
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background text-foreground hover:border-primary/50"
+                paymentsDisabled && "cursor-not-allowed opacity-60",
+                !paymentsDisabled &&
+                  (method === m
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background text-foreground hover:border-primary/50")
               )}
             >
               {m === "BKASH" ? "bKash" : m === "NAGAD" ? "Nagad" : "Card"}
             </button>
           ))}
         </div>
+        {paymentsDisabled && paymentsModule?.disabledReason ? (
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {paymentsModule.disabledReason}
+          </p>
+        ) : null}
         <DemoNotice>
           <strong className="text-foreground">
             {t("booking.sandboxTitle")}
@@ -386,7 +416,7 @@ function PayDialog({
           >
             {t("common.cancel")}
           </Button>
-          <Button onClick={submit} disabled={saving}>
+          <Button onClick={submit} disabled={saving || paymentsDisabled}>
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
             ) : null}
@@ -544,6 +574,17 @@ export default function AppointmentDetailsScreen({ id }: { id: string }) {
   const [payOpen, setPayOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewed, setReviewed] = useState(false);
+
+  // Payments module gate (bootstrap snapshot) — same pattern as
+  // doctor-profile.tsx's booking gate: when the payments module is
+  // disabled, the pay-now action is muted with its gate reason instead of
+  // letting the user open the pay dialog and hit a 503. Captured at mount;
+  // a cache miss (null) keeps the action usable — the server still
+  // answers 503 with the reason.
+  const [paymentsModule] = useState(
+    () => getPreloadedBoot()?.modules?.payments ?? null
+  );
+  const paymentsDisabled = paymentsModule?.enabled === false;
 
   useEffect(() => {
     let active = true;
@@ -794,15 +835,26 @@ export default function AppointmentDetailsScreen({ id }: { id: string }) {
               <CalendarClock className="h-4 w-4" aria-hidden="true" />
               {t("appointments.reschedule")}
             </Button>
-            {canPay ? (
+            {canPay && !paymentsDisabled ? (
               <Button onClick={() => setPayOpen(true)}>
                 {t("common.payNow")}
               </Button>
             ) : (
-              <Button variant="outline" disabled className="opacity-60">
+              <Button
+                variant="outline"
+                disabled
+                className="opacity-60"
+                title={
+                  canPay && paymentsDisabled
+                    ? (paymentsModule?.disabledReason ?? undefined)
+                    : undefined
+                }
+              >
                 {a.paymentStatus === "PAID"
                   ? t("pay.PAID")
-                  : t("pay.NOT_REQUIRED")}
+                  : canPay
+                    ? t("common.payNow")
+                    : t("pay.NOT_REQUIRED")}
               </Button>
             )}
             <Button
@@ -813,6 +865,11 @@ export default function AppointmentDetailsScreen({ id }: { id: string }) {
               {t("appointments.cancelBooking")}
             </Button>
           </div>
+          {canPay && paymentsDisabled && paymentsModule?.disabledReason ? (
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              {paymentsModule.disabledReason}
+            </p>
+          ) : null}
           <DemoNotice />
         </SectionCard>
       ) : null}

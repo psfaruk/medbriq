@@ -9,11 +9,12 @@ import type { AppointmentRecord } from "@/lib/data/types";
 import { APPOINTMENT_STATUS, NOTIFICATION_TYPES } from "@/lib/constants";
 import { validateBookableSlot } from "@/lib/slots";
 import {
+  canonicalPhone,
   dateStrSchema,
   doctorDisplayName,
   logAppointmentAction,
-  normalizePhone,
   notifyUser,
+  slotDateLabel,
   toAppointmentDto,
 } from "@/app/api/v1/_lib/booking";
 
@@ -73,7 +74,8 @@ export async function POST(
       authorized = appointment.patientId === user.id;
     } else if (input.phone && input.referenceCode) {
       authorized =
-        normalizePhone(input.phone) === normalizePhone(appointment.patientPhone) &&
+        canonicalPhone(input.phone) ===
+          canonicalPhone(appointment.patientPhone) &&
         input.referenceCode.toUpperCase() ===
           appointment.referenceCode.toUpperCase();
     }
@@ -102,6 +104,18 @@ export async function POST(
     ) {
       return fail(
         "This appointment can no longer be rescheduled.",
+        400,
+        "NOT_RESCHEDULABLE"
+      );
+    }
+
+    // ── Past-slot guard (parity with cancel) ──
+    // An appointment whose CURRENT slot already started/ended must not be
+    // movable — rescheduling it to next week would bypass the cancel cutoff
+    // and the no-show flow entirely.
+    if (new Date(appointment.slotStart).getTime() <= Date.now()) {
+      return fail(
+        "This appointment's slot has already passed — it can no longer be rescheduled.",
         400,
         "NOT_RESCHEDULABLE"
       );
@@ -171,8 +185,9 @@ export async function POST(
       }
     );
 
-    // Notify both sides about the new date (UTC label; client renders local).
-    const newDateLabel = updated.slotStart.slice(0, 10);
+    // Notify both sides about the new date (Dhaka calendar date of the slot
+    // — a UTC slice would read one day early for slots before 06:00).
+    const newDateLabel = slotDateLabel(updated.slotStart);
     const rescheduleMeta = {
       appointmentId: updated.id,
       referenceCode: updated.referenceCode,

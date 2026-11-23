@@ -1,5 +1,5 @@
 import { Prisma, PrismaClient } from "@prisma/client";
-import { normalizePhone } from "@/lib/phone";
+import { canonicalPhone, normalizePhone } from "@/lib/phone";
 import { ensureSqliteFile } from "@/lib/ensure-db";
 import { FEE_DEFAULTS, ROLES } from "@/lib/constants";
 import type {
@@ -153,8 +153,20 @@ function isIdempotencyKeyError(err: unknown): boolean {
 }
 
 export class PrismaStore implements DataStore {
+  /**
+   * Optional client override. Defaults to the process-wide singleton client
+   * (DATABASE_URL). The hybrid store's regional PrismaStore passes its own
+   * client bound to BOOKING_DATABASE_URL so regulated booking data never
+   * touches the primary store's database (docs/ARCHITECTURE_CORRECTIONS.md #5).
+   */
+  private readonly injectedClient?: PrismaClient;
+
+  constructor(client?: PrismaClient) {
+    this.injectedClient = client;
+  }
+
   private get db(): PrismaClient {
-    return getClient();
+    return this.injectedClient ?? getClient();
   }
 
   // ── mapping helpers ──────────────────────────────────────────────────
@@ -272,8 +284,19 @@ export class PrismaStore implements DataStore {
     };
   }
 
+  async getUserById(id: string): Promise<AuthUser | null> {
+    const user = await this.db.user.findUnique({
+      where: { id },
+      include: {
+        doctorProfile: { select: { slug: true, verificationStatus: true } },
+      },
+    });
+    if (!user) return null;
+    return this.toAuthUser(user);
+  }
+
   async findUserByPhone(phone: string): Promise<AuthUserWithCredentials | null> {
-    const normalized = normalizePhone(phone);
+    const normalized = canonicalPhone(phone);
     // Phones are stored as given; compare normalized on both sides (bounded scan
     // mirrors findAppointmentsByReferenceCode).
     const candidates = await this.db.user.findMany({
@@ -294,7 +317,7 @@ export class PrismaStore implements DataStore {
       take: 5000,
     });
     const matches = candidates.filter(
-      (c) => normalizePhone(c.phone!) === normalized
+      (c) => canonicalPhone(c.phone!) === normalized
     );
     if (matches.length === 0) return null;
     // Deterministic preference when (legacy) duplicate phones exist: an
@@ -908,7 +931,7 @@ export class PrismaStore implements DataStore {
     // lightweight scan lets us compare the phone normalized and the code
     // case-insensitively (SQLite has no case-insensitive equality and phones
     // are stored as given). Bounded for safety.
-    const normalizedPhone = normalizePhone(phone);
+    const normalizedPhone = canonicalPhone(phone);
     const codeUpper = referenceCode.toUpperCase();
     const candidates = await this.db.appointment.findMany({
       select: { id: true, referenceCode: true, patientPhone: true },
@@ -919,7 +942,7 @@ export class PrismaStore implements DataStore {
       .filter(
         (a) =>
           a.referenceCode.toUpperCase() === codeUpper &&
-          normalizePhone(a.patientPhone) === normalizedPhone
+          canonicalPhone(a.patientPhone) === normalizedPhone
       )
       .map((a) => a.id);
 
@@ -1132,7 +1155,21 @@ export class PrismaStore implements DataStore {
   private patientVisitMatch(patient: PatientLookup): Prisma.DoctorPatientVisitWhereInput | null {
     const or: Prisma.DoctorPatientVisitWhereInput[] = [];
     if (patient.patientId) or.push({ patientId: patient.patientId });
-    if (patient.phone) or.push({ patientPhone: patient.phone });
+    if (patient.phone) {
+      // Visit rows store the CANONICAL phone (E.164 for BD mobiles) going
+      // forward; legacy rows may carry any spelling. Match every
+      // normalization variant so a patient's visit history can never fork
+      // across phone spellings (docs/FEE_SYSTEM.md §2.1) — an exact-equality
+      // match silently re-classified returning patients as NEW (overcharge).
+      const variants = new Set(
+        [
+          canonicalPhone(patient.phone),
+          normalizePhone(patient.phone),
+          patient.phone.trim(),
+        ].filter((v) => v.length > 0)
+      );
+      for (const variant of variants) or.push({ patientPhone: variant });
+    }
     if (or.length === 0) return null;
     return { OR: or };
   }
@@ -1374,7 +1411,7 @@ export class PrismaStore implements DataStore {
           doctorId: current.doctorId,
           appointmentId: id,
           patientId: current.patientId,
-          patientPhone: normalizePhone(current.patientPhone),
+          patientPhone: canonicalPhone(current.patientPhone),
           slotStart: current.slotStart,
           completedAt: new Date(),
           qualifying,

@@ -4,6 +4,7 @@ import { fail, handleRouteError, ok } from "@/lib/api";
 import { cached } from "@/lib/cache";
 import { isModuleEnabled } from "@/lib/modules";
 import { getSlotsForDate } from "@/lib/slots";
+import { dhakaDateString } from "@/lib/time";
 import { dateStrSchema } from "@/app/api/v1/_lib/booking";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,11 @@ export async function GET(
 ) {
   try {
     const { slug } = await params;
-    const dateParam = new URL(req.url).searchParams.get("date") ?? "";
+    // Default to the Dhaka calendar "today" so omitting ?date= is a useful
+    // call, not a 400 (the client always sends a date; the default serves
+    // direct API consumers and keeps the date picker's first paint simple).
+    const dateParam =
+      new URL(req.url).searchParams.get("date") ?? dhakaDateString();
     const chamberParam = new URL(req.url).searchParams.get("chamberId") ?? "";
 
     const parsed = dateStrSchema.safeParse(dateParam);

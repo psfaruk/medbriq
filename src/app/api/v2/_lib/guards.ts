@@ -34,7 +34,7 @@ export class GuardError extends Error {
 export function requirePrismaBackedStore(): void {
   if (storeKind() !== "prisma") {
     throw new GuardError(
-      "This surface requires the Prisma-backed store (demo/dev mode). It is disabled in Firestore mode pending the Phase 0 data-residency review — docs/ARCHITECTURE_CORRECTIONS.md #5.",
+      "This surface requires the Prisma-backed store (demo/dev mode) — it bypasses the DataStore contract. It is disabled in Firestore and hybrid production modes pending the Phase 0 data-residency review — docs/ARCHITECTURE_CORRECTIONS.md #5.",
       503,
       "MODULE_DISABLED"
     );

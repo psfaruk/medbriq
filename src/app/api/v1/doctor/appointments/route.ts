@@ -1,7 +1,10 @@
 import type { NextRequest } from "next/server";
-import { db } from "@/lib/db";
+import { getStore } from "@/lib/data";
 import { ok, fail, handleRouteError } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
+import { isModuleEnabled } from "@/lib/modules";
+import { dhakaDateString } from "@/lib/time";
+import { toAppointmentDto } from "@/app/api/v1/_lib/booking";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +15,11 @@ export const dynamic = "force-dynamic";
  * confirmed, completed, cancelled/no-show views - master prompt 4.7-11).
  * The v1 doctor dashboard endpoint only returns pending + upcoming; this
  * route covers the full status history for the appointments manager.
+ *
+ * Store-agnostic parity contract: this route MUST go through getStore()
+ * (never import the Prisma client directly) so Firestore deployments read
+ * the same data the booking routes write — a direct-db read would show a
+ * stale SQLite copy in Firestore mode.
  *
  * Dhaka-local date filter: `date=YYYY-MM-DD` limits slots to that day
  * (UTC+6, no DST).
@@ -34,11 +42,22 @@ export async function GET(req: NextRequest) {
       return fail("Doctor sign-in required.", 401, "UNAUTHORIZED");
     }
 
-    const profile = await db.doctorProfile.findUnique({
-      where: { userId: user.id },
-    });
+    const store = getStore();
+    const profile = await store.getDoctorByUserId(user.id);
     if (!profile) {
       return fail("Doctor profile not found.", 404, "NOT_FOUND");
+    }
+
+    // EXPIRED lifecycle (lazy sweep — same pattern as the slots route):
+    // PENDING_APPROVAL requests whose slot already passed move to EXPIRED so
+    // the manager stops offering actions on dead requests. Only on the
+    // booking-enabled store — this is a write.
+    if (isModuleEnabled("appointmentBooking")) {
+      try {
+        await store.expireStalePendingAppointments(profile.id);
+      } catch {
+        // Sweep is best-effort — never block the appointment manager.
+      }
     }
 
     const { searchParams } = new URL(req.url);
@@ -50,68 +69,24 @@ export async function GET(req: NextRequest) {
       return fail("Invalid status filter.", 400, "VALIDATION_ERROR");
     }
 
-    let startUtc: Date | undefined;
-    let endUtc: Date | undefined;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
-      startUtc = new Date(`${dateParam}T00:00:00+06:00`);
-      endUtc = new Date(startUtc.getTime() + 24 * 3600_000);
+    const all = await store.listAppointmentsByDoctor(profile.id);
+
+    let rows = all;
+    if (statusParam) {
+      rows = rows.filter((a) => a.status === statusParam);
     }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+      rows = rows.filter(
+        (a) => dhakaDateString(new Date(a.slotStart)) === dateParam
+      );
+    }
+    rows = rows.sort((a, b) => b.slotStart.localeCompare(a.slotStart));
+    const limit = Number.isFinite(limitParam)
+      ? Math.min(Math.max(1, limitParam), 200)
+      : 100;
+    rows = rows.slice(0, limit);
 
-    const rows = await db.appointment.findMany({
-      where: {
-        doctorId: profile.id,
-        ...(statusParam ? { status: statusParam } : {}),
-        ...(startUtc && endUtc
-          ? { slotStart: { gte: startUtc, lt: endUtc } }
-          : {}),
-      },
-      orderBy: { slotStart: "desc" },
-      take: Number.isFinite(limitParam)
-        ? Math.min(Math.max(1, limitParam), 200)
-        : 100,
-      include: {
-        doctor: { include: { user: { select: { name: true } } } },
-        chamber: { select: { id: true, name: true, address: true } },
-      },
-    });
-
-    return ok({
-      items: rows.map((a) => ({
-        id: a.id,
-        referenceCode: a.referenceCode,
-        status: a.status,
-        type: a.type,
-        bookingMode: a.bookingMode,
-        fee: a.fee,
-        currency: a.currency,
-        slotStart: a.slotStart.toISOString(),
-        slotEnd: a.slotEnd.toISOString(),
-        patientName: a.patientName,
-        patientPhone: a.patientPhone,
-        patientAge: a.patientAge,
-        patientGender: a.patientGender,
-        notes: a.notes,
-        doctorNote: a.doctorNote,
-        consultationNote: a.consultationNote,
-        paymentStatus: a.paymentStatus,
-        consultationStatus: a.consultationStatus,
-        refundStatus: a.refundStatus,
-        patientType: a.patientType,
-        feeSettingsVersion: a.feeSettingsVersion,
-        pricedAt: a.pricedAt ? a.pricedAt.toISOString() : null,
-        createdAt: a.createdAt.toISOString(),
-        chamberId: a.chamberId,
-        chamberName: a.chamber?.name ?? null,
-        doctor: {
-          slug: profile.slug,
-          name: a.doctor.user.name,
-          city: a.doctor.city,
-          consultationFee: a.doctor.consultationFee,
-          specialties: [],
-        },
-        patientId: a.patientId,
-      })),
-    });
+    return ok({ items: rows.map(toAppointmentDto) });
   } catch (err) {
     return handleRouteError(err);
   }

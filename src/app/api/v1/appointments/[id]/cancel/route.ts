@@ -7,10 +7,11 @@ import { getStore } from "@/lib/data";
 import { requireModule } from "@/lib/modules";
 import { APPOINTMENT_STATUS, NOTIFICATION_TYPES, ROLES } from "@/lib/constants";
 import {
+  canonicalPhone,
   doctorDisplayName,
   logAppointmentAction,
-  normalizePhone,
   notifyUser,
+  slotDateLabel,
   toAppointmentDto,
 } from "@/app/api/v1/_lib/booking";
 
@@ -74,7 +75,8 @@ export async function POST(
       }
     } else if (input.phone && input.referenceCode) {
       const phoneMatches =
-        normalizePhone(input.phone) === normalizePhone(appointment.patientPhone);
+        canonicalPhone(input.phone) ===
+        canonicalPhone(appointment.patientPhone);
       const codeMatches =
         input.referenceCode.toUpperCase() ===
         appointment.referenceCode.toUpperCase();
@@ -146,7 +148,7 @@ export async function POST(
     );
 
     // Notify the other party (guest cancellations count as patient-side).
-    const cancelDateLabel = updated.slotStart.slice(0, 10);
+    const cancelDateLabel = slotDateLabel(updated.slotStart);
     const cancelMeta = {
       appointmentId: updated.id,
       referenceCode: updated.referenceCode,

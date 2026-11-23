@@ -83,7 +83,10 @@ async function request<T>(
     const code = isApiError(json) ? json.error.code : null;
     // Session expiry mid-use: surface one event so the shell can reset the
     // session instead of leaving every screen in a permanent error state.
-    if (res.status === 401) {
+    // ONLY for a genuine expired-session (UNAUTHENTICATED) — a wrong password
+    // at login (INVALID_CREDENTIALS) must NOT reset the session or flash a
+    // spurious "session expired" toast on the login screen itself.
+    if (res.status === 401 && code === "UNAUTHENTICATED") {
       window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
     }
     const extra = isApiError(json)
@@ -137,6 +140,12 @@ export async function jsonFetch(
     const json: unknown = await res.json().catch(() => null);
     if (res.ok && isApiSuccess(json)) return { ok: true, data: json.data };
     if (isApiError(json)) {
+      // Same session-expiry discrimination as request(): genuine
+      // UNAUTHENTICATED 401s reset the shell session; credential errors
+      // (login, OTP) must not.
+      if (res.status === 401 && json.error.code === "UNAUTHENTICATED") {
+        window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+      }
       return { ok: false, message: json.error.message, status: res.status };
     }
     return {

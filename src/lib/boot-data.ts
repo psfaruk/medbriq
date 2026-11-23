@@ -57,3 +57,24 @@ export function getPreloadedBoot(maxAgeMs = 60_000): BootPayload | null {
   }
   return preloaded.payload;
 }
+
+/**
+ * Fetch the module flag registry fresh (GET /api/v1/bootstrap). Used by
+ * long-lived screens whose mount-time preloaded-boot snapshot has aged out
+ * (60s TTL) — the gate must reflect the REAL module state, not fail open.
+ * Never overwrites the preloaded cache; returns null on any failure (the
+ * server still answers 503 with the reason, so a null is only cosmetic).
+ */
+export async function fetchModuleFlags(): Promise<ModuleFlags | null> {
+  try {
+    const res = await fetch("/api/v1/bootstrap");
+    const json = (await res.json()) as {
+      ok?: boolean;
+      data?: { modules?: ModuleFlags };
+    };
+    if (json?.ok && json.data?.modules) return json.data.modules;
+    return null;
+  } catch {
+    return null;
+  }
+}

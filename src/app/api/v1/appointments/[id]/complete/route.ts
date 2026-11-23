@@ -123,8 +123,8 @@ export async function POST(
     );
 
     return ok({
-      // The submitted note is echoed explicitly (the store record does not
-      // carry it back yet on all stores — see toAppointmentDto).
+      // The record carries the note back on every store now; the explicit
+      // echo keeps the write acknowledged in one round trip regardless.
       appointment: { ...toAppointmentDto(updated), consultationNote },
     });
   } catch (err) {

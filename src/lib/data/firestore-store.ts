@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "crypto";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import { cached, invalidateMemoryCache } from "@/lib/cache";
-import { normalizePhone } from "@/lib/phone";
+import { canonicalPhone, normalizePhone } from "@/lib/phone";
 import type {
   ActiveOtpCode,
   AdminUserRecord,
@@ -506,8 +506,36 @@ export class FirestoreStore implements DataStore {
     };
   }
 
+  async getUserById(id: string): Promise<AuthUser | null> {
+    const snap = await this.fs.collection("users").doc(id).get();
+    if (!snap.exists) return null;
+    const user = snap.data() as UserDoc;
+    // Resolve the 1:1 doctor profile (single indexed equality).
+    const profileSnap = await this.fs
+      .collection("doctors")
+      .where("userId", "==", id)
+      .limit(1)
+      .get();
+    const profile = profileSnap.empty
+      ? null
+      : (profileSnap.docs[0].data() as DoctorDoc);
+    return {
+      id: snap.id,
+      email: user.email,
+      name: user.name,
+      phone: user.phone ?? null,
+      role: user.role,
+      status: user.status ?? "ACTIVE",
+      provider: user.provider ?? "credentials",
+      phoneVerified: user.phoneVerified ?? false,
+      avatarUrl: user.avatarUrl ?? null,
+      doctorSlug: profile?.slug ?? null,
+      verificationStatus: profile?.verificationStatus ?? null,
+    };
+  }
+
   async findUserByPhone(phone: string): Promise<AuthUserWithCredentials | null> {
-    const normalized = normalizePhone(phone);
+    const normalized = canonicalPhone(phone);
     // ONE indexed equality on a canonical-ish phone; fallback full-scan compare
     // normalized (phones are stored as given — demo-scale, see header tradeoff).
     let snap = await this.fs
@@ -519,7 +547,7 @@ export class FirestoreStore implements DataStore {
       snap = {
         empty: all.empty,
         docs: all.docs.filter(
-          (d) => normalizePhone((d.data() as UserDoc).phone ?? "") === normalized
+          (d) => canonicalPhone((d.data() as UserDoc).phone ?? "") === normalized
         ),
       } as typeof snap;
     }
@@ -1233,8 +1261,21 @@ export class FirestoreStore implements DataStore {
       createdAt: now,
       updatedAt: now,
     };
+    // IDEMPOTENT REPLAY (parity with the Prisma P2002-idempotencyKey path):
+    // a retried submit whose first write won must replay the original
+    // record, not surface as a spurious SlotConflictError.
+    let replayedId: string | null = null;
     try {
       await this.fs.runTransaction(async (txn) => {
+        if (input.idempotencyKey) {
+          const replay = await txn.get(
+            collection.where("idempotencyKey", "==", input.idempotencyKey).limit(1)
+          );
+          if (!replay.empty) {
+            replayedId = (replay.docs[0].data() as AppointmentDoc).id;
+            return;
+          }
+        }
         // DB-LEVEL DOUBLE-BOOKING GUARD: the doc id IS (doctorId, slotStart).
         // A doc at that id whose status is still BLOCKING means the slot is
         // taken. A leftover doc in a RELEASED status (REJECTED / CANCELLED_* /
@@ -1270,6 +1311,10 @@ export class FirestoreStore implements DataStore {
         );
       }
       throw err;
+    }
+    if (replayedId) {
+      const replayed = await this.getAppointmentById(replayedId);
+      if (replayed) return replayed;
     }
     return this.withDoctorJoin(data);
   }
@@ -1349,10 +1394,10 @@ export class FirestoreStore implements DataStore {
       .collection("appointments")
       .where("referenceCode", "==", referenceCode.toUpperCase())
       .get();
-    const normalized = normalizePhone(phone);
+    const normalized = canonicalPhone(phone);
     const docs = snap.docs
       .map((doc) => doc.data() as AppointmentDoc)
-      .filter((doc) => normalizePhone(doc.patientPhone) === normalized)
+      .filter((doc) => canonicalPhone(doc.patientPhone) === normalized)
       .sort((a, b) => b.slotStart.localeCompare(a.slotStart))
       .slice(0, 100);
     return Promise.all(docs.map((doc) => this.withDoctorJoin(doc)));
@@ -1455,9 +1500,16 @@ export class FirestoreStore implements DataStore {
 
     if (newDocId === current.ref.id) {
       // Defensive: same slot — update in place (route already rejects this).
-      return this.updateAppointment(id, {
-        ...(resetToPendingApproval ? { status: "PENDING_APPROVAL" } : {}),
-      });
+      // Conditional statuses REQUIRED: without them a CANCELLED/COMPLETED
+      // appointment rescheduled to its own slot would be silently reset to
+      // PENDING_APPROVAL, resurrecting it (parity with the Prisma branch).
+      return this.updateAppointment(
+        id,
+        {
+          ...(resetToPendingApproval ? { status: "PENDING_APPROVAL" } : {}),
+        },
+        { requireStatuses: ["PENDING_APPROVAL", "CONFIRMED"] }
+      );
     }
 
     // CONDITIONAL MOVE: only PENDING_APPROVAL / CONFIRMED appointments may

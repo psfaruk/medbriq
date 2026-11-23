@@ -107,6 +107,40 @@ export function validateFeeSettings(input: {
       error: "Follow-up fee cannot exceed the new patient fee.",
     };
   }
+  // The follow-up window is the SHORTER, sooner revisit window that takes
+  // precedence over returning validity (classifyPatient). Two invariants
+  // keep the ladder monotonic: a patient inside the follow-up window must
+  // never pay MORE than after it expires (followUp ≤ returning), and the
+  // follow-up window must not outlast the returning validity it nests in.
+  if (input.followUpEnabled && fuFee > retFee) {
+    return {
+      ok: false,
+      error:
+        "Follow-up fee cannot exceed the returning patient fee — patients inside the follow-up window would pay more than after it expires.",
+    };
+  }
+  if (input.followUpEnabled) {
+    // Fixed mid-month anchor keeps the comparison pure (no clock) and
+    // immune to month-end clamping (day 15 exists in every month).
+    const ANCHOR: LocalDate = { y: 2024, m: 1, d: 15 };
+    const followUpExpiry = computeExpiryDate(
+      ANCHOR,
+      input.followUpValidityValue,
+      input.followUpValidityUnit
+    );
+    const returningExpiry = computeExpiryDate(
+      ANCHOR,
+      input.returningValidityValue,
+      input.returningValidityUnit
+    );
+    if (compareLocalDates(followUpExpiry, returningExpiry) > 0) {
+      return {
+        ok: false,
+        error:
+          "Follow-up validity cannot exceed the returning-patient validity — the follow-up window must end within it.",
+      };
+    }
+  }
 
   const unit = (u: ValidityUnit): ValidityUnit | null =>
     u === "DAYS" || u === "MONTHS" ? u : null;

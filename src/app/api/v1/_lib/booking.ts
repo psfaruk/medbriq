@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getStore } from "@/lib/data";
 import { sendPushToUser } from "@/lib/push";
 import type { AppointmentRecord } from "@/lib/data/types";
+import { dhakaDateString } from "@/lib/time";
 import type {
   AppointmentStatus,
   AppointmentType,
@@ -31,7 +32,7 @@ export const dateStrSchema = z
     );
   }, "Date is not a real calendar date.");
 
-export { normalizePhone } from "@/lib/phone";
+export { normalizePhone, canonicalPhone } from "@/lib/phone";
 
 /** Map a store appointment record (with the doctor join) to the client DTO. */
 export function toAppointmentDto(row: AppointmentRecord): AppointmentDto {
@@ -109,6 +110,64 @@ export async function logAppointmentAction(
 export function doctorDisplayName(name: string): string {
   const trimmed = name.trim();
   return /^(dr\.?|ডা\.?)\s/i.test(trimmed) ? trimmed : `Dr. ${trimmed}`;
+}
+
+/**
+ * Dhaka calendar date (YYYY-MM-DD) of a slot instant, for notification and
+ * display labels. NEVER use raw `slotStart.slice(0, 10)` — that is the UTC
+ * date, which is one day behind for every Dhaka slot before 06:00.
+ */
+export function slotDateLabel(slotStartIso: string): string {
+  return dhakaDateString(new Date(slotStartIso));
+}
+
+/**
+ * Guest-safe price breakdown: the unauthenticated preview/booking surface
+ * must not disclose visit-history detail (visit ids, completion timestamps,
+ * anchor/expiry dates) for an arbitrary phone number. Signed-in users keep
+ * the full breakdown; guests keep the classification, fee and a date-free
+ * explanation — enough to confirm a booking, nothing more.
+ */
+export function guestSafeBreakdown<
+  B extends {
+    patientType: string;
+    fee: number;
+    currency: string;
+    explanation: string;
+    basis: {
+      rule: string;
+      latestVisitId: string | null;
+      latestVisitCompletedAt: string | null;
+      anchorDate: string | null;
+      returningExpiryDate: string | null;
+      followUpExpiryDate: string | null;
+      evaluatedAt: string;
+      [k: string]: unknown;
+    };
+  },
+>(breakdown: B): B {
+  const rule = breakdown.basis.rule;
+  const guestExplanation =
+    rule === "WITHIN_FOLLOW_UP_WINDOW"
+      ? "You have a recent completed visit with this doctor — the follow-up fee applies."
+      : rule === "WITHIN_RETURNING_VALIDITY"
+        ? "You have a completed visit with this doctor on record — the returning patient fee applies."
+        : rule === "VALIDITY_EXPIRED"
+          ? "Your returning-patient validity with this doctor has expired — the new patient fee applies."
+          : "No completed visit with this doctor on record — first visit is charged at the new patient fee.";
+  return {
+    ...breakdown,
+    explanation: guestExplanation,
+    basis: {
+      ...breakdown.basis,
+      latestVisitId: null,
+      latestVisitCompletedAt: null,
+      anchorDate: null,
+      returningExpiryDate: null,
+      followUpExpiryDate: null,
+      evaluatedAt: "",
+    },
+  };
 }
 
 export async function notifyUser(

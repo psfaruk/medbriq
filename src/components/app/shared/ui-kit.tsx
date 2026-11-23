@@ -195,6 +195,7 @@ export function PageHeader({
   onBack?: () => void;
   className?: string;
 }) {
+  const { t } = useT();
   return (
     <div className={cn("flex items-start justify-between gap-3", className)}>
       <div className="flex items-start gap-3 min-w-0">
@@ -204,7 +205,7 @@ export function PageHeader({
             size="icon"
             className="h-11 w-11 shrink-0 rounded-full"
             onClick={onBack}
-            aria-label="Go back"
+            aria-label={t("common.back")}
           >
             <span aria-hidden="true">←</span>
           </Button>

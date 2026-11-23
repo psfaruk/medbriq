@@ -9,10 +9,15 @@ import type { AdminStats, SpecialtyInfo } from "@/lib/types";
  *
  *   - PrismaStore    (src/lib/data/prisma-store.ts)    → local dev, SQLite
  *   - FirestoreStore (src/lib/data/firestore-store.ts) → production, Firebase
+ *   - HybridStore    (src/lib/data/hybrid-store.ts)    → production split-store
+ *     (Firestore directory + regional Prisma booking — corrections #5)
  *
  * The active store is selected at runtime by getStore() in src/lib/data/index.ts:
  * when FIREBASE_SERVICE_ACCOUNT is set (and parses as JSON) the FirestoreStore
- * is used, otherwise the local Prisma/SQLite store. See docs/database.md §8.
+ * is used (or, when BOOKING_DATABASE_URL is also set, the residency-safe
+ * HybridStore — public directory on Firestore, regulated booking data on the
+ * regional database), otherwise the local Prisma/SQLite store. See
+ * docs/database.md §8 and docs/ARCHITECTURE_CORRECTIONS.md #5.
  *
  * All records are plain serializable objects; all timestamps are ISO-8601 UTC
  * strings ("…Z") so they sort lexicographically and serialize identically in
@@ -638,12 +643,15 @@ export type ReferenceMeta = {
 
 // ─────────────────────────── The interface ───────────────────────────
 
-export type StoreKind = "prisma" | "firestore";
+export type StoreKind = "prisma" | "firestore" | "hybrid";
 
 export interface DataStore {
   // ── Auth / users / sessions ──────────────────────────────────────────
   /** Find a user by email (login + registration duplicate check). */
   findUserByEmail(email: string): Promise<AuthUserWithCredentials | null>;
+  /** Look up a public user profile by id (no credentials). Used by the
+   *  hybrid store's regional identity replication and admin surfaces. */
+  getUserById(id: string): Promise<AuthUser | null>;
   /** Find a user by normalized phone (OTP login + password reset). */
   findUserByPhone(phone: string): Promise<AuthUserWithCredentials | null>;
   /** Find-or-create a PATIENT account for a phone-OTP login. */
