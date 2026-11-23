@@ -3,6 +3,18 @@ import type { NextConfig } from "next";
 /**
  * Find Medi Doctor — Next.js configuration
  *
+ * PRODUCTION POSTURE (2026-11-23):
+ * - Type errors now FAIL the build. `typescript.ignoreBuildErrors: false`
+ *   replaced the scaffold default; CI runs `bun run typecheck` as the
+ *   compensating gate so problems surface before a deploy is attempted.
+ * - reactStrictMode is ON. It only double-invokes effects in development,
+ *   so production behaviour is unchanged while dev catches missing
+ *   cleanups / double-fetch bugs early.
+ * - The bundled demo SQLite (prisma/seed.db) is NO LONGER traced into the
+ *   serverless function. It is demo data and must never reach a production
+ *   bundle. src/lib/ensure-db.ts additionally refuses to copy it when
+ *   NODE_ENV=production.
+ *
  * SANDBOX NOTE (dev-server wedge immunity):
  * /home/z/my-project/upload is a network FUSE mount that can hang forever.
  * Three subsystems walk the project tree at dev time and must never touch it:
@@ -21,20 +33,19 @@ const nextConfig: NextConfig = {
   // by the server compiler — load it as an external from node_modules.
   serverExternalPackages: ["firebase-admin"],
   typescript: {
-    ignoreBuildErrors: true,
+    // Production posture: a type error is a real defect, not a warning.
+    ignoreBuildErrors: false,
   },
-  reactStrictMode: false,
+  reactStrictMode: true,
   // Hide the floating dev-tools indicator for a clean preview.
   devIndicators: false,
   // Keep file tracing away from sandbox-only directories.
   outputFileTracingExcludes: {
     "*": ["./upload/**", "./docs/**", "./tool-results/**"],
   },
-  // Ship the bundled demo SQLite database inside the serverless function so
-  // the /tmp bootstrap (src/lib/ensure-db.ts) can copy it on cold starts.
-  outputFileTracingIncludes: {
-    "*": ["./prisma/seed.db"],
-  },
+  // NOTE: prisma/seed.db is deliberately NOT traced any more. It holds the
+  // fictional demo dataset; shipping it would put fake doctors one cold start
+  // away from a live healthcare platform.
   webpack: (config, { dev }) => {
     if (dev) {
       // The sandbox is memory-constrained (4GB): the default
