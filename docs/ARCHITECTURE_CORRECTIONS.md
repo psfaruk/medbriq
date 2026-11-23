@@ -527,3 +527,43 @@ includes chamberId and race-replays skip duplicate notify/audit.
   selection works in hybrid mode only when chambers are seeded there.
 - Firestore uniqueness gaps (email/slug) and `listUsers` filter ordering
   divergence remain documented demo-scale tradeoffs.
+
+---
+
+## 8. OWNER OVERRIDE — booking data persists in the project Firestore (2026-11-23)
+
+**Decision.** The platform owner explicitly instructed that appointment
+booking data be saved in the project's own Firestore database (`medifindbd`)
+— quoted instruction: "make the data save in the Firestore database; I have
+given you all of the Firebase information." This overrides the foreign-region
+freeze recorded under #5 (which had gated `appointmentBooking` to the Prisma
+and hybrid stores pending the Phase 0 residency review).
+
+**Disposition.**
+
+- `isModuleEnabled("appointmentBooking")` now returns **true on every store
+  kind** (prisma, hybrid, firestore). `MODULE_INFO.appointmentBooking
+  .disabledReason` is `null` again.
+- The `FirestoreStore` implements the full booking engine + fee module with
+  Prisma parity — previously frozen stubs are now real writes:
+  - `fee_settings/{doctorId}` — per-doctor fee config; auto-created with
+    platform defaults (new BDT 1000 / returning BDT 600 / 6 months) inside a
+    transaction, v1 recorded in history so implicit defaults are auditable.
+  - `fee_history/{uuid}` — one immutable row per fee-settings version;
+    updates bump the version, append history, sync the legacy profile fee
+    fields and write a `FEE_SETTINGS_UPDATED` audit log in one transaction.
+  - `patient_visits/{appointmentId}` — one row per completed appointment
+    (doc id mirrors `@@unique([appointmentId])`); upsert-on-complete never
+    rewrites an existing visit row.
+  - `expireStalePendingAppointments` — the EXPIRED lazy sweep now runs on
+    Firestore, relocating released appointments off the
+    `{doctorId}_{slotStart}` occupancy doc id (slot-release parity).
+- Phone-identity matching for visit history keeps the §2.1 invariant: the
+  canonical phone plus every normalization variant is matched, so histories
+  never fork across spellings.
+- Risk accepted by the owner: the Firebase project's region is not the
+  in-region target counsel review recommended. **The
+  `BOOKING_DATABASE_URL` in-region path remains the recommended production
+  target before commercial launch** — this override is recorded as the
+  required "recorded residency decision" of standing rule #2, made by the
+  data owner, not by counsel.
