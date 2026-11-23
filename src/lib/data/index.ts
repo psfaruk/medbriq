@@ -8,16 +8,18 @@ import { HybridStore } from "./hybrid-store";
  * Find Medi Doctor data-store selection.
  *
  * - FIREBASE_SERVICE_ACCOUNT set (and valid JSON), no BOOKING_DATABASE_URL
- *   → FirestoreStore (Firestore-only production). The appointmentBooking
- *   module stays gated in this mode: patient visit history must not leave
- *   the approved region (docs/ARCHITECTURE_CORRECTIONS.md #5).
+ *   → FirestoreStore (Firestore-only production). Owner override
+ *   2026-11-23 (ARCHITECTURE_CORRECTIONS.md #5/#8): the appointmentBooking
+ *   module and the fee system are ENABLED in this mode — the store implements
+ *   the full booking engine + fee module with Prisma parity (appointments,
+ *   fee_settings, fee_history, patient_visits collections).
  * - FIREBASE_SERVICE_ACCOUNT set AND BOOKING_DATABASE_URL set
  *   → HybridStore: public directory on Firestore, regulated booking data
  *   (appointments, visit history, fee settings, notifications, audit logs)
  *   on the in-region database from BOOKING_DATABASE_URL. appointmentBooking
  *   is ENABLED in this mode — the residency constraint is satisfied by
- *   construction, not by freezing the feature. This is the production path
- *   for the booking module.
+ *   construction. The in-region path remains the recommended production
+ *   target before commercial launch.
  * - Otherwise → PrismaStore + local SQLite (DATABASE_URL). Local development
  *   default; no Firebase configuration is needed.
  *
