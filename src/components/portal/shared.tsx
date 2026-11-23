@@ -210,7 +210,17 @@ export function Breadcrumbs({ items }: { items: { label: string; view?: PortalVi
 
 // ── Medical disclaimer & review labels ────────────────────────────────
 
-export function MedicalDisclaimerBox({ text, compact }: { text: string; compact?: boolean }) {
+export function MedicalDisclaimerBox({
+  text,
+  compact,
+}: {
+  /** Falls back to the standard platform medical disclaimer when a view has
+   *  no content-specific disclaimer to render. */
+  text?: string;
+  compact?: boolean;
+}) {
+  const fallback =
+    "This content is for general health education only and is not medical advice, diagnosis, or treatment. Always consult a qualified doctor about your specific condition.";
   return (
     <aside
       role="note"
@@ -221,7 +231,7 @@ export function MedicalDisclaimerBox({ text, compact }: { text: string; compact?
       )}
     >
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
-      <p className="leading-relaxed">{text}</p>
+      <p className="leading-relaxed">{text ?? fallback}</p>
     </aside>
   );
 }

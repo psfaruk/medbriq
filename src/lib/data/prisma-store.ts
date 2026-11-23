@@ -1,11 +1,12 @@
 import { Prisma, PrismaClient } from "@prisma/client";
-import { normalizePhone } from "@/lib/phone";
+import { canonicalPhone, normalizePhone } from "@/lib/phone";
 import { ensureSqliteFile } from "@/lib/ensure-db";
 import { FEE_DEFAULTS, ROLES } from "@/lib/constants";
 import type {
   ActiveOtpCode,
   AdminUserRecord,
   AppointmentPatch,
+  UpdateAppointmentOptions,
   AppointmentRecord,
   AuditLogRecord,
   AuthUser,
@@ -43,7 +44,7 @@ import type {
   UpsertGoogleUserInput,
   UserProfilePatch,
 } from "./types";
-import { ReferenceCodeCollisionError, SlotConflictError } from "./types";
+import { ReferenceCodeCollisionError, SlotConflictError, StatusTransitionError, isSlotBlockingStatus } from "./types";
 
 /**
  * Find Medi Doctor local data store — Prisma + SQLite (development default).
@@ -117,7 +118,7 @@ function isP2002(err: unknown): err is Prisma.PrismaClientKnownRequestError {
 }
 
 /**
- * True when a P2002 was raised by the (doctorId, slotStart) unique constraint —
+ * True when a P2002 was raised by the (doctorId, slotKey) unique constraint —
  * i.e. the slot was double-booked concurrently. The DB-level guard is the
  * single source of truth for double-booking; this classifier turns the
  * constraint violation into a domain SlotConflictError (→ 409 instead of 500).
@@ -132,12 +133,40 @@ function isSlotTakenError(err: unknown): boolean {
       ? [target]
       : [];
   const haystack = [...parts, err.message].join(" ").toLowerCase();
-  return haystack.includes("slotstart");
+  // "slotkey" covers the current guard; "slotstart" kept for rows written
+  // before the slotKey migration.
+  return haystack.includes("slotkey") || haystack.includes("slotstart");
+}
+
+/** True when a P2002 was raised by the idempotencyKey unique constraint. */
+function isIdempotencyKeyError(err: unknown): boolean {
+  if (!isP2002(err)) return false;
+  const meta = err.meta as { target?: unknown } | undefined;
+  const target = meta?.target;
+  const parts: string[] = Array.isArray(target)
+    ? target.map((t) => String(t))
+    : typeof target === "string"
+      ? [target]
+      : [];
+  const haystack = [...parts, err.message].join(" ").toLowerCase();
+  return haystack.includes("idempotencykey");
 }
 
 export class PrismaStore implements DataStore {
+  /**
+   * Optional client override. Defaults to the process-wide singleton client
+   * (DATABASE_URL). The hybrid store's regional PrismaStore passes its own
+   * client bound to BOOKING_DATABASE_URL so regulated booking data never
+   * touches the primary store's database (docs/ARCHITECTURE_CORRECTIONS.md #5).
+   */
+  private readonly injectedClient?: PrismaClient;
+
+  constructor(client?: PrismaClient) {
+    this.injectedClient = client;
+  }
+
   private get db(): PrismaClient {
-    return getClient();
+    return this.injectedClient ?? getClient();
   }
 
   // ── mapping helpers ──────────────────────────────────────────────────
@@ -255,8 +284,19 @@ export class PrismaStore implements DataStore {
     };
   }
 
+  async getUserById(id: string): Promise<AuthUser | null> {
+    const user = await this.db.user.findUnique({
+      where: { id },
+      include: {
+        doctorProfile: { select: { slug: true, verificationStatus: true } },
+      },
+    });
+    if (!user) return null;
+    return this.toAuthUser(user);
+  }
+
   async findUserByPhone(phone: string): Promise<AuthUserWithCredentials | null> {
-    const normalized = normalizePhone(phone);
+    const normalized = canonicalPhone(phone);
     // Phones are stored as given; compare normalized on both sides (bounded scan
     // mirrors findAppointmentsByReferenceCode).
     const candidates = await this.db.user.findMany({
@@ -276,8 +316,19 @@ export class PrismaStore implements DataStore {
       },
       take: 5000,
     });
-    const user = candidates.find((c) => normalizePhone(c.phone!) === normalized);
-    if (!user) return null;
+    const matches = candidates.filter(
+      (c) => canonicalPhone(c.phone!) === normalized
+    );
+    if (matches.length === 0) return null;
+    // Deterministic preference when (legacy) duplicate phones exist: an
+    // ACTIVE, phone-verified account wins — OTP login and password reset
+    // then operate on a predictable account instead of scan order.
+    const ranked = [...matches].sort((a, b) => {
+      const score = (u: typeof a) =>
+        (u.phoneVerified ? 2 : 0) + (u.status === "ACTIVE" ? 1 : 0);
+      return score(b) - score(a);
+    });
+    const user = ranked[0];
     return {
       id: user.id,
       email: user.email,
@@ -569,6 +620,13 @@ export class PrismaStore implements DataStore {
     await this.db.session.deleteMany({ where: { token } });
   }
 
+  async deleteSessionsByUser(userId: string): Promise<number> {
+    // Password change/reset revocation: drop every session of the account so
+    // stale (possibly compromised) cookies stop working immediately.
+    const result = await this.db.session.deleteMany({ where: { userId } });
+    return result.count;
+  }
+
   // ── Reference data ───────────────────────────────────────────────────
 
   async findSpecialtyBySlug(slug: string): Promise<SpecialtyRecord | null> {
@@ -790,6 +848,9 @@ export class PrismaStore implements DataStore {
           notes: input.notes,
           slotStart: new Date(input.slotStart),
           slotEnd: new Date(input.slotEnd),
+          // Occupancy key — equals slotStart while the appointment holds the
+          // slot; the (doctorId, slotKey) unique index is the booking guard.
+          slotKey: new Date(input.slotStart),
           type: input.type,
           status: input.status,
           bookingMode: input.bookingMode,
@@ -810,6 +871,17 @@ export class PrismaStore implements DataStore {
         throw new SlotConflictError(
           "This slot was just booked by someone else. Please choose another slot."
         );
+      }
+      if (isIdempotencyKeyError(err)) {
+        // Two racing submits with the SAME key: the first insert won — replay
+        // the winner (docs/FEE_SYSTEM.md §3.4) instead of surfacing a 500.
+        if (input.idempotencyKey) {
+          const winner = await this.findAppointmentByIdempotencyKey(
+            input.idempotencyKey
+          );
+          if (winner) return winner;
+        }
+        throw err;
       }
       if (isP2002(err)) {
         // P2002 on referenceCode — astronomically unlikely (32^6 space);
@@ -859,7 +931,7 @@ export class PrismaStore implements DataStore {
     // lightweight scan lets us compare the phone normalized and the code
     // case-insensitively (SQLite has no case-insensitive equality and phones
     // are stored as given). Bounded for safety.
-    const normalizedPhone = normalizePhone(phone);
+    const normalizedPhone = canonicalPhone(phone);
     const codeUpper = referenceCode.toUpperCase();
     const candidates = await this.db.appointment.findMany({
       select: { id: true, referenceCode: true, patientPhone: true },
@@ -870,7 +942,7 @@ export class PrismaStore implements DataStore {
       .filter(
         (a) =>
           a.referenceCode.toUpperCase() === codeUpper &&
-          normalizePhone(a.patientPhone) === normalizedPhone
+          canonicalPhone(a.patientPhone) === normalizedPhone
       )
       .map((a) => a.id);
 
@@ -897,13 +969,80 @@ export class PrismaStore implements DataStore {
     return booked.map((a) => a.slotStart.toISOString());
   }
 
-  async updateAppointment(id: string, patch: AppointmentPatch) {
-    const updated = await this.db.appointment.update({
-      where: { id },
-      data: patch,
-      include: APPOINTMENT_INCLUDE,
+  async findActiveChamber(doctorId: string, chamberId: string) {
+    const chamber = await this.db.chamber.findFirst({
+      where: { id: chamberId, doctorId, isActive: true },
+      select: { id: true, name: true },
     });
-    return this.toAppointmentRecord(updated);
+    return chamber ?? null;
+  }
+
+  async updateAppointment(
+    id: string,
+    patch: AppointmentPatch,
+    options?: UpdateAppointmentOptions
+  ) {
+    // Slot occupancy is derived from the TARGET status: released statuses
+    // free the (doctorId, slotKey) slot so it becomes bookable again without
+    // deleting the historical row (release-on-cancel fix).
+    const data: Prisma.AppointmentUpdateInput = { ...patch };
+    if (patch.status !== undefined) {
+      data.slotKey = isSlotBlockingStatus(patch.status) ? undefined : null;
+      // NOTE: undefined leaves the key untouched for blocking transitions
+      // (the row keeps occupying its slot); null releases it.
+    }
+
+    try {
+      if (options?.requireStatuses && options.requireStatuses.length > 0) {
+        // CONDITIONAL TRANSITION: only apply when the row is still in one of
+        // the expected statuses. count === 0 → a concurrent actor changed it.
+        const result = await this.db.appointment.updateMany({
+          where: { id, status: { in: options.requireStatuses } },
+          data,
+        });
+        if (result.count === 0) {
+          const current = await this.db.appointment.findUnique({
+            where: { id },
+            select: { status: true },
+          });
+          throw new StatusTransitionError(current?.status ?? "UNKNOWN");
+        }
+        const updated = await this.db.appointment.findUnique({
+          where: { id },
+          include: APPOINTMENT_INCLUDE,
+        });
+        if (!updated) throw new Error(`Appointment ${id} not found.`);
+        return this.toAppointmentRecord(updated);
+      }
+      const updated = await this.db.appointment.update({
+        where: { id },
+        data,
+        include: APPOINTMENT_INCLUDE,
+      });
+      return this.toAppointmentRecord(updated);
+    } catch (err) {
+      if (isSlotTakenError(err)) {
+        throw new SlotConflictError(
+          "This slot was just booked by someone else. Please choose another slot."
+        );
+      }
+      throw err;
+    }
+  }
+
+  async expireStalePendingAppointments(doctorId: string): Promise<number> {
+    // EXPIRED lifecycle: un-reviewed PENDING_APPROVAL requests whose slot has
+    // passed are swept to EXPIRED (slot released) so they stop blocking the
+    // calendar. Lazy sweep — called by slot/doctor-appointment reads.
+    const result = await this.db.appointment.updateMany({
+      where: {
+        doctorId,
+        status: "PENDING_APPROVAL",
+        slotStart: { lt: new Date() },
+      },
+      data: { status: "EXPIRED", slotKey: null },
+    });
+    return result.count;
   }
 
   async rescheduleAppointment(
@@ -914,19 +1053,35 @@ export class PrismaStore implements DataStore {
   ) {
     try {
       const updated = await this.db.$transaction(async (tx) => {
-        return tx.appointment.update({
-          where: { id },
+        // CONDITIONAL MOVE: only PENDING_APPROVAL / CONFIRMED appointments
+        // may move; anything else (completed, cancelled, …) is a race.
+        const moved = await tx.appointment.updateMany({
+          where: { id, status: { in: ["PENDING_APPROVAL", "CONFIRMED"] } },
           data: {
             slotStart: new Date(slotStartIso),
             slotEnd: new Date(slotEndIso),
+            // The new slot is occupied under its own key (old key released by
+            // the same write — a slot move, not a second occupancy).
+            slotKey: new Date(slotStartIso),
             // Approval-mode doctors must re-approve a moved appointment.
             ...(resetToPendingApproval
               ? { status: "PENDING_APPROVAL" }
               : {}),
           },
+        });
+        if (moved.count === 0) {
+          const current = await tx.appointment.findUnique({
+            where: { id },
+            select: { status: true },
+          });
+          throw new StatusTransitionError(current?.status ?? "UNKNOWN");
+        }
+        return tx.appointment.findUnique({
+          where: { id },
           include: APPOINTMENT_INCLUDE,
         });
       });
+      if (!updated) throw new Error(`Appointment ${id} not found.`);
       return this.toAppointmentRecord(updated);
     } catch (err) {
       if (isSlotTakenError(err)) {
@@ -1000,7 +1155,21 @@ export class PrismaStore implements DataStore {
   private patientVisitMatch(patient: PatientLookup): Prisma.DoctorPatientVisitWhereInput | null {
     const or: Prisma.DoctorPatientVisitWhereInput[] = [];
     if (patient.patientId) or.push({ patientId: patient.patientId });
-    if (patient.phone) or.push({ patientPhone: patient.phone });
+    if (patient.phone) {
+      // Visit rows store the CANONICAL phone (E.164 for BD mobiles) going
+      // forward; legacy rows may carry any spelling. Match every
+      // normalization variant so a patient's visit history can never fork
+      // across phone spellings (docs/FEE_SYSTEM.md §2.1) — an exact-equality
+      // match silently re-classified returning patients as NEW (overcharge).
+      const variants = new Set(
+        [
+          canonicalPhone(patient.phone),
+          normalizePhone(patient.phone),
+          patient.phone.trim(),
+        ].filter((v) => v.length > 0)
+      );
+      for (const variant of variants) or.push({ patientPhone: variant });
+    }
     if (or.length === 0) return null;
     return { OR: or };
   }
@@ -1204,14 +1373,22 @@ export class PrismaStore implements DataStore {
       });
       if (!current) throw new Error(`Appointment ${id} not found.`);
 
+      // CONDITIONAL TRANSITION (status machine guard): only a CONFIRMED
+      // appointment may be completed. Without this, a race between complete
+      // and cancel/no-show could resurrect a cancelled appointment or turn a
+      // NO_SHOW into a money-qualifying visit (docs/FEE_SYSTEM.md §2.2).
+      if (current.status !== "CONFIRMED") {
+        throw new StatusTransitionError(current.status);
+      }
+
       // Eligibility rule (docs/FEE_SYSTEM.md §2.2): only completed
       // consultations with settled payment qualify.
       const qualifying =
         current.paymentStatus === "NOT_REQUIRED" ||
         current.paymentStatus === "PAID";
 
-      const next = await tx.appointment.update({
-        where: { id },
+      const next = await tx.appointment.updateMany({
+        where: { id, status: "CONFIRMED" },
         data: {
           status: "COMPLETED",
           consultationStatus: "COMPLETED",
@@ -1219,30 +1396,36 @@ export class PrismaStore implements DataStore {
             ? { consultationNote: input.consultationNote }
             : {}),
         },
-        include: APPOINTMENT_INCLUDE,
       });
+      if (next.count === 0) {
+        throw new StatusTransitionError(current.status);
+      }
 
-      // Upsert by unique appointmentId — safe to re-run, and the qualifying
-      // flag is snapshotted (later payment changes never rewrite history).
+      // Upsert by unique appointmentId — safe to re-run. The create branch
+      // snapshots qualifying/paymentStatusAtCompletion; the update branch
+      // intentionally does NOT rewrite history (later payment changes never
+      // alter an already-recorded visit).
       await tx.doctorPatientVisit.upsert({
         where: { appointmentId: id },
         create: {
           doctorId: current.doctorId,
           appointmentId: id,
           patientId: current.patientId,
-          patientPhone: normalizePhone(current.patientPhone),
+          patientPhone: canonicalPhone(current.patientPhone),
           slotStart: current.slotStart,
-          completedAt: next.updatedAt,
+          completedAt: new Date(),
           qualifying,
           paymentStatusAtCompletion: current.paymentStatus,
         },
-        update: {
-          qualifying,
-          paymentStatusAtCompletion: current.paymentStatus,
-        },
+        update: {},
       });
 
-      return next;
+      const refreshed = await tx.appointment.findUnique({
+        where: { id },
+        include: APPOINTMENT_INCLUDE,
+      });
+      if (!refreshed) throw new Error(`Appointment ${id} not found.`);
+      return refreshed;
     });
     return this.toAppointmentRecord(updated);
   }
@@ -1449,8 +1632,11 @@ export class PrismaStore implements DataStore {
     });
   }
 
-  async removePushToken(token: string): Promise<void> {
-    await this.db.pushToken.deleteMany({ where: { token } });
+  async removePushToken(token: string, ownerUserId?: string): Promise<void> {
+    // Owner-scoped: a user may only unregister their own devices.
+    await this.db.pushToken.deleteMany({
+      where: { token, ...(ownerUserId ? { userId: ownerUserId } : {}) },
+    });
   }
 
   async listPushTokens(userId: string): Promise<string[]> {

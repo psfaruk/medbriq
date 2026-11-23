@@ -47,6 +47,9 @@ const globalForAnalytics = globalThis as unknown as {
 
 const agg: Agg = (globalForAnalytics.__fmdAnalytics ??= new Map());
 
+/** Cap on distinct counter keys — unauthenticated endpoint, bounded memory. */
+const MAX_AGG_KEYS = 500;
+
 const bodySchema = z.object({
   name: z.string().trim().max(60),
   meta: z
@@ -71,6 +74,21 @@ export async function POST(request: NextRequest) {
     // the event + result count — never the query itself.
     const key = name === "page_view" && meta?.scope ? `${name}|${meta.scope}` : name;
     const existing = agg.get(key);
+    // Bounded cardinality: the endpoint is unauthenticated by design, so an
+    // attacker spamming distinct scopes must not grow the map unboundedly —
+    // new keys beyond MAX_KEYS are ignored (counted as the bare event name).
+    if (!existing && agg.size >= MAX_AGG_KEYS && name === "page_view" && meta?.scope) {
+      const base = agg.get(name);
+      agg.set(name, {
+        name,
+        count: (base?.count ?? 0) + 1,
+        lastAt: new Date().toISOString(),
+      });
+      return ok({ counted: true });
+    }
+    if (!existing && agg.size >= MAX_AGG_KEYS) {
+      return ok({ counted: false });
+    }
     agg.set(key, {
       name: key,
       count: (existing?.count ?? 0) + 1,

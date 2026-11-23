@@ -37,9 +37,12 @@ export const MODULE_INFO: Record<ModuleName, ModuleGate> = {
     description:
       "Physical (in-person) appointment booking with doctor-wise patient classification and fees.",
     // Residency gate: patient visit history must not leave the approved
-    // region before the Phase 0 decision (corrections #5/#6).
+    // region before the Phase 0 decision (corrections #5/#6). Satisfied in
+    // hybrid mode by construction — regulated booking data stays on the
+    // BOOKING_DATABASE_URL in-region database while Firestore only keeps
+    // the public directory.
     disabledReason:
-      "Booking requires the Prisma-backed store. The Firestore path is frozen pending the Phase 0 data-residency review (docs/ARCHITECTURE_CORRECTIONS.md #5).",
+      "Booking requires the Prisma-backed store (or the hybrid regional split-store). The Firestore-only path is frozen pending the Phase 0 data-residency review (docs/ARCHITECTURE_CORRECTIONS.md #5).",
   },
   telehealth: {
     description: "Remote clinical consultations (video) and remote prescribing.",
@@ -58,9 +61,11 @@ export const MODULE_INFO: Record<ModuleName, ModuleGate> = {
  * Whether a module is currently eligible to run, evaluated per-request.
  *
  * - doctorDiscovery: enabled (Bangladesh scope is enforced in the data layer).
- * - appointmentBooking: enabled ONLY on the Prisma-backed store. The fee
- *   system stores patient visit history, which must not leave the approved
- *   region before the Phase 0 residency decision.
+ * - appointmentBooking: enabled on the Prisma-backed store AND on the hybrid
+ *   regional split-store (Firestore directory + BOOKING_DATABASE_URL in-region
+ *   booking data — corrections #5). The fee system's patient visit history
+ *   never leaves the approved region in either mode. The Firestore-ONLY path
+ *   (no regional database) remains frozen pending the Phase 0 decision.
  * - telehealth / payments: disabled by the Phase 0 / approvals gates.
  */
 export function isModuleEnabled(module: ModuleName): boolean {
@@ -68,7 +73,7 @@ export function isModuleEnabled(module: ModuleName): boolean {
     case "doctorDiscovery":
       return true;
     case "appointmentBooking":
-      return storeKind() === "prisma";
+      return storeKind() === "prisma" || storeKind() === "hybrid";
     case "telehealth":
     case "payments":
       return false;

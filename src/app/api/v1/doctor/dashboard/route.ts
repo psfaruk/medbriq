@@ -2,6 +2,7 @@ import { getStore } from "@/lib/data";
 import type { AppointmentRecord } from "@/lib/data/types";
 import { ok, fail, handleRouteError } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
+import { isModuleEnabled } from "@/lib/modules";
 import { PLATFORM_COMMISSION_PERCENT, ROLES } from "@/lib/constants";
 import { dhakaDateString, dhakaToUtc } from "@/lib/time";
 import type { AppointmentDto, DoctorDashboardData } from "@/lib/types";
@@ -60,6 +61,18 @@ export async function GET() {
     const profile = await store.getDoctorByUserId(user.id);
     if (!profile) {
       return fail("Doctor profile not found.", 404, "PROFILE_NOT_FOUND");
+    }
+
+    // EXPIRED lifecycle (lazy sweep — same pattern as the slots route): move
+    // stale PENDING_APPROVAL rows to EXPIRED so pending counts and queues on
+    // the dashboard reflect reality, not just the slots page. Booking-enabled
+    // store only — this is a write.
+    if (isModuleEnabled("appointmentBooking")) {
+      try {
+        await store.expireStalePendingAppointments(profile.id);
+      } catch {
+        // Sweep is best-effort — never block the dashboard.
+      }
     }
 
     const now = new Date();
@@ -153,10 +166,7 @@ export async function GET() {
       patientGender: appt.patientGender,
       notes: appt.notes,
       doctorNote: appt.doctorNote,
-      // The shared AppointmentRecord type does not declare this field yet
-      // (the Firestore store already returns it), so read it defensively.
-      consultationNote:
-        (appt as { consultationNote?: string | null }).consultationNote ?? null,
+      consultationNote: appt.consultationNote,
       // ── Fee system (docs/FEE_SYSTEM.md §3) + separated status axes ──
       patientType: appt.patientType ?? null,
       feeSettingsVersion: appt.feeSettingsVersion ?? null,
@@ -165,6 +175,8 @@ export async function GET() {
       consultationStatus: appt.consultationStatus ?? "NOT_STARTED",
       refundStatus: appt.refundStatus ?? "NONE",
       createdAt: appt.createdAt,
+      chamberId: appt.chamberId ?? null,
+      chamberName: appt.chamberName ?? null,
       doctor: doctorCardInfo,
       patientId: appt.patientId,
     });

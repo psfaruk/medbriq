@@ -2,6 +2,7 @@ import { getStore, storeKind } from "@/lib/data";
 import { getCurrentUser } from "@/lib/auth";
 import { handleRouteError, ok } from "@/lib/api";
 import { cached } from "@/lib/cache";
+import { MODULE_INFO, isModuleEnabled, type ModuleName } from "@/lib/modules";
 import { getGoogleClientId, isGoogleAuthConfigured } from "@/lib/google";
 import { isDevOtpMode, isPhoneOtpSafe } from "@/lib/sms";
 import {
@@ -30,12 +31,29 @@ export const dynamic = "force-dynamic";
  *                  (HOME_DOCTORS_QUERY is the exact query the patient home
  *                  screen uses, so both endpoints hit the same cache row)
  *   appointments — patients only (user-scoped, never cached)
+ *   modules      — module flag registry snapshot (docs/ARCHITECTURE_
+ *                  CORRECTIONS.md #2) so the UI can gate booking/telehealth
+ *                  entry points up front with the disabled reason instead
+ *                  of hitting a 503 three steps into a flow
  *
  * No-store: the payload embeds the caller's session.
  */
 export async function GET() {
   try {
     const user = await getCurrentUser();
+
+    const modules = (
+      Object.keys(MODULE_INFO) as ModuleName[]
+    ).reduce<Record<string, { enabled: boolean; disabledReason: string | null }>>(
+      (acc, name) => {
+        acc[name] = {
+          enabled: isModuleEnabled(name),
+          disabledReason: MODULE_INFO[name].disabledReason,
+        };
+        return acc;
+      },
+      {}
+    );
 
     const [authConfig, specialties, homeDoctors, appointments] =
       await Promise.all([
@@ -66,6 +84,7 @@ export async function GET() {
         homeDoctors: homeDoctors.items,
         appointments,
         dataStore: storeKind(),
+        modules,
       },
       { headers: { "Cache-Control": "no-store" } }
     );

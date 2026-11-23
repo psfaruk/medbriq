@@ -490,11 +490,14 @@ export function rateLimit(key: string, limit: number, windowMs: number): boolean
   return true;
 }
 
-/** VVS requires the booking engine (appointment data) to be available. */
+/** VVS requires the unified Prisma data layer (its verification tables are
+ *  accessed through the direct Prisma client, not the DataStore contract —
+ *  running it in hybrid mode would split databases). Prisma-backed mode
+ *  only; Firestore and hybrid modes stay gated. */
 export function requireVvsStore(): void {
   if (storeKind() !== "prisma") {
     throw new VvsError(
-      "The Verified Visit System runs on the unified Prisma data layer. This environment still uses the frozen Firestore store (see docs/ARCHITECTURE_CORRECTIONS.md #5).",
+      "The Verified Visit System runs on the unified Prisma data layer. This environment uses the Firestore or hybrid store (see docs/ARCHITECTURE_CORRECTIONS.md #5).",
       503,
       "MODULE_DISABLED"
     );

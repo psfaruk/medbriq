@@ -2,7 +2,11 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ok, fail, handleRouteError } from "@/lib/api";
-import { GuardError, requireSession } from "@/app/api/v2/_lib/guards";
+import {
+  GuardError,
+  requirePrismaBackedStore,
+  requireSession,
+} from "@/app/api/v2/_lib/guards";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +54,13 @@ export async function GET(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
+    // Catch-all validation: only /api/v2/patient/family-members exists — any
+    // other path under this segment answers 404 (wrong-handler fallthrough).
+    const { path } = await params;
+    if ((path[0] ?? "family-members") !== "family-members") {
+      return fail("Unknown patient resource.", 404, "NOT_FOUND");
+    }
+    requirePrismaBackedStore(); // this surface queries Prisma directly
     const user = await requireSession();
     const rows = await db.familyMember.findMany({
       where: { userId: user.id },
@@ -67,6 +78,11 @@ export async function POST(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
+    const { path } = await params;
+    if ((path[0] ?? "family-members") !== "family-members") {
+      return fail("Unknown patient resource.", 404, "NOT_FOUND");
+    }
+    requirePrismaBackedStore(); // this surface queries Prisma directly
     const user = await requireSession();
     const raw: unknown = await req.json().catch(() => null);
     const parsed = memberSchema.safeParse(raw);
@@ -99,6 +115,7 @@ export async function PATCH(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
+    requirePrismaBackedStore(); // this surface queries Prisma directly
     const user = await requireSession();
     const { path } = await params;
     const id = path[0];
@@ -134,6 +151,7 @@ export async function DELETE(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
+    requirePrismaBackedStore(); // this surface queries Prisma directly
     const user = await requireSession();
     const { path } = await params;
     const id = path[0];

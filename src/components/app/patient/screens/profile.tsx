@@ -25,6 +25,8 @@ import {
 import { Switch } from "@/components/ui/switch";
 import {
   Bell,
+  ChevronDown,
+  ChevronUp,
   Globe,
   HelpCircle,
   Info,
@@ -99,6 +101,14 @@ export default function ProfileScreen() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
+  // ── change password (POST /api/v1/auth/password) ──────────────
+  const [pwOpen, setPwOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
   // ── support ───────────────────────────────────────────────────
   const tickets = useApiData<{ items: SupportTicket[] }>(
     () => apiGet<{ items: SupportTicket[] }>("/api/v2/support"),
@@ -138,6 +148,78 @@ export default function ProfileScreen() {
       });
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const togglePasswordSection = () => {
+    if (pwOpen) {
+      // Cancel — discard any drafted passwords and the inline error.
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordError(null);
+    }
+    setPwOpen(!pwOpen);
+  };
+
+  const changePassword = async (e: FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    if (user?.provider === "credentials" && currentPassword.length === 0) {
+      setPasswordError(
+        lang === "bn"
+          ? "আপনার বর্তমান পাসওয়ার্ড লিখুন।"
+          : "Enter your current password."
+      );
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPasswordError(
+        lang === "bn"
+          ? "পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে।"
+          : "Password must be at least 8 characters."
+      );
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError(
+        lang === "bn"
+          ? "নতুন পাসওয়ার্ড দুটি মেলেনি।"
+          : "New passwords do not match."
+      );
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      // Google / phone accounts (no stored password) may set an initial
+      // password without confirming a current one — the endpoint treats a
+      // missing currentPassword that way, so only send it when filled in.
+      await apiPost("/api/v1/auth/password", {
+        ...(currentPassword ? { currentPassword } : {}),
+        newPassword,
+      });
+      toast({
+        title: lang === "bn" ? "পাসওয়ার্ড আপডেট হয়েছে" : "Password updated",
+        description:
+          lang === "bn"
+            ? "নতুন পাসওয়ার্ড এখন সক্রিয় — অন্য ডিভাইস থেকে সাইন আউট করা হয়েছে।"
+            : "Your new password is active — other devices were signed out.",
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPwOpen(false);
+    } catch (err) {
+      setPasswordError(
+        err instanceof Error ? err.message : t("common.error")
+      );
+      toast({
+        title: lang === "bn" ? "পাসওয়ার্ড পরিবর্তন হয়নি" : "Password change failed",
+        description: err instanceof Error ? err.message : undefined,
+        variant: "destructive",
+      });
+    } finally {
+      setSavingPassword(false);
     }
   };
 
@@ -248,6 +330,117 @@ export default function ProfileScreen() {
             </Button>
           </div>
         </form>
+      </SectionCard>
+
+      {/* ── change password ───────────────────────────────────── */}
+      <SectionCard
+        title={lang === "bn" ? "পাসওয়ার্ড পরিবর্তন" : "Change password"}
+        action={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={togglePasswordSection}
+            aria-expanded={pwOpen}
+          >
+            {pwOpen ? (
+              <ChevronUp className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <ChevronDown className="h-4 w-4" aria-hidden="true" />
+            )}
+            {pwOpen
+              ? lang === "bn"
+                ? "বাতিল"
+                : "Cancel"
+              : lang === "bn"
+                ? "পরিবর্তন"
+                : "Change"}
+          </Button>
+        }
+      >
+        {pwOpen ? (
+          <form onSubmit={changePassword} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="pw-current">
+                {lang === "bn" ? "বর্তমান পাসওয়ার্ড" : "Current password"}
+                {user?.provider !== "credentials" ? (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    ({lang === "bn" ? "ঐচ্ছিক" : "optional"})
+                  </span>
+                ) : null}
+              </Label>
+              <Input
+                id="pw-current"
+                type="password"
+                autoComplete="current-password"
+                required={user?.provider === "credentials"}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+              {user?.provider !== "credentials" ? (
+                <p className="text-[11px] text-muted-foreground">
+                  {lang === "bn"
+                    ? "আগে কখনো পাসওয়ার্ড সেট না করে থাকলে খালি রাখুন — এটি আপনার প্রথম পাসওয়ার্ড হবে।"
+                    : "Leave blank if you have never set a password — this sets your first one."}
+                </p>
+              ) : null}
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="pw-new">
+                  {lang === "bn" ? "নতুন পাসওয়ার্ড" : "New password"}
+                </Label>
+                <Input
+                  id="pw-new"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                  maxLength={100}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder={
+                    lang === "bn" ? "কমপক্ষে ৮ অক্ষর" : "At least 8 characters"
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="pw-confirm">
+                  {lang === "bn" ? "নতুন পাসওয়ার্ড নিশ্চিত করুন" : "Confirm new password"}
+                </Label>
+                <Input
+                  id="pw-confirm"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+            {passwordError ? (
+              <p className="text-xs font-medium break-words text-destructive" role="alert">
+                {passwordError}
+              </p>
+            ) : null}
+            <div className="flex justify-end">
+              <Button type="submit" disabled={savingPassword || !user}>
+                {savingPassword ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : null}
+                {lang === "bn" ? "পাসওয়ার্ড আপডেট করুন" : "Update password"}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            {lang === "bn"
+              ? "সাইন ইন করার জন্য নতুন পাসওয়ার্ড সেট করুন।"
+              : "Set a new password for signing in."}
+          </p>
+        )}
       </SectionCard>
 
       {/* ── language ────────────────────────────────────────────── */}

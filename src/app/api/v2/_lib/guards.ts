@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { storeKind } from "@/lib/data";
 import type { SessionUser } from "@/lib/types";
 
 /**
@@ -18,6 +19,25 @@ export class GuardError extends Error {
     super(message);
     this.status = status;
     this.code = code;
+  }
+}
+
+/**
+ * Split-brain guard: v2 routes bypass the DataStore and query Prisma/SQLite
+ * directly. When the active store is Firestore (production), those routes
+ * would read/write the Vercel demo SQLite instead of production data while
+ * auth resolves against Firestore — two databases disagreeing in one
+ * request. Like the VVS module's requireVvsStore, these routes answer
+ * 503 MODULE_DISABLED on the Firestore path (docs/ARCHITECTURE_CORRECTIONS.md
+ * #2 eligibility control) instead of silently splitting.
+ */
+export function requirePrismaBackedStore(): void {
+  if (storeKind() !== "prisma") {
+    throw new GuardError(
+      "This surface requires the Prisma-backed store (demo/dev mode) — it bypasses the DataStore contract. It is disabled in Firestore and hybrid production modes pending the Phase 0 data-residency review — docs/ARCHITECTURE_CORRECTIONS.md #5.",
+      503,
+      "MODULE_DISABLED"
+    );
   }
 }
 
@@ -47,6 +67,7 @@ export async function requireRole(
 
 /** The signed-in doctor's DoctorProfile (doctors can book as patients too). */
 export async function requireDoctorProfile() {
+  requirePrismaBackedStore(); // this surface queries Prisma directly
   const user = await requireRole("DOCTOR");
   const profile = await db.doctorProfile.findUnique({
     where: { userId: user.id },
@@ -63,6 +84,7 @@ export async function requireDoctorProfile() {
 
 /** The signed-in hospital manager's Hospital profile. */
 export async function requireHospitalProfile() {
+  requirePrismaBackedStore(); // this surface queries Prisma directly
   const user = await requireRole("HOSPITAL");
   const hospital = await db.hospital.findUnique({
     where: { userId: user.id },

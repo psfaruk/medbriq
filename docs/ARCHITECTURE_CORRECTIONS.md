@@ -338,3 +338,192 @@ it matches the corrected MVP scope (#7). Changes made by this correction:
 5. Every status transition that affects money or eligibility writes an audit
    log entry.
 6. Human approval is a release artifact, not a conversation.
+
+---
+
+## 6. Hardening round 2 — audit dispositions (Devil's Advocate session #2)
+
+A second Devil's-Advocate audit swept the whole codebase (dual stores, booking
+routes, auth, v2 API, client). Every finding below is implemented and
+verified by `scripts/e2e-booking-fixes.ts` (20 checks) plus the fee-system
+harness `bun run verify:fees` (51 checks). Gated module behaviour did NOT
+change — `appointmentBooking` remains Prisma-only pending the Phase 0
+residency decision; what changed is that the gate is now **complete and
+honest**.
+
+### 6.1 Booking engine correctness
+
+| Fix | Design |
+|---|---|
+| **Slot release on cancel/reject (dead-slot bug)** | The `@@unique([doctorId, slotStart])` burned every cancelled/rejected slot forever (a free-looking slot answered 409 on re-book). Replaced by `Appointment.slotKey`: equals `slotStart` while occupied, **NULL** for released statuses (REJECTED / CANCELLED_* / EXPIRED) — SQLite treats NULLs as distinct, so the slot frees without deleting the historical row. Firestore parity: released appointments are relocated off the `{doctorId}_{slotStart}` doc id to their own id-keyed doc. |
+| **Conditional status transitions (race guard)** | Approve/reject/cancel/no-show/complete/reschedule now write with a status precondition (`updateMany` where-filter / in-transaction check). A concurrent actor changing the row first answers **409 STATUS_CHANGED** instead of silently overwriting the other outcome (resurrecting cancelled appointments, or turning NO_SHOW into a money-qualifying visit). |
+| **Idempotency hardening** | P2002 on `idempotencyKey` (two racing same-key submits) now replays the winner instead of 500-looping; the replay intent comparison compares slot **instants** (not raw timestamp strings) and includes patient identity + consultation type. |
+| **EXPIRED lifecycle (was specced, never built)** | Lazy sweep (`expireStalePendingAppointments`) on slot reads moves stale PENDING_APPROVAL rows to EXPIRED and releases their slots; approving a past-slot request is rejected (400 SLOT_PAST). |
+| **Preview/booking identity parity** | Price preview now classifies with the same patient key as booking (session id OR phone). Previously a returning patient booking under a different phone got preview=NEW but booking=RETURNING → an unrecoverable PRICE_CHANGED loop. The 409 itself now carries the fresh `priceBreakdown` so the client recovers in one round-trip. |
+| **Reschedule chamber scoping** | The new slot is validated within the appointment's own chamber; the client slot picker for reschedule is chamber-filtered too. |
+| **Residency gate completion** | `requireModule("appointmentBooking")` added to approve/reject/cancel/reschedule (they previously wrote appointment data through the Firestore store — exactly what correction #5 forbids). |
+
+### 6.2 Client UX recovery paths
+
+- Booking wizard: stable idempotency key per submission (useRef — retries
+  replay instead of double-booking), SLOT_TAKEN/SLOT_UNAVAILABLE bounce back
+  to the slot picker with a refresh, PRICE_CHANGED updates the fee display
+  from the 409 payload (no refetch loop), STATUS_CHANGED resets the flow.
+- Module flags ship with `/api/v1/bootstrap` (`modules` field) and the
+  booking CTA is gated up front with the disabled reason (portal + app
+  profiles) — never a 503 three steps into a flow.
+- Doctors search screen recovers from transient failures (the sticky `failed`
+  flag is reset on success); session expiry (401) resets the session once
+  via a shell-level event instead of every screen failing forever; a
+  route-level error boundary keeps one bad DTO from unmounting the SPA.
+
+### 6.3 Security fixes
+
+- Phone-match ownership (guest bookings, VVS records) now requires
+  `phoneVerified`; changing your phone resets `phoneVerified` until an OTP
+  re-proves it (previously an attacker could claim a victim's phone and read
+  their bookings/visit receipts).
+- Duplicate phones rejected at registration; phone-based lookups prefer
+  ACTIVE + phone-verified accounts deterministically.
+- Password change/reset revokes all existing sessions (new
+  `deleteSessionsByUser` store method).
+- Push-token DELETE is owner-scoped; analytics counter map is cardinality-
+  capped; 500 responses no longer leak internal error text.
+
+### 6.4 v2 API split-brain guard
+
+v2 routes query Prisma/SQLite directly while session resolution uses the
+active store. On the Firestore path that produced two databases disagreeing
+within one request (auth from Firestore, data from the Vercel demo SQLite).
+Like VVS, those routes now answer **503 MODULE_DISABLED** on the Firestore
+path (`requirePrismaBackedStore`); catch-all GET/POST handlers validate the
+requested resource instead of falling through to the wrong handler; unknown
+support-ticket ids answer 404 instead of a leaked P2025 500.
+
+### 6.5 Schema migration note
+
+`Appointment.slotKey` is a nullable column added via `prisma db push`
+(non-destructive; existing rows backfilled `slotKey = slotStart` for
+blocking statuses). The bundled demo database (`prisma/seed.db`) and the
+seed script carry the same change.
+
+## 7. Hardening round 3 — audit dispositions (Devil's Advocate session #3)
+
+Full-codebase re-audit (data stores, booking engine, fee engine, auth, client
+UI) after the environment was rebuilt. Fixes are grouped by severity; every
+behavioral fix is covered by `scripts/verify-fee-system.ts` (rerun clean),
+`scripts/verify-hybrid-store.ts` (new) and browser E2E on the `/` route.
+
+### 7.1 THE CORE CHALLENGE — appointmentBooking unblocked via the hybrid regional split-store (#5)
+
+The complaint: booking answered 503 in production because the Firestore path
+froze the fee/booking module (patient visit history must not leave the
+approved region). Freezing was correct per #5, but it froze the feature
+instead of the data. Resolution — **split by data class, not by feature**:
+
+- New `HybridStore` (`src/lib/data/hybrid-store.ts`): Firestore stays the
+  PRIMARY store for public directory data (doctors, specialties, hospitals,
+  reviews, availability, chambers, accounts/sessions/OTP). A REGIONAL
+  PrismaStore bound to `BOOKING_DATABASE_URL` (in-region PostgreSQL) owns
+  everything the residency review regulates: appointments, visit history,
+  fee settings/history, notifications and audit logs.
+- FK anchoring: the regional schema's joins (appointment → doctor/patient/
+  chamber) resolve against minimal identity STUBS replicated on demand from
+  the primary store (upserts; primary stays authoritative).
+- `storeKind()` gains `"hybrid"` (FIREBASE_SERVICE_ACCOUNT + BOOKING_DATABASE_URL).
+  `isModuleEnabled("appointmentBooking")` now accepts prisma AND hybrid;
+  Firestore-only remains gated exactly as before.
+- Residency guarantee proven by `scripts/verify-hybrid-store.ts` (20 checks):
+  directory reads come from primary; booking rows land in regional ONLY
+  (primary row counts never move); the slot engine, classification,
+  idempotency, notifications (merged reads) and lifecycle transitions all
+  behave as one store.
+- v2 direct-Prisma surfaces and VVS stay prisma-only (they bypass the
+  DataStore contract and would split databases in hybrid mode).
+
+### 7.2 P1 — patient identity fork (overcharging)
+
+`normalizePhone` (separator stripping only) was used at the booking
+boundaries while registration stores E.164 (`normalizeBdPhone`): "017…",
+"88017…" and "+88017…" were three different patients. Returning patients
+were re-classified NEW (**overcharged**), guest lookups/cancels failed, and
+preview vs booking classification diverged. Fix: new `canonicalPhone()`
+(`src/lib/phone.ts`) — E.164 for BD mobiles, fallback stripping — applied at
+every boundary (create/cancel/reschedule/preview/guest lookup), the
+canonical form is now PERSISTED on appointments, and visit-history lookups
+match all legacy spellings so histories can never fork again.
+
+### 7.3 P1 — forgot-password flow dead end
+
+The client requested a reset code, then jumped back to login — the
+`POST /api/v1/auth/reset-password` endpoint had no caller. The auth screen
+now has the full second step (code + new password), plus OTP resend
+cooldown/expiry countdown, a signed-in change-password section (previously
+an orphaned endpoint), and guards for stale OTP state and the UTC DOB max
+(now Dhaka-local).
+
+### 7.4 P2 — correctness and privacy fixes
+
+- **Notification date labels** used UTC `slice(0,10)` — every Dhaka slot
+  before 06:00 read one day early. Now `slotDateLabel()` (Dhaka calendar
+  date) everywhere (book/cancel/reschedule).
+- **Reschedule had no past-slot guard** on the CURRENT slot — an appointment
+  that already started could be moved to next week, bypassing the cancel
+  cutoff and no-show flow. Same guard as cancel now.
+- **doctor/appointments imported Prisma directly** (store-contract bypass;
+  in Firestore mode it would read the stale demo SQLite) and dropped
+  specialties from the DTO. Rerouted through `getStore()` + shared
+  `toAppointmentDto`; added the EXPIRED lazy sweep to the doctor dashboard
+  and appointments manager (previously slots-page-only).
+- **Fee settings validation** accepted a fee ladder where follow-up >
+  returning (patients inside the shorter window would pay MORE than after
+  it expires) and a follow-up window outlasting returning validity. Both
+  invariants added to `validateFeeSettings`.
+- **verify-fee-system cleanup** deleted every appointment carrying ANY
+  idempotency key — including real bookings (the UI mints one per
+  submission). Scoped to fixtures only.
+- **Guest privacy (preview surface)**: the unauthenticated price preview
+  and 409 PRICE_CHANGED payloads disclosed visit-history detail (visit ids,
+  completion timestamps, anchor/expiry dates) for an arbitrary phone
+  number. Guests now receive classification + fee + date-free explanation
+  only; signed-in users keep the full breakdown.
+- **Pay-online not gated**: bKash/Nagad/Card options were selectable with
+  the payments module disabled, failing post-booking with a raw 503. Both
+  the booking flow and the appointment PayDialog now gate on the bootstrap
+  module flags with the reason surfaced.
+- **401 event discrimination**: every 401 (including wrong password at
+  login) reset the session and flashed "session expired" on the login
+  screen. Only genuine `UNAUTHENTICATED` 401s fire the session-reset event
+  now (in both `request()` and `jsonFetch()`).
+- **Step-3 validation feedback**: the booking Continue button was silently
+  disabled on invalid fields (error UI was dead code). Validation now runs
+  on click with the message shown.
+- **Firestore parity (latent-until-hybrid)**: idempotent replay inside the
+  create transaction (a raced retry replayed as 409 SLOT_TAKEN), same-slot
+  reschedule now requires PENDING/CONFIRMED (a cancelled appointment could
+  be resurrected), and phone matching is canonical everywhere.
+
+### 7.5 P3 — polish
+
+Slot validation compares ISO instants (not raw strings); slots endpoint
+defaults `?date=` to Dhaka today; booking date rolls over past Dhaka
+midnight; OTP resend cooldown (60s) + expiry countdown; dead duplicate
+zustand store and three dead components deleted; stale consultationNote
+"foundation gap" comments/casts removed (the field is on the shared type,
+both stores, all DTOs); DateStrip a11y roles corrected (group/buttons,
+aria-pressed); PageHeader back label localized; idempotency sameIntent now
+includes chamberId and race-replays skip duplicate notify/audit.
+
+### 7.6 Deferred (documented, not blocking)
+
+- `Appointment.fee` stays Float (documented MVP limitation; Decimal/paisa
+  planned for the PG migration).
+- Account-scope classification for family-member bookings (classify by the
+  booking phone only) — documented in verify-fee-system as a limitation.
+- v1 booking POST/preview have no rate limiter (v2 surfaces do); flagged
+  for the production hardening pass.
+- Chambers are still a Prisma-only v2 surface (no DataStore/Firestore
+  parity) — the hybrid routes `findActiveChamber` to primary, so chamber
+  selection works in hybrid mode only when chambers are seeded there.
+- Firestore uniqueness gaps (email/slug) and `listUsers` filter ordering
+  divergence remain documented demo-scale tradeoffs.

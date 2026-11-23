@@ -202,7 +202,7 @@ export function DateStrip({
   return (
     <div
       className="app-scroll flex gap-2 overflow-x-auto pb-1"
-      role="listbox"
+      role="group"
       aria-label={t("booking.selectDate")}
     >
       {dates.map((d) => {
@@ -219,8 +219,7 @@ export function DateStrip({
           <button
             key={d}
             type="button"
-            role="option"
-            aria-selected={selected}
+            aria-pressed={selected}
             onClick={() => onChange(d)}
             className={cn(
               "flex min-w-[64px] flex-col items-center rounded-xl border px-3 py-2 transition-colors",

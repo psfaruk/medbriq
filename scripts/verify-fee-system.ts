@@ -201,7 +201,10 @@ async function cleanupFixtures(): Promise<void> {
   await db.doctorProfile.deleteMany({ where: { id: { in: testDoctorIds } } });
   await db.user.deleteMany({ where: { id: { in: testPatientIds } } });
   await db.user.deleteMany({ where: { email: { contains: "@findmedidoctor.test" } } });
-  await db.appointment.deleteMany({ where: { idempotencyKey: { not: null } } });
+  // NOTE: never delete "all rows with an idempotencyKey" here — the booking
+  // UI mints one for EVERY real submission. Fixture appointments are already
+  // covered: store-level ones belong to testDoctorIds (deleted above), and
+  // Part C removes its HTTP-created rows by referenceCode/idempotencyKey.
 }
 
 // ─── Part A: pure validity arithmetic (docs/FEE_SYSTEM.md §2.3) ─────────

@@ -50,8 +50,18 @@ function toDto(row: {
   };
 }
 
-export async function GET() {
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> }
+) {
   try {
+    // Catch-all validation: only /api/v2/doctor/chambers exists — any other
+    // path under this segment answers 404 instead of falling through to the
+    // chamber list (wrong-handler fallthrough).
+    const { path } = await params;
+    if ((path[0] ?? "chambers") !== "chambers") {
+      return fail("Unknown doctor resource.", 404, "NOT_FOUND");
+    }
     const { profile } = await requireDoctorProfile();
     const rows = await db.chamber.findMany({
       where: { doctorId: profile.id },
@@ -64,8 +74,15 @@ export async function GET() {
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> }
+) {
   try {
+    const { path } = await params;
+    if ((path[0] ?? "chambers") !== "chambers") {
+      return fail("Unknown doctor resource.", 404, "NOT_FOUND");
+    }
     const { profile, user } = await requireDoctorProfile();
     const raw: unknown = await req.json().catch(() => null);
     const parsed = chamberSchema.safeParse(raw);

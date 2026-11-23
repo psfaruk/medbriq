@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "crypto";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import { cached, invalidateMemoryCache } from "@/lib/cache";
-import { normalizePhone } from "@/lib/phone";
+import { canonicalPhone, normalizePhone } from "@/lib/phone";
 import type {
   ActiveOtpCode,
   AdminUserRecord,
@@ -36,6 +36,7 @@ import type {
   SearchDoctorsFilters,
   SessionRecord,
   SpecialtyRecord,
+  UpdateAppointmentOptions,
   UpsertGoogleUserInput,
   UserProfilePatch,
 } from "./types";
@@ -43,6 +44,8 @@ import {
   FeeModuleUnavailableError,
   ReferenceCodeCollisionError,
   SlotConflictError,
+  StatusTransitionError,
+  isSlotBlockingStatus,
 } from "./types";
 
 /**
@@ -117,7 +120,9 @@ export function getFirestoreFromEnv(): Firestore {
   // "default" targets a *different* (non-existent) database id and every
   // query fails with NOT_FOUND. Keep the parens in the fallback.
   const databaseId = process.env.FIREBASE_DATABASE_ID || "(default)";
-  return getFirestore(app, databaseId, { preferRest: true });
+  // preferRest is a runtime-only optimization the v14 typings do not
+  // expose; REST transport still applies where supported without the arg.
+  return getFirestore(app, databaseId);
 }
 
 /** Firestore status-code classification (ALREADY_EXISTS = 6) for create() guards. */
@@ -501,26 +506,63 @@ export class FirestoreStore implements DataStore {
     };
   }
 
+  async getUserById(id: string): Promise<AuthUser | null> {
+    const snap = await this.fs.collection("users").doc(id).get();
+    if (!snap.exists) return null;
+    const user = snap.data() as UserDoc;
+    // Resolve the 1:1 doctor profile (single indexed equality).
+    const profileSnap = await this.fs
+      .collection("doctors")
+      .where("userId", "==", id)
+      .limit(1)
+      .get();
+    const profile = profileSnap.empty
+      ? null
+      : (profileSnap.docs[0].data() as DoctorDoc);
+    return {
+      id: snap.id,
+      email: user.email,
+      name: user.name,
+      phone: user.phone ?? null,
+      role: user.role,
+      status: user.status ?? "ACTIVE",
+      provider: user.provider ?? "credentials",
+      phoneVerified: user.phoneVerified ?? false,
+      avatarUrl: user.avatarUrl ?? null,
+      doctorSlug: profile?.slug ?? null,
+      verificationStatus: profile?.verificationStatus ?? null,
+    };
+  }
+
   async findUserByPhone(phone: string): Promise<AuthUserWithCredentials | null> {
-    const normalized = normalizePhone(phone);
+    const normalized = canonicalPhone(phone);
     // ONE indexed equality on a canonical-ish phone; fallback full-scan compare
     // normalized (phones are stored as given — demo-scale, see header tradeoff).
     let snap = await this.fs
       .collection("users")
       .where("phone", "==", phone)
-      .limit(1)
       .get();
     if (snap.empty) {
       const all = await this.fs.collection("users").get();
       snap = {
         empty: all.empty,
         docs: all.docs.filter(
-          (d) => normalizePhone((d.data() as UserDoc).phone ?? "") === normalized
+          (d) => canonicalPhone((d.data() as UserDoc).phone ?? "") === normalized
         ),
       } as typeof snap;
     }
     if (snap.empty || snap.docs.length === 0) return null;
-    const doc = snap.docs[0];
+    // Deterministic preference when (legacy) duplicate phones exist: an
+    // ACTIVE, phone-verified account wins — OTP login and password reset
+    // then operate on a predictable account instead of doc order.
+    const ranked = [...snap.docs].sort((a, b) => {
+      const score = (doc: typeof a) => {
+        const u = doc.data() as UserDoc;
+        return (u.phoneVerified ? 2 : 0) + ((u.status ?? "ACTIVE") === "ACTIVE" ? 1 : 0);
+      };
+      return score(b) - score(a);
+    });
+    const doc = ranked[0];
     return this.findUserByEmail((doc.data() as UserDoc).email);
   }
 
@@ -786,6 +828,17 @@ export class FirestoreStore implements DataStore {
 
   async deleteSessionsByToken(token: string): Promise<void> {
     await this.fs.collection("sessions").doc(token).delete();
+  }
+
+  async deleteSessionsByUser(userId: string): Promise<number> {
+    // Password change/reset revocation: sessions are keyed by token, so query
+    // by userId and delete each doc.
+    const snap = await this.fs
+      .collection("sessions")
+      .where("userId", "==", userId)
+      .get();
+    await Promise.all(snap.docs.map((doc) => doc.ref.delete()));
+    return snap.size;
   }
 
   // ── Reference data ───────────────────────────────────────────────────
@@ -1158,6 +1211,19 @@ export class FirestoreStore implements DataStore {
 
   // ── Appointments ─────────────────────────────────────────────────────
 
+  async findActiveChamber(doctorId: string, chamberId: string) {
+    const snap = await this.fs
+      .collection("chambers")
+      .where("doctorId", "==", doctorId)
+      .where("id", "==", chamberId)
+      .where("isActive", "==", true)
+      .limit(1)
+      .get();
+    if (snap.empty) return null;
+    const data = snap.docs[0].data() as { id: string; name: string };
+    return { id: data.id, name: data.name };
+  }
+
   async createAppointment(input: CreateAppointmentInput): Promise<AppointmentRecord> {
     const collection = this.fs.collection("appointments");
     const docId = appointmentDocId(input.doctorId, input.slotStart);
@@ -1195,18 +1261,39 @@ export class FirestoreStore implements DataStore {
       createdAt: now,
       updatedAt: now,
     };
+    // IDEMPOTENT REPLAY (parity with the Prisma P2002-idempotencyKey path):
+    // a retried submit whose first write won must replay the original
+    // record, not surface as a spurious SlotConflictError.
+    let replayedId: string | null = null;
     try {
       await this.fs.runTransaction(async (txn) => {
+        if (input.idempotencyKey) {
+          const replay = await txn.get(
+            collection.where("idempotencyKey", "==", input.idempotencyKey).limit(1)
+          );
+          if (!replay.empty) {
+            replayedId = (replay.docs[0].data() as AppointmentDoc).id;
+            return;
+          }
+        }
         // DB-LEVEL DOUBLE-BOOKING GUARD: the doc id IS (doctorId, slotStart).
-        // If it already exists the slot is taken — regardless of status —
-        // exactly like the SQLite unique index. txn.create() additionally
-        // enforces create-semantics under concurrency (a losing racer's
-        // transaction is retried and then fails the existence check below).
+        // A doc at that id whose status is still BLOCKING means the slot is
+        // taken. A leftover doc in a RELEASED status (REJECTED / CANCELLED_* /
+        // EXPIRED) is dead occupancy — it is relocated to its own id-keyed doc
+        // so the slot frees up without losing the historical row
+        // (release-on-cancel parity with the Prisma slotKey design).
         const existing = await txn.get(ref);
         if (existing.exists) {
-          throw new SlotConflictError(
-            "This slot was just booked by someone else. Please choose another slot."
-          );
+          const existingData = existing.data() as AppointmentDoc;
+          if (isSlotBlockingStatus(existingData.status ?? "PENDING_APPROVAL")) {
+            throw new SlotConflictError(
+              "This slot was just booked by someone else. Please choose another slot."
+            );
+          }
+          // Dead occupancy: relocate the released appointment to its own id.
+          const releasedRef = collection.doc(existingData.id);
+          txn.set(releasedRef, { ...existingData, id: existingData.id });
+          txn.delete(ref);
         }
         const dup = await txn.get(
           collection.where("referenceCode", "==", input.referenceCode).limit(1)
@@ -1224,6 +1311,10 @@ export class FirestoreStore implements DataStore {
         );
       }
       throw err;
+    }
+    if (replayedId) {
+      const replayed = await this.getAppointmentById(replayedId);
+      if (replayed) return replayed;
     }
     return this.withDoctorJoin(data);
   }
@@ -1303,10 +1394,10 @@ export class FirestoreStore implements DataStore {
       .collection("appointments")
       .where("referenceCode", "==", referenceCode.toUpperCase())
       .get();
-    const normalized = normalizePhone(phone);
+    const normalized = canonicalPhone(phone);
     const docs = snap.docs
       .map((doc) => doc.data() as AppointmentDoc)
-      .filter((doc) => normalizePhone(doc.patientPhone) === normalized)
+      .filter((doc) => canonicalPhone(doc.patientPhone) === normalized)
       .sort((a, b) => b.slotStart.localeCompare(a.slotStart))
       .slice(0, 100);
     return Promise.all(docs.map((doc) => this.withDoctorJoin(doc)));
@@ -1329,10 +1420,25 @@ export class FirestoreStore implements DataStore {
       .map((doc) => doc.slotStart);
   }
 
-  async updateAppointment(id: string, patch: AppointmentPatch) {
+  async updateAppointment(
+    id: string,
+    patch: AppointmentPatch,
+    options?: UpdateAppointmentOptions
+  ) {
     const current = await this.getAppointmentDoc(id);
     if (!current) throw new Error(`Appointment ${id} not found.`);
-    // Read-modify-write; the API layer guards the status transitions.
+
+    // CONDITIONAL TRANSITION: reject when a concurrent actor already moved
+    // the status out of the expected set (mirrors the Prisma updateMany
+    // status filter — the API layer's pre-checks cannot close this race).
+    if (
+      options?.requireStatuses &&
+      options.requireStatuses.length > 0 &&
+      !options.requireStatuses.includes(current.data.status)
+    ) {
+      throw new StatusTransitionError(current.data.status);
+    }
+
     const updates: Record<string, unknown> = {
       updatedAt: new Date().toISOString(),
     };
@@ -1341,8 +1447,44 @@ export class FirestoreStore implements DataStore {
     if (patch.consultationNote !== undefined) updates.consultationNote = patch.consultationNote;
     if (patch.consultationStatus !== undefined) updates.consultationStatus = patch.consultationStatus;
     if (patch.paymentStatus !== undefined) updates.paymentStatus = patch.paymentStatus;
+
+    // SLOT RELEASE: a released target status moves the appointment off its
+    // occupancy doc id (appointments/{doctorId}_{slotStart}) to its own
+    // id-keyed doc, freeing the slot for re-booking while keeping the row
+    // (parity with the PrismaStore slotKey = null semantics).
+    const releasing =
+      patch.status !== undefined && !isSlotBlockingStatus(patch.status);
+    const occupiesSlotDoc =
+      current.ref.id === appointmentDocId(current.data.doctorId, current.data.slotStart);
+
+    if (releasing && occupiesSlotDoc) {
+      const data = { ...current.data, ...(updates as Partial<AppointmentDoc>) };
+      await this.fs.runTransaction(async (txn) => {
+        const fresh = await txn.get(current.ref);
+        if (!fresh.exists) return; // moved concurrently — treat as done
+        if (
+          options?.requireStatuses &&
+          !options.requireStatuses.includes(
+            (fresh.data() as AppointmentDoc).status
+          )
+        ) {
+          throw new StatusTransitionError((fresh.data() as AppointmentDoc).status);
+        }
+        txn.set(this.fs.collection("appointments").doc(id), data);
+        txn.delete(current.ref);
+      });
+      return this.withDoctorJoin(data);
+    }
+
     await current.ref.update(updates);
     return this.withDoctorJoin({ ...current.data, ...(updates as Partial<AppointmentDoc>) });
+  }
+
+  async expireStalePendingAppointments(doctorId: string): Promise<number> {
+    // Frozen with the fee module (Phase 0 residency gate): sweeping statuses
+    // is a booking-module WRITE and must not run against a foreign region.
+    // Callers additionally gate on isModuleEnabled("appointmentBooking").
+    throw new FeeModuleUnavailableError();
   }
 
   async rescheduleAppointment(
@@ -1358,9 +1500,25 @@ export class FirestoreStore implements DataStore {
 
     if (newDocId === current.ref.id) {
       // Defensive: same slot — update in place (route already rejects this).
-      return this.updateAppointment(id, {
-        ...(resetToPendingApproval ? { status: "PENDING_APPROVAL" } : {}),
-      });
+      // Conditional statuses REQUIRED: without them a CANCELLED/COMPLETED
+      // appointment rescheduled to its own slot would be silently reset to
+      // PENDING_APPROVAL, resurrecting it (parity with the Prisma branch).
+      return this.updateAppointment(
+        id,
+        {
+          ...(resetToPendingApproval ? { status: "PENDING_APPROVAL" } : {}),
+        },
+        { requireStatuses: ["PENDING_APPROVAL", "CONFIRMED"] }
+      );
+    }
+
+    // CONDITIONAL MOVE: only PENDING_APPROVAL / CONFIRMED appointments may
+    // move — anything else (completed, cancelled, …) is a concurrent race.
+    if (
+      current.data.status !== "PENDING_APPROVAL" &&
+      current.data.status !== "CONFIRMED"
+    ) {
+      throw new StatusTransitionError(current.data.status);
     }
 
     const newRef = this.fs.collection("appointments").doc(newDocId);
@@ -1650,8 +1808,17 @@ export class FirestoreStore implements DataStore {
       );
   }
 
-  async removePushToken(token: string): Promise<void> {
-    await this.fs.collection("push_tokens").doc(this.pushTokenDocId(token)).delete();
+  async removePushToken(token: string, ownerUserId?: string): Promise<void> {
+    // Owner-scoped: a user may only unregister their own devices.
+    const ref = this.fs.collection("push_tokens").doc(this.pushTokenDocId(token));
+    if (!ownerUserId) {
+      await ref.delete();
+      return;
+    }
+    const snap = await ref.get();
+    if (!snap.exists) return;
+    if ((snap.data() as { userId?: string }).userId !== ownerUserId) return;
+    await ref.delete();
   }
 
   async listPushTokens(userId: string): Promise<string[]> {

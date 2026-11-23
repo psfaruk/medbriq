@@ -90,6 +90,10 @@ export async function POST(req: NextRequest) {
 
     await store.updateUserPassword(user.id, hashPassword(parsed.data.newPassword));
 
+    // Revoke EVERY session of this account — a reset performed over OTP (no
+    // session) must invalidate any cookie issued before the reset.
+    await store.deleteSessionsByUser(user.id);
+
     await store.createAuditLog({
       actorId: user.id,
       action: "PASSWORD_RESET",

@@ -9,10 +9,15 @@ import type { AdminStats, SpecialtyInfo } from "@/lib/types";
  *
  *   - PrismaStore    (src/lib/data/prisma-store.ts)    → local dev, SQLite
  *   - FirestoreStore (src/lib/data/firestore-store.ts) → production, Firebase
+ *   - HybridStore    (src/lib/data/hybrid-store.ts)    → production split-store
+ *     (Firestore directory + regional Prisma booking — corrections #5)
  *
  * The active store is selected at runtime by getStore() in src/lib/data/index.ts:
  * when FIREBASE_SERVICE_ACCOUNT is set (and parses as JSON) the FirestoreStore
- * is used, otherwise the local Prisma/SQLite store. See docs/database.md §8.
+ * is used (or, when BOOKING_DATABASE_URL is also set, the residency-safe
+ * HybridStore — public directory on Firestore, regulated booking data on the
+ * regional database), otherwise the local Prisma/SQLite store. See
+ * docs/database.md §8 and docs/ARCHITECTURE_CORRECTIONS.md #5.
  *
  * All records are plain serializable objects; all timestamps are ISO-8601 UTC
  * strings ("…Z") so they sort lexicographically and serialize identically in
@@ -55,6 +60,27 @@ export class IdempotencyMismatchError extends Error {
   constructor(message = "This idempotency key was already used for a different booking.") {
     super(message);
     this.name = "IdempotencyMismatchError";
+  }
+}
+
+/**
+ * Thrown when an appointment status transition is rejected because the
+ * CURRENT status in the database does not match the status the caller
+ * validated (a concurrent actor changed it first — e.g. the patient cancelled
+ * while the doctor was approving). API routes map this to `409 STATUS_CHANGED`.
+ * The write is conditional (updateMany with a status filter), so this fires
+ * only when the row genuinely moved — a stale read alone can never corrupt
+ * the status machine.
+ */
+export class StatusTransitionError extends Error {
+  readonly currentStatus: string;
+  constructor(currentStatus: string, message?: string) {
+    super(
+      message ??
+        `This appointment changed state while you were working on it (it is now ${currentStatus}). Refresh and try again.`
+    );
+    this.name = "StatusTransitionError";
+    this.currentStatus = currentStatus;
   }
 }
 
@@ -432,6 +458,36 @@ export type AppointmentPatch = {
   paymentStatus?: string;
 };
 
+/** Options for updateAppointment (conditional status transitions). */
+export type UpdateAppointmentOptions = {
+  /** When set, the write only applies if the row's CURRENT status is one of
+   * these; otherwise StatusTransitionError is thrown (409 STATUS_CHANGED).
+   * This closes the read-then-write race between route-level checks and the
+   * actual write (docs/ARCHITECTURE_CORRECTIONS.md #10). */
+  requireStatuses?: string[];
+};
+
+/** Appointment statuses that occupy (doctorId, slotKey) — see slots.ts. */
+export const SLOT_BLOCKING_STATUSES = [
+  "PENDING_APPROVAL",
+  "CONFIRMED",
+  "COMPLETED",
+  "NO_SHOW",
+] as const;
+
+/** Appointment statuses that no longer occupy their slot (released key). */
+export const SLOT_RELEASED_STATUSES = [
+  "REJECTED",
+  "CANCELLED_BY_PATIENT",
+  "CANCELLED_BY_DOCTOR",
+  "EXPIRED",
+] as const;
+
+/** True when the status keeps the (doctorId, slotKey) slot occupied. */
+export function isSlotBlockingStatus(status: string): boolean {
+  return (SLOT_BLOCKING_STATUSES as readonly string[]).includes(status);
+}
+
 // ── Fee system records (docs/FEE_SYSTEM.md) ──────────────────────
 
 /** Current per-doctor fee configuration. */
@@ -528,6 +584,9 @@ export type UserProfilePatch = {
   name?: string;
   phone?: string | null;
   avatarUrl?: string | null;
+  /** Set by the auth routes: a phone change resets verification (an OTP
+   * flow re-proves ownership). Not client-writable through the patch route. */
+  phoneVerified?: boolean;
 };
 
 export type CreateOtpCodeInput = {
@@ -584,12 +643,15 @@ export type ReferenceMeta = {
 
 // ─────────────────────────── The interface ───────────────────────────
 
-export type StoreKind = "prisma" | "firestore";
+export type StoreKind = "prisma" | "firestore" | "hybrid";
 
 export interface DataStore {
   // ── Auth / users / sessions ──────────────────────────────────────────
   /** Find a user by email (login + registration duplicate check). */
   findUserByEmail(email: string): Promise<AuthUserWithCredentials | null>;
+  /** Look up a public user profile by id (no credentials). Used by the
+   *  hybrid store's regional identity replication and admin surfaces. */
+  getUserById(id: string): Promise<AuthUser | null>;
   /** Find a user by normalized phone (OTP login + password reset). */
   findUserByPhone(phone: string): Promise<AuthUserWithCredentials | null>;
   /** Find-or-create a PATIENT account for a phone-OTP login. */
@@ -622,6 +684,8 @@ export interface DataStore {
   deleteSessionById(id: string): Promise<void>;
   /** Delete session(s) for a token (logout). */
   deleteSessionsByToken(token: string): Promise<void>;
+  /** Delete every session of a user — password change/reset revocation. */
+  deleteSessionsByUser(userId: string): Promise<number>;
 
   // ── Phone OTP codes ──────────────────────────────────────────────────
   /** Invalidate previous active codes and persist a new one. */
@@ -646,8 +710,10 @@ export interface DataStore {
   // ── Web-push (FCM) registration tokens ──────────────────────────────
   /** Register/refresh a push token for a user (idempotent upsert). */
   upsertPushToken(userId: string, token: string, platform: string): Promise<void>;
-  /** Remove a registration (logout / permission revoked / token invalid). */
-  removePushToken(token: string): Promise<void>;
+  /** Remove a registration (logout / permission revoked / token invalid).
+   * When ownerUserId is given, the delete is scoped to that owner — one user
+   * must never be able to unregister another user's device. */
+  removePushToken(token: string, ownerUserId?: string): Promise<void>;
   /** All active tokens for a user (bounded, oldest-first). */
   listPushTokens(userId: string): Promise<string[]>;
 
@@ -678,12 +744,16 @@ export interface DataStore {
   listAvailabilityRules(doctorId: string): Promise<AvailabilityRuleRecord[]>;
   /** Replace-all weekly schedule; returns the new rules ordered. */
   replaceAvailabilityRules(doctorId: string, rules: NewAvailabilityRule[]): Promise<AvailabilityRuleRecord[]>;
+  /** One ACTIVE chamber of a doctor by id (booking chamber validation). */
+  findActiveChamber(doctorId: string, chamberId: string): Promise<{ id: string; name: string } | null>;
 
   // ── Appointments ─────────────────────────────────────────────────────
   /**
-   * Create an appointment. Throws SlotConflictError when (doctorId, slotStart)
-   * is already taken (the database-level double-booking guard) and
-   * ReferenceCodeCollisionError on a referenceCode collision.
+   * Create an appointment. Throws SlotConflictError when the (doctorId,
+   * slotKey) occupancy guard rejects the write (slot genuinely taken by a
+   * blocking appointment) and ReferenceCodeCollisionError on a referenceCode
+   * collision. A P2002 on idempotencyKey (two racing submits with the same
+   * key) replays the winner instead of erroring.
    */
   createAppointment(input: CreateAppointmentInput): Promise<AppointmentRecord>;
   getAppointmentById(id: string): Promise<AppointmentRecord | null>;
@@ -697,12 +767,27 @@ export interface DataStore {
   findAppointmentsByReferenceCode(referenceCode: string, phone: string): Promise<AppointmentRecord[]>;
   /** Slot starts in [fromIso, toIso) occupied by any of the given statuses (slot engine). */
   findBlockingSlotStarts(doctorId: string, fromIso: string, toIso: string, statuses: string[]): Promise<string[]>;
-  /** In-place update (status transitions, doctorNote). */
-  updateAppointment(id: string, patch: AppointmentPatch): Promise<AppointmentRecord>;
+  /** In-place update (status transitions, doctorNote). Slot occupancy is
+   * derived from the target status: released statuses (REJECTED / CANCELLED_*
+   * / EXPIRED) free the (doctorId, slotKey) slot without deleting the row.
+   * Pass requireStatuses to make the write conditional (409 on races). */
+  updateAppointment(
+    id: string,
+    patch: AppointmentPatch,
+    options?: UpdateAppointmentOptions
+  ): Promise<AppointmentRecord>;
+  /**
+   * Sweep: PENDING_APPROVAL appointments whose slot already passed are moved
+   * to EXPIRED (slot released). Returns the number swept. Callers gate this on
+   * the appointmentBooking module (it is a booking-module write).
+   */
+  expireStalePendingAppointments(doctorId: string): Promise<number>;
   /**
    * Move an appointment to a new slot. Throws SlotConflictError when the new
-   * (doctorId, slotStart) is taken. `resetToPendingApproval` mirrors the
-   * approval-mode doctors requiring re-approval after a move.
+   * (doctorId, slotKey) is taken. `resetToPendingApproval` mirrors the
+   * approval-mode doctors requiring re-approval after a move. The write is
+   * conditional on the current status being PENDING_APPROVAL/CONFIRMED
+   * (StatusTransitionError otherwise).
    */
   rescheduleAppointment(id: string, slotStartIso: string, slotEndIso: string, resetToPendingApproval: boolean): Promise<AppointmentRecord>;
 

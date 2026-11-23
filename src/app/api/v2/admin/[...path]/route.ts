@@ -3,7 +3,11 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { ok, fail, handleRouteError } from "@/lib/api";
 import { storeKind } from "@/lib/data";
-import { GuardError, requireRole } from "@/app/api/v2/_lib/guards";
+import {
+  GuardError,
+  requirePrismaBackedStore,
+  requireRole,
+} from "@/app/api/v2/_lib/guards";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +30,7 @@ export const dynamic = "force-dynamic";
  */
 
 async function requireAdmin() {
+  requirePrismaBackedStore(); // this surface queries Prisma directly
   return requireRole("ADMIN");
 }
 
@@ -39,8 +44,11 @@ export async function GET(
     const section = path[0] ?? "";
 
     if (section === "hospitals") {
+      // NOTE: Hospital has no createdAt column — ordering by name keeps the
+      // listing deterministic without the runtime Prisma validation error
+      // the old `orderBy: { createdAt }` produced (500 on every call).
       const rows = await db.hospital.findMany({
-        orderBy: { createdAt: "asc" },
+        orderBy: { name: "asc" },
         include: {
           _count: { select: { doctors: true, branches: true } },
           user: { select: { name: true, email: true } },

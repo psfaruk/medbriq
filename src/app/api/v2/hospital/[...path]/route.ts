@@ -281,7 +281,7 @@ export async function GET(
         orderBy: { slotStart: "desc" },
         include: {
           doctor: { include: { user: { select: { name: true } } } },
-          payment: true,
+          payments: true,
         },
       });
 
@@ -316,8 +316,8 @@ export async function GET(
           fee: a.fee,
           currency: a.currency,
           paymentStatus: a.paymentStatus,
-          method: a.payment?.method ?? null,
-          txnRef: a.payment?.txnRef ?? null,
+          method: a.payments[0]?.method ?? null,
+          txnRef: a.payments[0]?.txnRef ?? null,
           slotStart: a.slotStart.toISOString(),
         })),
       });
@@ -474,8 +474,9 @@ export async function PUT(
         "VALIDATION_ERROR"
       );
     }
-    const { id: _omit, slug: _omit2, verificationStatus: _omit3, ...data } =
-      parsed.data;
+    // The patch schema only exposes safe editable fields — no id/slug/
+    // verification keys to strip (they are not in parsed.data).
+    const data = parsed.data;
     const updated = await db.hospital.update({
       where: { id: hospital.id },
       data,

@@ -4,12 +4,14 @@ import { fail, handleRouteError, ok } from "@/lib/api";
 import { invalidateMemoryCache } from "@/lib/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { getStore } from "@/lib/data";
+import { requireModule } from "@/lib/modules";
 import { APPOINTMENT_STATUS, NOTIFICATION_TYPES, ROLES } from "@/lib/constants";
 import {
+  canonicalPhone,
   doctorDisplayName,
   logAppointmentAction,
-  normalizePhone,
   notifyUser,
+  slotDateLabel,
   toAppointmentDto,
 } from "@/app/api/v1/_lib/booking";
 
@@ -36,6 +38,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Residency gate (docs/ARCHITECTURE_CORRECTIONS.md #5): every booking
+    // transition write is part of the appointmentBooking module surface.
+    requireModule("appointmentBooking");
+
     const { id } = await params;
 
     const raw: unknown = await req.json().catch(() => ({}));
@@ -69,7 +75,8 @@ export async function POST(
       }
     } else if (input.phone && input.referenceCode) {
       const phoneMatches =
-        normalizePhone(input.phone) === normalizePhone(appointment.patientPhone);
+        canonicalPhone(input.phone) ===
+        canonicalPhone(appointment.patientPhone);
       const codeMatches =
         input.referenceCode.toUpperCase() ===
         appointment.referenceCode.toUpperCase();
@@ -108,12 +115,26 @@ export async function POST(
     }
 
     const cancelledByDoctor = actor === "DOCTOR";
-    const updated = await getStore().updateAppointment(id, {
-      status: cancelledByDoctor
-        ? APPOINTMENT_STATUS.CANCELLED_BY_DOCTOR
-        : APPOINTMENT_STATUS.CANCELLED_BY_PATIENT,
-      ...(cancelledByDoctor && input.reason ? { doctorNote: input.reason } : {}),
-    });
+    // CONDITIONAL TRANSITION + SLOT RELEASE: the store nulls the (doctorId,
+    // slotKey) occupancy for CANCELLED_* target statuses, so the slot is
+    // bookable again immediately while the row keeps its history.
+    const updated = await getStore().updateAppointment(
+      id,
+      {
+        status: cancelledByDoctor
+          ? APPOINTMENT_STATUS.CANCELLED_BY_DOCTOR
+          : APPOINTMENT_STATUS.CANCELLED_BY_PATIENT,
+        ...(cancelledByDoctor && input.reason
+          ? { doctorNote: input.reason }
+          : {}),
+      },
+      {
+        requireStatuses: [
+          APPOINTMENT_STATUS.PENDING_APPROVAL,
+          APPOINTMENT_STATUS.CONFIRMED,
+        ],
+      }
+    );
 
     await logAppointmentAction(
       "APPOINTMENT_CANCELLED",
@@ -127,7 +148,7 @@ export async function POST(
     );
 
     // Notify the other party (guest cancellations count as patient-side).
-    const cancelDateLabel = updated.slotStart.slice(0, 10);
+    const cancelDateLabel = slotDateLabel(updated.slotStart);
     const cancelMeta = {
       appointmentId: updated.id,
       referenceCode: updated.referenceCode,

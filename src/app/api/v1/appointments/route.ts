@@ -1,10 +1,9 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { getStore, SlotConflictError, ReferenceCodeCollisionError } from "@/lib/data";
-import { db } from "@/lib/db";
 import { invalidateMemoryCache } from "@/lib/cache";
 import type { AppointmentRecord } from "@/lib/data/types";
-import { fail, handleRouteError, ok } from "@/lib/api";
+import { fail, failWith, handleRouteError, ok } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import {
   APPOINTMENT_STATUS,
@@ -19,11 +18,13 @@ import {
 import { classifyAndPrice } from "@/lib/fees/service";
 import { requireModule } from "@/lib/modules";
 import {
+  canonicalPhone,
   dateStrSchema,
   doctorDisplayName,
+  guestSafeBreakdown,
   logAppointmentAction,
-  normalizePhone,
   notifyUser,
+  slotDateLabel,
   toAppointmentDto,
 } from "@/app/api/v1/_lib/booking";
 
@@ -111,8 +112,8 @@ export async function GET(req: NextRequest) {
  * Correctness notes (docs/FEE_SYSTEM.md §3):
  * - The slot is re-validated server-side (validateBookableSlot) immediately
  *   before the write, but the authoritative double-booking guard is the
- *   (doctorId, slotStart) uniqueness constraint (SQLite unique index in
- *   Prisma mode, the appointments/{doctorId}_{slotStart} doc id in Firestore
+ *   (doctorId, slotKey) occupancy constraint (SQLite unique index in Prisma
+ *   mode, the appointments/{doctorId}_{slotStart} doc id in Firestore
  *   mode). If two requests race, exactly one wins and the loser gets a
  *   409 SLOT_TAKEN.
  * - Patient classification and the fee are computed SERVER-SIDE at write
@@ -151,13 +152,22 @@ export async function POST(req: NextRequest) {
         input.idempotencyKey
       );
       if (existing) {
-        // Same key + same patient/doctor/slot → replay the original booking.
-        // A key reused for a DIFFERENT payload is rejected loudly.
+        // Same key + same booking intent → replay the original booking.
+        // A key reused for a DIFFERENT payload is rejected loudly. The slot
+        // is compared as an INSTANT (not raw strings) so timestamp variants
+        // (…Z vs …000Z vs +00:00) do not false-positive a mismatch; the
+        // canonical patient phone, chamber and consultation type are part of
+        // the intent.
         const sameIntent =
           existing.doctor.slug === input.doctorSlug &&
-          normalizePhone(existing.patientPhone) ===
-            normalizePhone(input.patientPhone) &&
-          existing.slotStart === input.slotStartIso;
+          canonicalPhone(existing.patientPhone) ===
+            canonicalPhone(input.patientPhone) &&
+          new Date(existing.slotStart).getTime() ===
+            new Date(input.slotStartIso).getTime() &&
+          existing.type === input.type &&
+          (existing.chamberId ?? null) === (input.chamberId ?? null) &&
+          (existing.patientName ?? "").trim().toLowerCase() ===
+            input.patientName.trim().toLowerCase();
         if (!sameIntent) {
           return fail(
             "This idempotency key was already used for a different booking.",
@@ -192,15 +202,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Optional chamber: must be an ACTIVE chamber owned by this doctor.
+    // Routed through the store (no direct Prisma import — this route must
+    // stay store-agnostic for the Firestore/Prisma parity contract).
     let chamberId: string | null = null;
     if (input.chamberId) {
-      const chamber = await db.chamber.findFirst({
-        where: {
-          id: input.chamberId,
-          doctorId: doctor.id,
-          isActive: true,
-        },
-      });
+      const chamber = await store.findActiveChamber(doctor.id, input.chamberId);
       if (!chamber) {
         return fail("Selected chamber is not available.", 404, "NOT_FOUND");
       }
@@ -225,25 +231,33 @@ export async function POST(req: NextRequest) {
     const user = await getCurrentUser();
 
     // ── Server-side classification & pricing (docs/FEE_SYSTEM.md §3.1) ──
-    // The patient is resolved by account id OR normalized phone so guest
-    // bookings keep their history across later sign-in (§2.1).
-    const phone = normalizePhone(input.patientPhone);
+    // The patient is resolved by account id OR canonical phone (E.164 for
+    // BD mobiles — same key the auth module stores) so guest bookings keep
+    // their history across later sign-in (§2.1) and phone spelling variants
+    // (017…, 88017…, +88017…) can never fork a patient identity.
+    const phone = canonicalPhone(input.patientPhone);
     const breakdown = await classifyAndPrice({
       doctorId: doctor.id,
       patient: { patientId: user?.id ?? null, phone },
     });
 
-    // Revalidation: a stale expectation never books at a stale price.
+    // Revalidation: a stale expectation never books at a stale price. The
+    // fresh breakdown is returned WITH the 409 so the client can show the
+    // updated price and re-confirm in one step (no infinite refetch loop).
+    // Guests receive the guest-safe form (no visit-history detail).
     if (
       (input.expectedFee !== undefined &&
         input.expectedFee !== breakdown.fee) ||
       (input.expectedPatientType !== undefined &&
         input.expectedPatientType !== breakdown.patientType)
     ) {
-      return fail(
+      return failWith(
         "The price changed since the preview. Please review the updated breakdown and confirm again.",
         409,
-        "PRICE_CHANGED"
+        "PRICE_CHANGED",
+        {
+          priceBreakdown: user ? breakdown : guestSafeBreakdown(breakdown),
+        }
       );
     }
 
@@ -267,7 +281,9 @@ export async function POST(req: NextRequest) {
           chamberId,
           patientId: user?.id ?? null,
           patientName: input.patientName,
-          patientPhone: input.patientPhone,
+          // Store the CANONICAL phone so lookups/classification never depend
+          // on the spelling the submitter happened to use.
+          patientPhone: phone,
           patientAge: input.patientAge ?? null,
           patientGender: input.patientGender ?? null,
           notes: input.notes && input.notes.length > 0 ? input.notes : null,
@@ -306,39 +322,57 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await logAppointmentAction("APPOINTMENT_BOOKED", created.id, user?.id ?? null, {
-      bookingMode,
-      type: input.type,
-      patientType: breakdown.patientType,
-      fee,
-      feeSettingsVersion: breakdown.basis.feeSettingsVersion,
-      ...(user ? { patientId: user.id } : {}),
-    });
+    // Race-replay guard: when two concurrent requests share an idempotency
+    // key, the store replays the winner for the loser. A replayed record
+    // carries the ORIGINAL pricing snapshot (pricedAt from the winner's
+    // classifyAndPrice run), so a mismatch against THIS request's evaluated
+    // instant marks a replay — skip the duplicate audit/notification side
+    // effects instead of double-notifying the doctor.
+    const replayedRace =
+      input.idempotencyKey !== undefined &&
+      created.pricedAt !== breakdown.basis.evaluatedAt;
 
-    // Fire-and-forget notifications (never fail the booking; no medical
-    // info in bodies). UTC date label only — the client renders local time.
-    const dateLabel = created.slotStart.slice(0, 10);
-    const notificationMeta = {
-      appointmentId: created.id,
-      referenceCode: created.referenceCode,
-      doctorSlug: created.doctor.slug,
-    };
-    if (bookingMode === BOOKING_MODE.APPROVAL) {
-      await notifyUser(
-        created.doctor.userId,
-        NOTIFICATION_TYPES.APPOINTMENT_REQUESTED,
-        "New appointment request",
-        `${created.patientName} requested ${dateLabel} (${created.referenceCode}).`,
-        notificationMeta
+    if (!replayedRace) {
+      await logAppointmentAction(
+        "APPOINTMENT_BOOKED",
+        created.id,
+        user?.id ?? null,
+        {
+          bookingMode,
+          type: input.type,
+          patientType: breakdown.patientType,
+          fee,
+          feeSettingsVersion: breakdown.basis.feeSettingsVersion,
+          ...(user ? { patientId: user.id } : {}),
+        }
       );
-    } else if (created.patientId) {
-      await notifyUser(
-        created.patientId,
-        NOTIFICATION_TYPES.APPOINTMENT_CONFIRMED,
-        "Booking confirmed",
-        `Your appointment with ${doctorDisplayName(created.doctor.name)} on ${dateLabel} is confirmed (${created.referenceCode}).`,
-        notificationMeta
-      );
+
+      // Fire-and-forget notifications (never fail the booking; no medical
+      // info in bodies). Date label is the DHAKA calendar date of the slot
+      // (a UTC slice would read one day early for slots before 06:00).
+      const dateLabel = slotDateLabel(created.slotStart);
+      const notificationMeta = {
+        appointmentId: created.id,
+        referenceCode: created.referenceCode,
+        doctorSlug: created.doctor.slug,
+      };
+      if (bookingMode === BOOKING_MODE.APPROVAL) {
+        await notifyUser(
+          created.doctor.userId,
+          NOTIFICATION_TYPES.APPOINTMENT_REQUESTED,
+          "New appointment request",
+          `${created.patientName} requested ${dateLabel} (${created.referenceCode}).`,
+          notificationMeta
+        );
+      } else if (created.patientId) {
+        await notifyUser(
+          created.patientId,
+          NOTIFICATION_TYPES.APPOINTMENT_CONFIRMED,
+          "Booking confirmed",
+          `Your appointment with ${doctorDisplayName(created.doctor.name)} on ${dateLabel} is confirmed (${created.referenceCode}).`,
+          notificationMeta
+        );
+      }
     }
 
     // The booked slot is now taken — drop derived slot caches so the
@@ -349,13 +383,8 @@ export async function POST(req: NextRequest) {
     return ok({
       appointment: toAppointmentDto(created),
       referenceCode: created.referenceCode,
-      priceBreakdown: {
-        patientType: breakdown.patientType,
-        fee: breakdown.fee,
-        currency: breakdown.currency,
-        explanation: breakdown.explanation,
-        basis: breakdown.basis,
-      },
+      ...(replayedRace ? { idempotentReplay: true } : {}),
+      priceBreakdown: user ? breakdown : guestSafeBreakdown(breakdown),
     });
   } catch (err) {
     return handleRouteError(err);

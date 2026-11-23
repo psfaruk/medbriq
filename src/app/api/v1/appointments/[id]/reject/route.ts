@@ -1,8 +1,10 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { fail, handleRouteError, ok } from "@/lib/api";
+import { invalidateMemoryCache } from "@/lib/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { getStore } from "@/lib/data";
+import { requireModule } from "@/lib/modules";
 import { APPOINTMENT_STATUS, NOTIFICATION_TYPES, ROLES } from "@/lib/constants";
 import {
   doctorDisplayName,
@@ -30,6 +32,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Residency gate (docs/ARCHITECTURE_CORRECTIONS.md #5): every booking
+    // transition write is part of the appointmentBooking module surface.
+    requireModule("appointmentBooking");
+
     const { id } = await params;
 
     const user = await getCurrentUser();
@@ -68,10 +74,17 @@ export async function POST(
       );
     }
 
-    const updated = await getStore().updateAppointment(id, {
-      status: APPOINTMENT_STATUS.REJECTED,
-      doctorNote: parsed.data.reason,
-    });
+    // CONDITIONAL TRANSITION + SLOT RELEASE: rejecting frees the (doctorId,
+    // slotKey) occupancy so the slot becomes bookable again (the store
+    // derives the release from the REJECTED target status).
+    const updated = await getStore().updateAppointment(
+      id,
+      {
+        status: APPOINTMENT_STATUS.REJECTED,
+        doctorNote: parsed.data.reason,
+      },
+      { requireStatuses: [APPOINTMENT_STATUS.PENDING_APPROVAL] }
+    );
 
     await logAppointmentAction("APPOINTMENT_REJECTED", updated.id, user.id, {
       reason: parsed.data.reason,
@@ -90,6 +103,11 @@ export async function POST(
         doctorSlug: updated.doctor.slug,
       }
     );
+
+    // Rejected — the slot is freed, derived slot caches must go (parity
+    // with the cancel route).
+    invalidateMemoryCache("v1:slots");
+    invalidateMemoryCache("v1:doctors");
 
     return ok({ appointment: toAppointmentDto(updated) });
   } catch (err) {

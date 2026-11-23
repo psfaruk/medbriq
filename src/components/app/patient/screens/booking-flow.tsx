@@ -10,12 +10,14 @@
  *   always fetched from POST /api/v1/booking/price-preview before the
  *   confirmation step — never computed client-side.
  * - The actual booking (POST /api/v1/appointments) sends only an
- *   *expectation* (expectedFee / expectedPatientType); the server
- *   recomputes the authoritative price and answers 409 PRICE_CHANGED on
- *   mismatch, which re-runs the preview.
+ *   *expectation* (expectedFee / expectedPatientType) plus a stable
+ *   idempotencyKey; the server recomputes the authoritative price and
+ *   answers 409 PRICE_CHANGED on mismatch — the fresh breakdown rides
+ *   along in the error envelope and the confirm step adopts it directly
+ *   (no re-fetch loop).
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +48,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/app-state";
+import { getPreloadedBoot, fetchModuleFlags } from "@/lib/boot-data";
 import { ApiCallError, apiGet, apiPost } from "@/lib/api-client";
 import type {
   AppointmentDto,
@@ -81,6 +84,45 @@ import {
 
 type PayMethod = "BKASH" | "NAGAD" | "CARD";
 type BookingResult = { appointment: AppointmentDto; referenceCode: string };
+
+/** Display fields of the fresh price breakdown a 409 PRICE_CHANGED error
+ *  envelope carries in err.extra.priceBreakdown (patientType/fee/currency/
+ *  explanation). The confirm screen renders exactly these — `basis` and
+ *  `feeSettings` are not part of the envelope and stay from the previous
+ *  preview (neither is displayed there). */
+type FreshPriceFields = Pick<
+  PricePreviewDto,
+  "patientType" | "fee" | "currency" | "explanation"
+>;
+
+const PATIENT_TYPES: readonly PricePreviewDto["patientType"][] = [
+  "NEW",
+  "RETURNING",
+  "FOLLOW_UP",
+];
+
+/** Defensively validate err.extra.priceBreakdown (unknown over the wire) —
+ *  null when the envelope did not carry a usable breakdown. */
+function readPriceBreakdown(v: unknown): FreshPriceFields | null {
+  if (typeof v !== "object" || v === null) return null;
+  const b = v as Record<string, unknown>;
+  const patientType = PATIENT_TYPES.find((p) => p === b.patientType);
+  if (
+    patientType === undefined ||
+    typeof b.fee !== "number" ||
+    !Number.isFinite(b.fee) ||
+    typeof b.currency !== "string" ||
+    typeof b.explanation !== "string"
+  ) {
+    return null;
+  }
+  return {
+    patientType,
+    fee: b.fee,
+    currency: b.currency,
+    explanation: b.explanation,
+  };
+}
 
 const STEP_KEYS = [
   "booking.step.chamber",
@@ -228,10 +270,65 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
   const [preview, setPreview] = useState<PricePreviewDto | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+
+  // Payments module gate (bootstrap snapshot) — same pattern as
+  // doctor-profile.tsx's booking gate: when the payments module is
+  // disabled, the pay-online option is muted up front with its gate
+  // reason instead of letting the user select it, book, and only then hit
+  // the post-booking 503. The preloaded snapshot can age out (60s TTL) on
+  // a long-lived wizard, so a cache miss REFRESHES from the bootstrap
+  // endpoint instead of failing open.
+  const [paymentsModule, setPaymentsModule] = useState(
+    () => getPreloadedBoot()?.modules?.payments ?? null
+  );
+  useEffect(() => {
+    if (paymentsModule !== null) return;
+    let active = true;
+    void fetchModuleFlags().then((flags) => {
+      if (active && flags?.payments) setPaymentsModule(flags.payments);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+  const paymentsDisabled = paymentsModule?.enabled === false;
+
   const [payOnline, setPayOnline] = useState(false);
   const [payMethod, setPayMethod] = useState<PayMethod>("BKASH");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<BookingResult | null>(null);
+
+  // ── stable idempotency key (server replay guard) ───────────────
+  // Minted once on the FIRST confirm attempt and reused for every retry of
+  // the same submission — a retry after a network timeout must send the
+  // SAME key or the server cannot recognize it as a replay of the same
+  // booking and the user gets double-booked. Cleared after a successful
+  // booking and whenever the wizard leaves the confirm step (navigating
+  // back may change slot/patient fields — a materially different
+  // submission deserves a fresh key).
+  const idempotencyKeyRef = useRef<string | null>(null);
+
+  // Leaving the confirm step invalidates the pending submission — drop its
+  // key so the next confirm attempt mints a new one.
+  useEffect(() => {
+    if (step !== 4) idempotencyKeyRef.current = null;
+  }, [step]);
+
+  // ── date rollover guard ─────────────────────────────────────────
+  // `date` is seeded once at mount; a user dwelling on the wizard past
+  // Dhaka midnight would otherwise re-enter the slots step with "today"
+  // already in the past and every slot gone. Re-check whenever the slots
+  // step is entered and roll the selection forward only when the chosen
+  // day has actually slipped into the past.
+  useEffect(() => {
+    if (step !== 2) return;
+    const today = dhakaToday();
+    if (date < today) {
+      setDate(today);
+      setSlot(null);
+      setSlotsLoading(true);
+    }
+  }, [step, date]);
 
   // ── doctor detail ─────────────────────────────────────────────
   useEffect(() => {
@@ -315,6 +412,10 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
   // ── step guards ───────────────────────────────────────────────
   const detailsValid =
     name.trim().length >= 2 && isValidBdPhone(phone.trim());
+  // Step 3 deliberately keeps Continue ENABLED with invalid fields: next()
+  // runs the same checks and surfaces the validation message (role=alert),
+  // so the user sees WHY they cannot proceed (e.g. a family member saved
+  // without a phone) instead of a silently dead button.
   const canContinue =
     step === 1
       ? Boolean(detail) &&
@@ -322,7 +423,7 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
       : step === 2
         ? slot !== null
         : step === 3
-          ? detailsValid
+          ? true
           : Boolean(preview) && !submitting;
 
   const selectSelf = () => {
@@ -407,6 +508,16 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
     if (!detail || !slot || !preview) return;
     setSubmitting(true);
     try {
+      // Mint the submission's idempotency key once; retries of THIS
+      // submission (e.g. after a network timeout) reuse it so the server's
+      // replay guard recognizes them as the same booking.
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current =
+          typeof crypto !== "undefined" &&
+          typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : `bk-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      }
       const body: Record<string, unknown> = {
         doctorSlug: slug,
         date,
@@ -416,11 +527,8 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
         patientPhone: phone.trim(),
         expectedFee: preview.fee,
         expectedPatientType: preview.patientType,
-        idempotencyKey:
-          typeof crypto !== "undefined" &&
-          typeof crypto.randomUUID === "function"
-            ? crypto.randomUUID()
-            : `bk-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        // Stable across retries of this submission (see idempotencyKeyRef).
+        idempotencyKey: idempotencyKeyRef.current,
       };
       if (chamberId) body.chamberId = chamberId;
       if (age.trim() !== "") {
@@ -433,6 +541,10 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
       if (notes.trim() !== "") body.notes = notes.trim();
 
       const res = await apiPost<BookingResult>("/api/v1/appointments", body);
+
+      // Booking accepted — this submission is complete; a subsequent
+      // booking (if any) mints a fresh key.
+      idempotencyKeyRef.current = null;
 
       // optional online payment (booking already exists — never block)
       if (payOnline) {
@@ -453,12 +565,48 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
       setResult(res);
     } catch (err) {
       if (err instanceof ApiCallError && err.code === "PRICE_CHANGED") {
+        // Single-round-trip recovery: the 409 envelope carries the fresh
+        // breakdown in err.extra.priceBreakdown — adopt it directly and STAY
+        // on the confirm step (never re-run fetchPreview here: re-fetching
+        // the preview after every 409 loops when the preview source is the
+        // stale side). The user re-confirms and the next POST sends the
+        // fresh expectedFee/expectedPatientType.
+        const fresh = readPriceBreakdown(err.extra?.priceBreakdown);
+        if (fresh) setPreview({ ...preview, ...fresh });
         toast({
           title: t("booking.priceChanged"),
           description: t("booking.priceChangedHint"),
           variant: "destructive",
         });
-        await fetchPreview();
+      } else if (
+        err instanceof ApiCallError &&
+        (err.code === "SLOT_TAKEN" ||
+          err.code === "SLOT_UNAVAILABLE" ||
+          err.code === "SLOT_PAST")
+      ) {
+        // The chosen slot is gone (raced, no longer valid or already in the
+        // past) — drop the selection, force a slots reload and step back to
+        // date & time so the user picks a live slot. The toast carries the
+        // server message.
+        toast({
+          title: t("booking.failed"),
+          description: err.message,
+          variant: "destructive",
+        });
+        setSlot(null);
+        setStep(2);
+        refreshSlots();
+      } else if (err instanceof ApiCallError && err.code === "STATUS_CHANGED") {
+        // Concurrent status race on this booking context — surface the
+        // server message and reset the flow against fresh slot data.
+        toast({
+          title: t("booking.failed"),
+          description: err.message,
+          variant: "destructive",
+        });
+        setSlot(null);
+        setStep(2);
+        refreshSlots();
       } else {
         toast({
           title: t("booking.failed"),
@@ -878,11 +1026,19 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
                 type="button"
                 aria-pressed={payOnline}
                 onClick={() => setPayOnline(true)}
+                disabled={paymentsDisabled}
+                title={
+                  paymentsDisabled
+                    ? (paymentsModule?.disabledReason ?? undefined)
+                    : undefined
+                }
                 className={cn(
                   "flex items-center gap-3 rounded-xl border p-3.5 text-left transition-colors",
-                  payOnline
-                    ? "border-primary bg-primary-soft/50 ring-1 ring-primary/40"
-                    : "border-border bg-background hover:border-primary/50"
+                  paymentsDisabled && "cursor-not-allowed opacity-60",
+                  !paymentsDisabled &&
+                    (payOnline
+                      ? "border-primary bg-primary-soft/50 ring-1 ring-primary/40"
+                      : "border-border bg-background hover:border-primary/50")
                 )}
               >
                 <CreditCard className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -896,6 +1052,11 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
                 </span>
               </button>
             </div>
+            {paymentsDisabled && paymentsModule?.disabledReason ? (
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                {paymentsModule.disabledReason}
+              </p>
+            ) : null}
             {payOnline ? (
               <div className="mt-3 grid grid-cols-3 gap-2">
                 {(["BKASH", "NAGAD", "CARD"] as PayMethod[]).map((m) => (

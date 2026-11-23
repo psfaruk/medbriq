@@ -236,6 +236,15 @@ async function main() {
   }
 
   // Demo appointments (future slots, shared spec) ──────────────────────
+  // slotKey mirrors slotStart while the appointment occupies its slot — the
+  // (doctorId, slotKey) unique index is the double-booking guard (release-on-
+  // cancel fix; see prisma/schema.prisma "Slot occupancy key").
+  const slotBlocking = new Set([
+    "PENDING_APPROVAL",
+    "CONFIRMED",
+    "COMPLETED",
+    "NO_SHOW",
+  ]);
   for (const spec of buildDemoAppointments()) {
     const doctor = doctorMap.get(spec.doctorSlug)!;
     await db.appointment.create({
@@ -252,6 +261,9 @@ async function main() {
         notes: spec.notes,
         slotStart: new Date(spec.slotStartIso),
         slotEnd: new Date(spec.slotEndIso),
+        slotKey: slotBlocking.has(spec.status)
+          ? new Date(spec.slotStartIso)
+          : null,
         type: spec.type,
         status: spec.status,
         bookingMode: spec.bookingMode,
@@ -296,6 +308,7 @@ async function main() {
         notes: null,
         slotStart,
         slotEnd,
+        slotKey: slotStart,
         type: "IN_PERSON",
         status: "COMPLETED",
         bookingMode: "APPROVAL",

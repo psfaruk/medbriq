@@ -3,8 +3,8 @@
 import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useAppStore, hydrateLang } from "@/lib/app-state";
-import { apiGet } from "@/lib/api-client";
-import { setPreloadedBoot } from "@/lib/boot-data";
+import { apiGet, UNAUTHORIZED_EVENT } from "@/lib/api-client";
+import { setPreloadedBoot, clearPreloadedBoot, type ModuleFlags } from "@/lib/boot-data";
 import { track } from "@/lib/analytics";
 import { useToast } from "@/hooks/use-toast";
 import type { AppointmentDto, AuthConfig, DoctorCard, SessionUser, SpecialtyInfo } from "@/lib/types";
@@ -53,6 +53,7 @@ type BootstrapPayload = {
   specialties: SpecialtyInfo[];
   homeDoctors: DoctorCard[];
   appointments: AppointmentDto[];
+  modules?: ModuleFlags;
 };
 
 /**
@@ -89,11 +90,31 @@ export default function App() {
           specialties: d.specialties ?? null,
           homeDoctors: d.homeDoctors ?? null,
           appointments: Array.isArray(d.appointments) ? d.appointments : null,
+          modules: d.modules ?? null,
         });
         boot(d.user);
       })
       .catch(() => boot(null));
   }, [boot]);
+
+  // ── Session-expiry recovery ──────────────────────────────
+  // Any 401 from the API client fires UNAUTHORIZED_EVENT (expired httpOnly
+  // cookie). Reset the session here once — the shell flips back to the
+  // guest portal/auth wall instead of every screen erroring forever with
+  // a Retry button that can never succeed.
+  useEffect(() => {
+    const onUnauthorized = () => {
+      clearPreloadedBoot();
+      boot(null);
+      toast({
+        title: "Session expired",
+        description: "Please sign in again to continue.",
+      });
+    };
+    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+    return () =>
+      window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+  }, [boot, toast]);
 
   // ── Booking-intent restore (spec §12) ──────────────────────────────
   // A guest who clicked "Book appointment" saved their intent; after a

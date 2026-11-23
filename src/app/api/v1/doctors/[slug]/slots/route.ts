@@ -2,7 +2,9 @@ import type { NextRequest } from "next/server";
 import { getStore } from "@/lib/data";
 import { fail, handleRouteError, ok } from "@/lib/api";
 import { cached } from "@/lib/cache";
+import { isModuleEnabled } from "@/lib/modules";
 import { getSlotsForDate } from "@/lib/slots";
+import { dhakaDateString } from "@/lib/time";
 import { dateStrSchema } from "@/app/api/v1/_lib/booking";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +22,11 @@ export async function GET(
 ) {
   try {
     const { slug } = await params;
-    const dateParam = new URL(req.url).searchParams.get("date") ?? "";
+    // Default to the Dhaka calendar "today" so omitting ?date= is a useful
+    // call, not a 400 (the client always sends a date; the default serves
+    // direct API consumers and keeps the date picker's first paint simple).
+    const dateParam =
+      new URL(req.url).searchParams.get("date") ?? dhakaDateString();
     const chamberParam = new URL(req.url).searchParams.get("chamberId") ?? "";
 
     const parsed = dateStrSchema.safeParse(dateParam);
@@ -35,6 +41,17 @@ export async function GET(
     const doctor = await getStore().getDoctorIdAndStatusBySlug(slug);
     if (!doctor || doctor.verificationStatus !== "VERIFIED") {
       return fail("Doctor not available for booking.", 404, "NOT_FOUND");
+    }
+
+    // EXPIRED lifecycle (lazy sweep): PENDING_APPROVAL requests whose slot
+    // already passed move to EXPIRED (slot released) so they stop blocking
+    // the calendar. Only on the booking-enabled store — this is a write.
+    if (isModuleEnabled("appointmentBooking")) {
+      try {
+        await getStore().expireStalePendingAppointments(doctor.id);
+      } catch {
+        // Sweep is best-effort — never block the slot listing.
+      }
     }
 
     // Optional chamber filter: rules that are chamber-specific to this

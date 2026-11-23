@@ -7,7 +7,7 @@
 // - All timestamps are stored in UTC. Bangladesh (initial market) is UTC+6 with no DST.
 // - Financial amounts use Float for MVP; production PostgreSQL migration should
 //   switch to Decimal (documented in docs/database.md).
-// - The @@unique([doctorId, slotStart]) on Appointment is the database-level
+// - The @@unique([doctorId, slotKey]) on Appointment is the database-level
 //   double-booking guard. Booking code must rely on it, not on frontend checks.
 
 generator client {
@@ -284,6 +284,14 @@ model Appointment {
   notes         String? // patient's note for the doctor
   slotStart     DateTime // UTC
   slotEnd       DateTime // UTC
+  // ── Slot occupancy key (release-on-cancel) ──
+  // The double-booking guard is (doctorId, slotKey), NOT slotStart: while an
+  // appointment occupies its slot, slotKey === slotStart. Transitioning to a
+  // non-blocking status (REJECTED / CANCELLED_BY_* / EXPIRED) nulls slotKey —
+  // SQLite (and PostgreSQL) treat NULLs as distinct in unique indexes, so the
+  // slot is freed without deleting the historical row. slotStart always keeps
+  // the true consultation time for display/history.
+  slotKey       DateTime?
   type          String        @default("IN_PERSON") // IN_PERSON | VIDEO
   status        String        @default("PENDING_APPROVAL") // PENDING_APPROVAL | CONFIRMED | REJECTED | CANCELLED_BY_PATIENT | CANCELLED_BY_DOCTOR | COMPLETED | NO_SHOW | EXPIRED
   bookingMode   String // INSTANT | APPROVAL
@@ -312,8 +320,9 @@ model Appointment {
   updatedAt     DateTime      @updatedAt
 
   // DATABASE-LEVEL DOUBLE-BOOKING GUARD:
-  // one doctor can hold at most one appointment per exact slot start.
-  @@unique([doctorId, slotStart])
+  // one doctor can hold at most one appointment per exact slot start, while
+  // that appointment occupies the slot (slotKey non-null — see field comment).
+  @@unique([doctorId, slotKey])
   @@index([patientId])
   @@index([doctorId, status])
   @@index([slotStart])
