@@ -1,64 +1,120 @@
 #!/usr/bin/env bash
-# Find Medi Doctor — one-shot Vercel deployment (demo mode: bundled SQLite in /tmp)
+# Find Medi Doctor — production deployment guard for Vercel.
 #
 # Usage:
-#   VERCEL_TOKEN=xxxx scripts/deploy-vercel.sh
-#   scripts/deploy-vercel.sh <token>
+#   scripts/deploy-vercel.sh            # verify env vars exist, then deploy
+#   scripts/deploy-vercel.sh --dry-run  # verify only, do not deploy
 #
-# What it does:
-#   1. Links (or creates) the Vercel project named "findmedidoctor"
-#   2. Sets DATABASE_URL=file:/tmp/fmd.db for production
-#      (serverless SQLite bootstrap — src/lib/ensure-db.ts copies the bundled
-#      prisma/seed.db on cold start, so the demo works with zero setup)
-#   3. Deploys to production and prints the live URL
+# This script REFUSES to deploy a demo configuration. It checks that every
+# variable the production preflight requires actually exists in the Vercel
+# project (names only — values are never read or printed), then deploys.
 #
-# Notes:
-#   - Demo-mode writes (registrations, bookings) persist only while a
-#     serverless instance stays warm; cold starts reset to seeded demo data.
-#     For a persistent production DB see docs/DEPLOYMENT-VERCEL.md (Neon path).
-#   - Requires: vercel CLI (npm i -g vercel), a token from
-#     https://vercel.com/account/settings/tokens
+# What it deliberately does NOT do:
+#   - set DATABASE_URL to a /tmp SQLite path (that was the old demo script and
+#     is how fake doctors end up on a live site)
+#   - read or echo any secret value
+#
+# Requirements:
+#   - vercel CLI (`npm i -g vercel`), authenticated
+#   - the Vercel project linked (vercel link) or VERCEL_PROJECT_ID exported
 
 set -euo pipefail
 
-TOKEN="${VERCEL_TOKEN:-${1:-}}"
-if [ -z "$TOKEN" ]; then
-  echo "ERROR: no token. Usage: VERCEL_TOKEN=xxx scripts/deploy-vercel.sh" >&2
-  exit 1
+DRY_RUN=0
+if [[ "${1:-}" == "--dry-run" ]]; then
+  DRY_RUN=1
 fi
 
-PROJECT_NAME="findmedidoctor"
 cd "$(dirname "$0")/.."
+
+# ── Variables that MUST exist in the Vercel project ──────────────────────
+# (names only — the script never handles their values)
+REQUIRED=(
+  FIREBASE_SERVICE_ACCOUNT
+  FIREBASE_DATABASE_ID
+  DATABASE_URL
+  SMS_PROVIDER
+  SMS_SENDER_ID
+  VVS_SIGNING_SECRET
+  APP_BASE_URL
+)
 
 echo "==> Vercel CLI version:"
 vercel --version
 
-echo "==> Linking project '$PROJECT_NAME' (creates it if it does not exist)..."
-# Try to link to an existing project first; fall back to creating a new one.
-if vercel link --project "$PROJECT_NAME" --yes --token "$TOKEN" 2>/dev/null; then
-  echo "    linked to existing project"
-else
-  echo "    no existing project, creating a new one..."
-  vercel project add "$PROJECT_NAME" --token "$TOKEN" || true
-  vercel link --project "$PROJECT_NAME" --yes --token "$TOKEN"
+echo "==> Reading production environment variable NAMES from Vercel ..."
+# `vercel env ls production` prints a table whose first column is the name.
+ENV_NAMES="$(vercel env ls production 2>/dev/null | awk 'NR>1 {print $1}' | sort -u || true)"
+
+if [[ -z "${ENV_NAMES}" ]]; then
+  echo "ERROR: could not list Vercel environment variables." >&2
+  echo "       Is the project linked (vercel link) and are you authenticated?" >&2
+  exit 1
 fi
 
-echo "==> Ensuring DATABASE_URL is set for production (demo SQLite in /tmp)..."
-if vercel env ls production --token "$TOKEN" 2>/dev/null | grep -q "^DATABASE_URL"; then
-  echo "    DATABASE_URL already set"
-else
-  printf 'file:/tmp/fmd.db' | vercel env add DATABASE_URL production --token "$TOKEN"
-  echo "    DATABASE_URL=file:/tmp/fmd.db added"
+MISSING=()
+for name in "${REQUIRED[@]}"; do
+  if ! grep -qx "${name}" <<<"${ENV_NAMES}"; then
+    MISSING+=("${name}")
+  fi
+done
+
+echo "==> Production environment check:"
+if (( ${#MISSING[@]} > 0 )); then
+  echo "    MISSING in Vercel (production):"
+  for name in "${MISSING[@]}"; do
+    echo "      - ${name}"
+  done
+  echo ""
+  echo "    Set them with:  vercel env add <NAME> production"
+  echo "    Values are in docs/PRODUCTION-RUNBOOK.md §3.2"
+  echo ""
+  echo "    Refusing to deploy — a production build without these would serve"
+  echo "    demo data or fail on the first write."
+  exit 1
+fi
+echo "    all required variables present"
+
+# ── Guard against the demo configuration ────────────────────────────────
+if grep -qx "NEXT_PUBLIC_DEMO_MODE" <<<"${ENV_NAMES}"; then
+  echo ""
+  echo "    ! NEXT_PUBLIC_DEMO_MODE is set. Make sure its value is 'false'"
+  echo "      (or remove the variable) — the app will render demo labels otherwise."
 fi
 
-echo "==> Deploying to production..."
-URL="$(vercel deploy --prod --yes --token "$TOKEN")"
+# ── Local preflight ─────────────────────────────────────────────────────
+if [[ -f .env.production ]] || [[ -f .env.local ]]; then
+  echo ""
+  echo "==> Running the local production preflight (reads .env.production) ..."
+  ALLOW_PRODUCTION_CHECKS=1 bun run check:prod || {
+    echo ""
+    echo "    Local preflight found error-level problems. Fix them, then retry."
+    exit 1
+  }
+else
+  echo ""
+  echo "==> No local .env.production — skipping the local preflight."
+  echo "    (The Vercel-side variables were verified by name above.)"
+fi
+
+if (( DRY_RUN == 1 )); then
+  echo ""
+  echo "==> Dry run — environment verified, not deploying."
+  exit 0
+fi
+
+echo ""
+echo "==> Deploying to production ..."
+URL="$(vercel deploy --prod --yes)"
 
 echo ""
 echo "============================================================"
-echo "  LIVE URL: $URL"
+echo "  LIVE URL: ${URL}"
 echo "============================================================"
 echo ""
-echo "Optional follow-up (correct sitemap/og URLs):"
-echo "  printf '$URL' | vercel env add APP_BASE_URL production --token \$VERCEL_TOKEN"
-echo "  vercel deploy --prod --yes --token \$VERCEL_TOKEN"
+echo "Post-deploy checks (docs/PRODUCTION-RUNBOOK.md §6):"
+echo "  - / renders, doctor list is empty or REAL (no fictional names)"
+echo "  - email + password login over HTTPS"
+echo "  - Google button renders (not the 'not configured' dialog)"
+echo "  - registering a doctor lands in Admin → Verification as PENDING"
+echo "  - Vercel runtime logs show no 500s"
