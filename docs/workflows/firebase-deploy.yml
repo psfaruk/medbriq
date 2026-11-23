@@ -1,0 +1,76 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Deploys ONLY the Firebase security rules and Firestore indexes.
+# The app itself is deployed by Vercel's Git integration — never from here.
+#
+# INSTALL (the GitHub integration token used here cannot write to .github/):
+#   mkdir -p .github/workflows
+#   cp docs/workflows/firebase-deploy.yml .github/workflows/
+#
+# The credential is a service-account JSON stored base64-encoded in the
+# repository secret FIREBASE_SERVICE_ACCOUNT_B64. Create it with a FRESH key:
+#   base64 -w0 service-account.json \
+#     | gh secret set FIREBASE_SERVICE_ACCOUNT_B64 -R psfaruk/medbriq
+#
+# Never paste a private key into a chat, an issue or a commit.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Deploy Firebase rules & indexes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "firestore.rules"
+      - "firestore.indexes.json"
+      - "storage.rules"
+      - "firebase.json"
+      - ".firebaserc"
+      - ".github/workflows/firebase-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: firebase deploy (rules + indexes)
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install firebase-tools
+        run: npm install --global firebase-tools
+
+      - name: Materialize service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT_B64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_B64 }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT_B64" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT_B64 secret is not set."
+            exit 1
+          fi
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_B64" | base64 --decode > "$RUNNER_TEMP/sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
+          # Never echo the key material back into the log.
+          echo "service account materialized ($(wc -c < "$RUNNER_TEMP/sa.json") bytes)"
+
+      - name: Deploy rules & indexes
+        run: |
+          firebase deploy \
+            --project medifindbd \
+            --only firestore:rules,firestore:indexes,storage \
+            --non-interactive
+
+      - name: Shred credential
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json"
