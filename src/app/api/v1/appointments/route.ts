@@ -1,10 +1,9 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { getStore, SlotConflictError, ReferenceCodeCollisionError } from "@/lib/data";
-import { db } from "@/lib/db";
 import { invalidateMemoryCache } from "@/lib/cache";
 import type { AppointmentRecord } from "@/lib/data/types";
-import { fail, handleRouteError, ok } from "@/lib/api";
+import { fail, failWith, handleRouteError, ok } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import {
   APPOINTMENT_STATUS,
@@ -111,8 +110,8 @@ export async function GET(req: NextRequest) {
  * Correctness notes (docs/FEE_SYSTEM.md §3):
  * - The slot is re-validated server-side (validateBookableSlot) immediately
  *   before the write, but the authoritative double-booking guard is the
- *   (doctorId, slotStart) uniqueness constraint (SQLite unique index in
- *   Prisma mode, the appointments/{doctorId}_{slotStart} doc id in Firestore
+ *   (doctorId, slotKey) occupancy constraint (SQLite unique index in Prisma
+ *   mode, the appointments/{doctorId}_{slotStart} doc id in Firestore
  *   mode). If two requests race, exactly one wins and the loser gets a
  *   409 SLOT_TAKEN.
  * - Patient classification and the fee are computed SERVER-SIDE at write
@@ -151,13 +150,20 @@ export async function POST(req: NextRequest) {
         input.idempotencyKey
       );
       if (existing) {
-        // Same key + same patient/doctor/slot → replay the original booking.
-        // A key reused for a DIFFERENT payload is rejected loudly.
+        // Same key + same booking intent → replay the original booking.
+        // A key reused for a DIFFERENT payload is rejected loudly. The slot
+        // is compared as an INSTANT (not raw strings) so timestamp variants
+        // (…Z vs …000Z vs +00:00) do not false-positive a mismatch; the
+        // patient identity and consultation type are part of the intent.
         const sameIntent =
           existing.doctor.slug === input.doctorSlug &&
           normalizePhone(existing.patientPhone) ===
             normalizePhone(input.patientPhone) &&
-          existing.slotStart === input.slotStartIso;
+          new Date(existing.slotStart).getTime() ===
+            new Date(input.slotStartIso).getTime() &&
+          existing.type === input.type &&
+          (existing.patientName ?? "").trim().toLowerCase() ===
+            input.patientName.trim().toLowerCase();
         if (!sameIntent) {
           return fail(
             "This idempotency key was already used for a different booking.",
@@ -192,15 +198,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Optional chamber: must be an ACTIVE chamber owned by this doctor.
+    // Routed through the store (no direct Prisma import — this route must
+    // stay store-agnostic for the Firestore/Prisma parity contract).
     let chamberId: string | null = null;
     if (input.chamberId) {
-      const chamber = await db.chamber.findFirst({
-        where: {
-          id: input.chamberId,
-          doctorId: doctor.id,
-          isActive: true,
-        },
-      });
+      const chamber = await store.findActiveChamber(doctor.id, input.chamberId);
       if (!chamber) {
         return fail("Selected chamber is not available.", 404, "NOT_FOUND");
       }
@@ -233,17 +235,28 @@ export async function POST(req: NextRequest) {
       patient: { patientId: user?.id ?? null, phone },
     });
 
-    // Revalidation: a stale expectation never books at a stale price.
+    // Revalidation: a stale expectation never books at a stale price. The
+    // fresh breakdown is returned WITH the 409 so the client can show the
+    // updated price and re-confirm in one step (no infinite refetch loop).
     if (
       (input.expectedFee !== undefined &&
         input.expectedFee !== breakdown.fee) ||
       (input.expectedPatientType !== undefined &&
         input.expectedPatientType !== breakdown.patientType)
     ) {
-      return fail(
+      return failWith(
         "The price changed since the preview. Please review the updated breakdown and confirm again.",
         409,
-        "PRICE_CHANGED"
+        "PRICE_CHANGED",
+        {
+          priceBreakdown: {
+            patientType: breakdown.patientType,
+            fee: breakdown.fee,
+            currency: breakdown.currency,
+            explanation: breakdown.explanation,
+            basis: breakdown.basis,
+          },
+        }
       );
     }
 

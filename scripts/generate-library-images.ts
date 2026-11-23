@@ -10,7 +10,11 @@ import path from "path";
 
 const OUT = "/home/z/my-project/public/images/library";
 
-type Item = { slug: string; dir: string; prompt: string; size: string };
+// The SDK's generation size literals (must match z-ai-web-dev-sdk typings).
+type GenSize = Parameters<
+  import("z-ai-web-dev-sdk").default["images"]["generations"]["create"]
+>[0]["size"];
+type Item = { slug: string; dir: string; prompt: string; size: GenSize };
 
 const EQ =
   "Professional 3D render of a", EQ_TAIL =

@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { fail, handleRouteError, ok } from "@/lib/api";
+import { getCurrentUser } from "@/lib/auth";
 import { getStore } from "@/lib/data";
 import { normalizePhone } from "@/lib/phone";
 import { classifyAndPrice } from "@/lib/fees/service";
@@ -51,10 +52,16 @@ export async function POST(req: NextRequest) {
       return fail("Doctor not available for booking.", 404, "NOT_FOUND");
     }
 
+    // IDENTITY PARITY with POST /api/v1/appointments: the preview must
+    // classify with the SAME patient key the booking will use (signed-in
+    // user id OR phone), otherwise preview says NEW while booking computes
+    // RETURNING → an unrecoverable 409 PRICE_CHANGED loop for returning
+    // patients booking under a phone other than their account phone.
+    const user = await getCurrentUser();
     const phone = normalizePhone(parsed.data.patientPhone);
     const breakdown = await classifyAndPrice({
       doctorId: doctor.id,
-      patient: { patientId: null, phone },
+      patient: { patientId: user?.id ?? null, phone },
     });
 
     const preview: PricePreviewDto = {

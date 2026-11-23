@@ -10,12 +10,14 @@
  *   always fetched from POST /api/v1/booking/price-preview before the
  *   confirmation step — never computed client-side.
  * - The actual booking (POST /api/v1/appointments) sends only an
- *   *expectation* (expectedFee / expectedPatientType); the server
- *   recomputes the authoritative price and answers 409 PRICE_CHANGED on
- *   mismatch, which re-runs the preview.
+ *   *expectation* (expectedFee / expectedPatientType) plus a stable
+ *   idempotencyKey; the server recomputes the authoritative price and
+ *   answers 409 PRICE_CHANGED on mismatch — the fresh breakdown rides
+ *   along in the error envelope and the confirm step adopts it directly
+ *   (no re-fetch loop).
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,6 +83,45 @@ import {
 
 type PayMethod = "BKASH" | "NAGAD" | "CARD";
 type BookingResult = { appointment: AppointmentDto; referenceCode: string };
+
+/** Display fields of the fresh price breakdown a 409 PRICE_CHANGED error
+ *  envelope carries in err.extra.priceBreakdown (patientType/fee/currency/
+ *  explanation). The confirm screen renders exactly these — `basis` and
+ *  `feeSettings` are not part of the envelope and stay from the previous
+ *  preview (neither is displayed there). */
+type FreshPriceFields = Pick<
+  PricePreviewDto,
+  "patientType" | "fee" | "currency" | "explanation"
+>;
+
+const PATIENT_TYPES: readonly PricePreviewDto["patientType"][] = [
+  "NEW",
+  "RETURNING",
+  "FOLLOW_UP",
+];
+
+/** Defensively validate err.extra.priceBreakdown (unknown over the wire) —
+ *  null when the envelope did not carry a usable breakdown. */
+function readPriceBreakdown(v: unknown): FreshPriceFields | null {
+  if (typeof v !== "object" || v === null) return null;
+  const b = v as Record<string, unknown>;
+  const patientType = PATIENT_TYPES.find((p) => p === b.patientType);
+  if (
+    patientType === undefined ||
+    typeof b.fee !== "number" ||
+    !Number.isFinite(b.fee) ||
+    typeof b.currency !== "string" ||
+    typeof b.explanation !== "string"
+  ) {
+    return null;
+  }
+  return {
+    patientType,
+    fee: b.fee,
+    currency: b.currency,
+    explanation: b.explanation,
+  };
+}
 
 const STEP_KEYS = [
   "booking.step.chamber",
@@ -232,6 +273,22 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
   const [payMethod, setPayMethod] = useState<PayMethod>("BKASH");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<BookingResult | null>(null);
+
+  // ── stable idempotency key (server replay guard) ───────────────
+  // Minted once on the FIRST confirm attempt and reused for every retry of
+  // the same submission — a retry after a network timeout must send the
+  // SAME key or the server cannot recognize it as a replay of the same
+  // booking and the user gets double-booked. Cleared after a successful
+  // booking and whenever the wizard leaves the confirm step (navigating
+  // back may change slot/patient fields — a materially different
+  // submission deserves a fresh key).
+  const idempotencyKeyRef = useRef<string | null>(null);
+
+  // Leaving the confirm step invalidates the pending submission — drop its
+  // key so the next confirm attempt mints a new one.
+  useEffect(() => {
+    if (step !== 4) idempotencyKeyRef.current = null;
+  }, [step]);
 
   // ── doctor detail ─────────────────────────────────────────────
   useEffect(() => {
@@ -407,6 +464,16 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
     if (!detail || !slot || !preview) return;
     setSubmitting(true);
     try {
+      // Mint the submission's idempotency key once; retries of THIS
+      // submission (e.g. after a network timeout) reuse it so the server's
+      // replay guard recognizes them as the same booking.
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current =
+          typeof crypto !== "undefined" &&
+          typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : `bk-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      }
       const body: Record<string, unknown> = {
         doctorSlug: slug,
         date,
@@ -416,11 +483,8 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
         patientPhone: phone.trim(),
         expectedFee: preview.fee,
         expectedPatientType: preview.patientType,
-        idempotencyKey:
-          typeof crypto !== "undefined" &&
-          typeof crypto.randomUUID === "function"
-            ? crypto.randomUUID()
-            : `bk-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        // Stable across retries of this submission (see idempotencyKeyRef).
+        idempotencyKey: idempotencyKeyRef.current,
       };
       if (chamberId) body.chamberId = chamberId;
       if (age.trim() !== "") {
@@ -433,6 +497,10 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
       if (notes.trim() !== "") body.notes = notes.trim();
 
       const res = await apiPost<BookingResult>("/api/v1/appointments", body);
+
+      // Booking accepted — this submission is complete; a subsequent
+      // booking (if any) mints a fresh key.
+      idempotencyKeyRef.current = null;
 
       // optional online payment (booking already exists — never block)
       if (payOnline) {
@@ -453,12 +521,48 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
       setResult(res);
     } catch (err) {
       if (err instanceof ApiCallError && err.code === "PRICE_CHANGED") {
+        // Single-round-trip recovery: the 409 envelope carries the fresh
+        // breakdown in err.extra.priceBreakdown — adopt it directly and STAY
+        // on the confirm step (never re-run fetchPreview here: re-fetching
+        // the preview after every 409 loops when the preview source is the
+        // stale side). The user re-confirms and the next POST sends the
+        // fresh expectedFee/expectedPatientType.
+        const fresh = readPriceBreakdown(err.extra?.priceBreakdown);
+        if (fresh) setPreview({ ...preview, ...fresh });
         toast({
           title: t("booking.priceChanged"),
           description: t("booking.priceChangedHint"),
           variant: "destructive",
         });
-        await fetchPreview();
+      } else if (
+        err instanceof ApiCallError &&
+        (err.code === "SLOT_TAKEN" ||
+          err.code === "SLOT_UNAVAILABLE" ||
+          err.code === "SLOT_PAST")
+      ) {
+        // The chosen slot is gone (raced, no longer valid or already in the
+        // past) — drop the selection, force a slots reload and step back to
+        // date & time so the user picks a live slot. The toast carries the
+        // server message.
+        toast({
+          title: t("booking.failed"),
+          description: err.message,
+          variant: "destructive",
+        });
+        setSlot(null);
+        setStep(2);
+        refreshSlots();
+      } else if (err instanceof ApiCallError && err.code === "STATUS_CHANGED") {
+        // Concurrent status race on this booking context — surface the
+        // server message and reset the flow against fresh slot data.
+        toast({
+          title: t("booking.failed"),
+          description: err.message,
+          variant: "destructive",
+        });
+        setSlot(null);
+        setStep(2);
+        refreshSlots();
       } else {
         toast({
           title: t("booking.failed"),

@@ -4,6 +4,7 @@ import { fail, handleRouteError, ok } from "@/lib/api";
 import { invalidateMemoryCache } from "@/lib/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { getStore, SlotConflictError } from "@/lib/data";
+import { requireModule } from "@/lib/modules";
 import type { AppointmentRecord } from "@/lib/data/types";
 import { APPOINTMENT_STATUS, NOTIFICATION_TYPES } from "@/lib/constants";
 import { validateBookableSlot } from "@/lib/slots";
@@ -39,6 +40,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Residency gate (docs/ARCHITECTURE_CORRECTIONS.md #5): every booking
+    // transition write is part of the appointmentBooking module surface.
+    requireModule("appointmentBooking");
+
     const { id } = await params;
 
     const raw: unknown = await req.json().catch(() => null);
@@ -114,10 +119,14 @@ export async function POST(
       );
     }
 
+    // Validate the new slot within the appointment's OWN chamber so a
+    // chamber-A appointment cannot be moved into chamber-B-only minutes
+    // (the appointment keeps its chamber; the offered slots must match it).
     const slot = await validateBookableSlot(
       appointment.doctorId,
       input.newDate,
-      input.newSlotStartIso
+      input.newSlotStartIso,
+      appointment.chamberId ?? null
     );
     if (!slot) {
       return fail(

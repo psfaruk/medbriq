@@ -68,7 +68,9 @@ export async function DELETE(req: NextRequest) {
     if (!parsed.success) {
       return fail("Invalid token.", 400, "INVALID_TOKEN");
     }
-    await getStore().removePushToken(parsed.data.token);
+    // Owner-scoped: the authenticated user may only unregister their own
+    // device token (prevents killing another user's push subscription).
+    await getStore().removePushToken(parsed.data.token, user.id);
     return ok({ subscribed: false });
   } catch (err) {
     return handleRouteError(err);

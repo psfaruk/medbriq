@@ -198,6 +198,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Phone uniqueness: OTP login and phone-based password reset resolve
+    // accounts BY PHONE — two accounts sharing a number would make the
+    // target account unpredictable. Reject the duplicate at the source.
+    if (phone) {
+      const phoneOwner = await store.findUserByPhone(phone);
+      if (phoneOwner) {
+        return fail(
+          "An account with this phone number already exists.",
+          409,
+          "PHONE_TAKEN"
+        );
+      }
+    }
+
     const passwordHash = hashPassword(input.password);
 
     if (input.role === ROLES.DOCTOR) {

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { ok, fail, handleRouteError } from "@/lib/api";
 import {
   GuardError,
+  requirePrismaBackedStore,
   requireSession,
   featureEnabled,
 } from "@/app/api/v2/_lib/guards";
@@ -43,6 +44,7 @@ function txnRef(): string {
 
 export async function GET() {
   try {
+    requirePrismaBackedStore(); // sandbox payments query Prisma directly
     const user = await requireSession();
     const rows = await db.payment.findMany({
       where: { appointment: { patientId: user.id } },
@@ -78,6 +80,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    requirePrismaBackedStore(); // sandbox payments query Prisma directly
     const user = await requireSession();
 
     if (!(await featureEnabled("onlinePayments"))) {
@@ -134,6 +137,16 @@ export async function POST(req: NextRequest) {
         payment: { id: existing.id, status: existing.status },
         replay: true,
       });
+    }
+    // A refunded payment must NOT be flipped back to SUCCEEDED by a re-pay
+    // attempt — that would erase the refund outcome and reset the booking's
+    // payment axis. Refund state is terminal for this appointment.
+    if (existing && existing.status === "REFUNDED") {
+      return fail(
+        "This appointment's payment was refunded and cannot be paid again here.",
+        409,
+        "PAYMENT_REFUNDED"
+      );
     }
 
     // ── Sandbox gateway simulation ──

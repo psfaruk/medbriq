@@ -47,6 +47,7 @@ export default function NotificationBell({
   const [items, setItems] = useState<NotificationItem[] | null>(null);
   const [open, setOpen] = useState(false);
   const pushPatient = useAppStore((s) => s.pushPatient);
+  const user = useAppStore((s) => s.user);
 
   // ── Web push (FCM) ──────────────────────────────────────────────
   // permission === "granted" already → silently keep the token
@@ -92,7 +93,12 @@ export default function NotificationBell({
     }
   };
 
+  // Poll only while a user is signed in — a signed-out bell would 401
+  // every 30 s forever (and each 401 fires the session-reset event).
+  // Sign-in re-runs the effect via the `user` dependency and fetches
+  // immediately, mirroring the user-gated pattern of the legacy bell.
   useEffect(() => {
+    if (!user) return;
     let active = true;
     const fetchNow = () => {
       apiGet<{ items: NotificationItem[] }>("/api/v1/notifications?limit=15")
@@ -109,7 +115,7 @@ export default function NotificationBell({
       active = false;
       clearInterval(timer);
     };
-  }, []);
+  }, [user]);
 
   const unread = items?.filter((n) => !n.readAt).length ?? 0;
 

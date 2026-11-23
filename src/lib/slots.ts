@@ -12,9 +12,10 @@ import {
  * Slots are derived from the doctor's weekly availability rules for a
  * given Dhaka-local date, minus slots already taken by blocking appointment
  * statuses. Computation is pure; concurrency safety is enforced by the
- * (doctorId, slotStart) uniqueness guard at write time — the SQLite unique
- * index in Prisma mode, the appointments/{doctorId}_{slotStart} doc id in
- * Firestore mode.
+ * (doctorId, slotKey) occupancy guard at write time — the SQLite unique
+ * index in Prisma mode (slotKey = slotStart while occupied, NULL when
+ * cancelled/rejected/expired), the appointments/{doctorId}_{slotStart} doc
+ * id in Firestore mode.
  */
 
 export type SlotInfo = {

@@ -165,6 +165,8 @@ export async function GET() {
       consultationStatus: appt.consultationStatus ?? "NOT_STARTED",
       refundStatus: appt.refundStatus ?? "NONE",
       createdAt: appt.createdAt,
+      chamberId: appt.chamberId ?? null,
+      chamberName: appt.chamberName ?? null,
       doctor: doctorCardInfo,
       patientId: appt.patientId,
     });

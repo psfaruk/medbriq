@@ -2,7 +2,11 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ok, fail, handleRouteError } from "@/lib/api";
-import { GuardError, requireSession } from "@/app/api/v2/_lib/guards";
+import {
+  GuardError,
+  requirePrismaBackedStore,
+  requireSession,
+} from "@/app/api/v2/_lib/guards";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +60,7 @@ function toDto(row: {
 
 export async function GET() {
   try {
+    requirePrismaBackedStore(); // this surface queries Prisma directly
     const user = await requireSession();
     const rows =
       user.role === "ADMIN"
@@ -77,6 +82,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    requirePrismaBackedStore(); // this surface queries Prisma directly
     const user = await requireSession();
     const raw: unknown = await req.json().catch(() => null);
     const parsed = createSchema.safeParse(raw);
@@ -110,6 +116,7 @@ export async function PATCH(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
+    requirePrismaBackedStore(); // this surface queries Prisma directly
     const user = await requireSession();
     if (user.role !== "ADMIN") {
       return fail("Only platform admins can manage tickets.", 403, "FORBIDDEN");
@@ -128,11 +135,22 @@ export async function PATCH(
       );
     }
 
-    const updated = await db.supportTicket.update({
+    // updateMany with an id filter: a nonexistent ticket id answers 404
+    // instead of an unhandled Prisma P2025 → 500 with leaked error text.
+    const result = await db.supportTicket.updateMany({
       where: { id },
       data: parsed.data,
+    });
+    if (result.count === 0) {
+      return fail("Ticket not found.", 404, "NOT_FOUND");
+    }
+    const updated = await db.supportTicket.findUnique({
+      where: { id },
       include: { user: { select: { name: true, email: true } } },
     });
+    if (!updated) {
+      return fail("Ticket not found.", 404, "NOT_FOUND");
+    }
     return ok({ ticket: toDto(updated) });
   } catch (err) {
     if (err instanceof GuardError) return fail(err.message, err.status, err.code);

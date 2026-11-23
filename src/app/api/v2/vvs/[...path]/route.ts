@@ -84,7 +84,11 @@ function originOf(req: NextRequest): string {
 function patientOwns(appointment: AppointmentRecord, user: SessionUser): boolean {
   if (user.role === "ADMIN") return true;
   if (appointment.patientId && appointment.patientId === user.id) return true;
-  if (user.phone) {
+  // Phone-match ownership requires a VERIFIED phone: the account phone is
+  // user-settable via PATCH /auth/me without proving ownership, so matching
+  // an unverified phone would grant access to another person's guest
+  // bookings, visit receipts and confirmations.
+  if (user.phone && user.phoneVerified) {
     const a = normalizePhone(appointment.patientPhone);
     const b = normalizePhone(user.phone);
     return a.length > 8 && a === b;
@@ -341,7 +345,13 @@ export async function GET(
       if (user.role !== "PATIENT" && user.role !== "DOCTOR") {
         return ok({ items: [] });
       }
-      const phone = user.phone ? normalizePhone(user.phone) : null;
+      // Phone matching requires a verified phone (see patientOwns) — an
+      // unverified, self-set account phone must not pull other people's
+      // visit records via the OR clause.
+      const phone =
+        user.phone && user.phoneVerified
+          ? normalizePhone(user.phone)
+          : null;
       const visits = await db.completedVisit.findMany({
         where: phone
           ? { OR: [{ patientId: user.id }, { patientPhone: phone }] }

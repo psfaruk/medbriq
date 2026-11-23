@@ -51,27 +51,15 @@ export function toAppointmentDto(row: AppointmentRecord): AppointmentDto {
     patientGender: row.patientGender,
     notes: row.notes,
     doctorNote: row.doctorNote,
-    // AppointmentRecord does not declare consultationNote yet (foundation
-    // gap: the Firestore store already returns it, the shared type and the
-    // Prisma mapper do not), so read it defensively and fall back to null.
-    // The complete endpoint additionally echoes the submitted note in its
-    // own response so the immediate feedback is always accurate.
-    consultationNote:
-      (row as { consultationNote?: string | null }).consultationNote ?? null,
+    consultationNote: row.consultationNote,
     // Separated status axes (docs/ARCHITECTURE_CORRECTIONS.md #12) + the
-    // pricing snapshot (docs/FEE_SYSTEM.md §3) — read defensively so older
-    // store records without these fields still map.
-    paymentStatus:
-      (row as { paymentStatus?: string }).paymentStatus ?? "NOT_REQUIRED",
-    consultationStatus:
-      (row as { consultationStatus?: string }).consultationStatus ??
-      "NOT_STARTED",
-    refundStatus: (row as { refundStatus?: string }).refundStatus ?? "NONE",
-    patientType: (row as { patientType?: string | null }).patientType ?? null,
-    feeSettingsVersion:
-      (row as { feeSettingsVersion?: number | null }).feeSettingsVersion ??
-      null,
-    pricedAt: (row as { pricedAt?: string | null }).pricedAt ?? null,
+    // pricing snapshot (docs/FEE_SYSTEM.md §3).
+    paymentStatus: row.paymentStatus,
+    consultationStatus: row.consultationStatus,
+    refundStatus: row.refundStatus,
+    patientType: row.patientType,
+    feeSettingsVersion: row.feeSettingsVersion,
+    pricedAt: row.pricedAt,
     createdAt: row.createdAt,
     chamberId: (row as { chamberId?: string | null }).chamberId ?? null,
     chamberName: (row as { chamberName?: string | null }).chamberName ?? null,

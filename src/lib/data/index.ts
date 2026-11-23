@@ -44,5 +44,8 @@ export type { DataStore, StoreKind } from "./types";
 export {
   SlotConflictError,
   ReferenceCodeCollisionError,
+  IdempotencyMismatchError,
+  StatusTransitionError,
+  FeeModuleUnavailableError,
 } from "./types";
 export { parseServiceAccountEnv, getFirestoreFromEnv } from "./firestore-store";

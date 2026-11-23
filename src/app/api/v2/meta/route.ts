@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { ok, handleRouteError } from "@/lib/api";
+import { GuardError, requirePrismaBackedStore } from "@/app/api/v2/_lib/guards";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET() {
   try {
+    requirePrismaBackedStore(); // reads Prisma-direct config; honest 503 on Firestore
     const [flags, settings, countries] = await Promise.all([
       db.featureFlag.findMany(),
       db.platformSetting.findMany(),
@@ -35,6 +37,16 @@ export async function GET() {
       })),
     });
   } catch (err) {
+    if (err instanceof GuardError) {
+      return ok({
+        flags: {},
+        flagDetails: [],
+        settings: {},
+        countries: [],
+        disabled: true,
+        reason: err.message,
+      });
+    }
     return handleRouteError(err);
   }
 }

@@ -54,11 +54,26 @@ export async function POST(
         "INVALID_STATUS"
       );
     }
+    // A no-show can only be recorded once the consultation time arrived —
+    // marking a future slot as no-show would block it for no reason.
+    if (new Date(appointment.slotStart).getTime() > Date.now()) {
+      return fail(
+        "This appointment's time slot has not started yet.",
+        400,
+        "SLOT_NOT_PAST"
+      );
+    }
 
-    const updated = await store.updateAppointment(id, {
-      status: APPOINTMENT_STATUS.NO_SHOW,
-      consultationStatus: "NOT_HELD",
-    });
+    // CONDITIONAL TRANSITION: only applies while still CONFIRMED — a
+    // concurrent complete/cancel surfaces as 409 STATUS_CHANGED.
+    const updated = await store.updateAppointment(
+      id,
+      {
+        status: APPOINTMENT_STATUS.NO_SHOW,
+        consultationStatus: "NOT_HELD",
+      },
+      { requireStatuses: [APPOINTMENT_STATUS.CONFIRMED] }
+    );
 
     await logAppointmentAction("APPOINTMENT_NO_SHOW", updated.id, user.id, {
       fromStatus: appointment.status,

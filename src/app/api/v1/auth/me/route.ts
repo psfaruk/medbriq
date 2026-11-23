@@ -91,6 +91,10 @@ export async function PATCH(req: NextRequest) {
     }
     if (newPhone !== undefined) {
       patch.phone = newPhone;
+      // SECURITY: a NEW (or cleared) phone is unverified until an OTP flow
+      // proves ownership — otherwise setting a victim's phone would grant
+      // phone-match access to their guest bookings/VVS records.
+      patch.phoneVerified = newPhone === null ? false : newPhone === user.phone;
     }
 
     if (Object.keys(patch).length === 0) {

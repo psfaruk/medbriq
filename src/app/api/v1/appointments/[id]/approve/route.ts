@@ -1,6 +1,7 @@
 import { fail, handleRouteError, ok } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { getStore } from "@/lib/data";
+import { requireModule } from "@/lib/modules";
 import { APPOINTMENT_STATUS, NOTIFICATION_TYPES, ROLES } from "@/lib/constants";
 import {
   doctorDisplayName,
@@ -20,6 +21,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Residency gate (docs/ARCHITECTURE_CORRECTIONS.md #5): every booking
+    // transition write is part of the appointmentBooking module surface.
+    requireModule("appointmentBooking");
+
     const { id } = await params;
 
     const user = await getCurrentUser();
@@ -44,10 +49,24 @@ export async function POST(
         "INVALID_STATUS"
       );
     }
+    // Never approve a request whose slot has already passed — the EXPIRED
+    // sweep may not have run yet, but a past slot must not become CONFIRMED.
+    if (new Date(appointment.slotStart).getTime() <= Date.now()) {
+      return fail(
+        "This appointment's time slot has already passed.",
+        400,
+        "SLOT_PAST"
+      );
+    }
 
-    const updated = await getStore().updateAppointment(id, {
-      status: APPOINTMENT_STATUS.CONFIRMED,
-    });
+    // CONDITIONAL TRANSITION: the write only applies while the row is still
+    // PENDING_APPROVAL — a concurrent cancel/reject surfaces as 409
+    // STATUS_CHANGED instead of silently overwriting the other outcome.
+    const updated = await getStore().updateAppointment(
+      id,
+      { status: APPOINTMENT_STATUS.CONFIRMED },
+      { requireStatuses: [APPOINTMENT_STATUS.PENDING_APPROVAL] }
+    );
 
     await logAppointmentAction("APPOINTMENT_APPROVED", updated.id, user.id, {
       fromStatus: appointment.status,

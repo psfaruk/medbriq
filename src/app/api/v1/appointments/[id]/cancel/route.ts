@@ -4,6 +4,7 @@ import { fail, handleRouteError, ok } from "@/lib/api";
 import { invalidateMemoryCache } from "@/lib/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { getStore } from "@/lib/data";
+import { requireModule } from "@/lib/modules";
 import { APPOINTMENT_STATUS, NOTIFICATION_TYPES, ROLES } from "@/lib/constants";
 import {
   doctorDisplayName,
@@ -36,6 +37,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Residency gate (docs/ARCHITECTURE_CORRECTIONS.md #5): every booking
+    // transition write is part of the appointmentBooking module surface.
+    requireModule("appointmentBooking");
+
     const { id } = await params;
 
     const raw: unknown = await req.json().catch(() => ({}));
@@ -108,12 +113,26 @@ export async function POST(
     }
 
     const cancelledByDoctor = actor === "DOCTOR";
-    const updated = await getStore().updateAppointment(id, {
-      status: cancelledByDoctor
-        ? APPOINTMENT_STATUS.CANCELLED_BY_DOCTOR
-        : APPOINTMENT_STATUS.CANCELLED_BY_PATIENT,
-      ...(cancelledByDoctor && input.reason ? { doctorNote: input.reason } : {}),
-    });
+    // CONDITIONAL TRANSITION + SLOT RELEASE: the store nulls the (doctorId,
+    // slotKey) occupancy for CANCELLED_* target statuses, so the slot is
+    // bookable again immediately while the row keeps its history.
+    const updated = await getStore().updateAppointment(
+      id,
+      {
+        status: cancelledByDoctor
+          ? APPOINTMENT_STATUS.CANCELLED_BY_DOCTOR
+          : APPOINTMENT_STATUS.CANCELLED_BY_PATIENT,
+        ...(cancelledByDoctor && input.reason
+          ? { doctorNote: input.reason }
+          : {}),
+      },
+      {
+        requireStatuses: [
+          APPOINTMENT_STATUS.PENDING_APPROVAL,
+          APPOINTMENT_STATUS.CONFIRMED,
+        ],
+      }
+    );
 
     await logAppointmentAction(
       "APPOINTMENT_CANCELLED",

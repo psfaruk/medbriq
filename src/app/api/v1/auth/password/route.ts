@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server";
+import { cookies } from "next/headers";
 import { z } from "zod";
 import { getStore } from "@/lib/data";
 import { ok, fail, handleRouteError } from "@/lib/api";
 import { requireUser } from "@/lib/auth";
 import { hashPassword, verifyPassword } from "@/lib/password";
+import { SESSION_COOKIE, SESSION_TTL_DAYS } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +66,27 @@ export async function POST(req: NextRequest) {
       user.id,
       hashPassword(parsed.data.newPassword)
     );
+
+    // Revoke every OTHER session of this account (stale/possibly compromised
+    // cookies stop working immediately; the current device stays signed in).
+    {
+      const cookieToken = (await cookies()).get(SESSION_COOKIE)?.value;
+      const revoked = await store.deleteSessionsByUser(user.id);
+      if (cookieToken) {
+        await store.createSession(
+          cookieToken,
+          user.id,
+          new Date(Date.now() + SESSION_TTL_DAYS * 86_400_000).toISOString()
+        );
+      }
+      await store.createAuditLog({
+        actorId: user.id,
+        action: "SESSIONS_REVOKED",
+        entity: "User",
+        entityId: user.id,
+        meta: JSON.stringify({ reason: "PASSWORD_CHANGED", count: revoked }),
+      });
+    }
 
     await store.createAuditLog({
       actorId: user.id,

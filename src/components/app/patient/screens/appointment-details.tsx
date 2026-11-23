@@ -87,8 +87,14 @@ function RescheduleDialog({
   useEffect(() => {
     if (!open) return;
     let active = true;
+    // Chamber-scoped slots: an appointment keeps its chamber, so the picker
+    // must offer only that chamber's minutes (multi-chamber doctors would
+    // otherwise show mixed slots and cross-chamber moves are rejected
+    // server-side with a stale chamber label).
+    const params = new URLSearchParams({ date });
+    if (appointment.chamberId) params.set("chamberId", appointment.chamberId);
     apiGet<{ slots: SlotInfoDto[] }>(
-      `/api/v1/doctors/${appointment.doctor?.slug}/slots?date=${date}`
+      `/api/v1/doctors/${appointment.doctor?.slug}/slots?${params.toString()}`
     )
       .then((d) => {
         if (active) setSlots(d.slots);
@@ -102,7 +108,7 @@ function RescheduleDialog({
     return () => {
       active = false;
     };
-  }, [open, date, appointment.doctor?.slug]);
+  }, [open, date, appointment.doctor?.slug, appointment.chamberId]);
 
   const changeDate = (d: string) => {
     setDate(d);
@@ -125,6 +131,19 @@ function RescheduleDialog({
       onOpenChange(false);
       onDone();
     } catch (err) {
+      if (err instanceof ApiCallError && err.code === "STATUS_CHANGED") {
+        // Concurrent status race (e.g. the doctor approved/cancelled while
+        // this dialog was open) — surface the server message and re-fetch
+        // so the screen shows the authoritative state instead of a
+        // dead-end error the user can never resolve from here.
+        toast({
+          title: t("appointments.rescheduleFailed"),
+          description: err.message,
+        });
+        onOpenChange(false);
+        onDone();
+        return;
+      }
       toast({
         title: t("appointments.rescheduleFailed"),
         description: err instanceof Error ? err.message : undefined,
@@ -221,6 +240,17 @@ function CancelDialog({
       onOpenChange(false);
       onDone();
     } catch (err) {
+      if (err instanceof ApiCallError && err.code === "STATUS_CHANGED") {
+        // Concurrent status race — toast the server message and re-fetch so
+        // the screen reflects the real status instead of a dead-end error.
+        toast({
+          title: t("appointments.cancelFailed"),
+          description: err.message,
+        });
+        onOpenChange(false);
+        onDone();
+        return;
+      }
       toast({
         title: t("appointments.cancelFailed"),
         description: err instanceof Error ? err.message : undefined,

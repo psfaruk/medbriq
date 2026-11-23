@@ -70,6 +70,10 @@ export default function DoctorsScreen() {
     apiGet<{ items: DoctorCard[]; total: number }>(buildUrl())
       .then((d) => {
         if (seq !== searchSeq.current) return;
+        // Clear the sticky failure flag on success — without this one
+        // transient network error permanently bricks the screen (the failed
+        // branch keeps rendering even after a successful re-fetch).
+        setFailed(false);
         setItems(d.items);
         setTotal(d.total);
       })

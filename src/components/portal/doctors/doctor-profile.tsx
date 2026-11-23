@@ -23,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import type { DoctorDetail, ReviewItem } from "@/lib/types";
 import { useAppStore } from "@/lib/app-state";
+import { getPreloadedBoot } from "@/lib/boot-data";
 import { track } from "@/lib/analytics";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -66,6 +67,17 @@ export default function DoctorProfileView({ slug }: { slug: string }) {
   const reviews = usePortalData<{ items: ReviewItem[]; summary: { avg: number; count: number } }>(
     `/api/v1/doctors/${encodeURIComponent(slug)}/reviews`
   );
+
+  // Module gate (docs/ARCHITECTURE_CORRECTIONS.md #2): when the booking
+  // module is disabled on this deployment (e.g. the Firestore path pending
+  // the Phase 0 residency review), the CTA is disabled up front with the
+  // reason — instead of a 503 three steps into the flow. Unknown flags
+  // (cache miss) keep the CTA enabled; the server still 503s with a clear
+  // message.
+  const bookingModule = getPreloadedBoot()?.modules?.appointmentBooking;
+  const bookingDisabled = bookingModule?.enabled === false;
+  const bookingDisabledReason =
+    bookingDisabled ? (bookingModule?.disabledReason ?? null) : null;
 
   useEffect(() => {
     track("profile_view_doctor");
@@ -343,10 +355,17 @@ export default function DoctorProfileView({ slug }: { slug: string }) {
                   size="lg"
                   className="mt-4 w-full gap-1.5 text-base font-bold"
                   onClick={startBooking}
+                  disabled={bookingDisabled}
+                  title={bookingDisabledReason ?? undefined}
                 >
                   {t("portal.cta.bookAppointment")}
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Button>
+                {bookingDisabledReason && (
+                  <p className="mt-2 rounded-lg bg-muted/60 p-2 text-xs leading-relaxed text-muted-foreground">
+                    {bookingDisabledReason}
+                  </p>
+                )}
                 {!user && (
                   <p className="mt-2 flex items-center justify-center gap-1 text-xs text-muted-foreground">
                     <Lock className="h-3 w-3" aria-hidden="true" />

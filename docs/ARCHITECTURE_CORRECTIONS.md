@@ -338,3 +338,71 @@ it matches the corrected MVP scope (#7). Changes made by this correction:
 5. Every status transition that affects money or eligibility writes an audit
    log entry.
 6. Human approval is a release artifact, not a conversation.
+
+---
+
+## 6. Hardening round 2 — audit dispositions (Devil's Advocate session #2)
+
+A second Devil's-Advocate audit swept the whole codebase (dual stores, booking
+routes, auth, v2 API, client). Every finding below is implemented and
+verified by `scripts/e2e-booking-fixes.ts` (20 checks) plus the fee-system
+harness `bun run verify:fees` (51 checks). Gated module behaviour did NOT
+change — `appointmentBooking` remains Prisma-only pending the Phase 0
+residency decision; what changed is that the gate is now **complete and
+honest**.
+
+### 6.1 Booking engine correctness
+
+| Fix | Design |
+|---|---|
+| **Slot release on cancel/reject (dead-slot bug)** | The `@@unique([doctorId, slotStart])` burned every cancelled/rejected slot forever (a free-looking slot answered 409 on re-book). Replaced by `Appointment.slotKey`: equals `slotStart` while occupied, **NULL** for released statuses (REJECTED / CANCELLED_* / EXPIRED) — SQLite treats NULLs as distinct, so the slot frees without deleting the historical row. Firestore parity: released appointments are relocated off the `{doctorId}_{slotStart}` doc id to their own id-keyed doc. |
+| **Conditional status transitions (race guard)** | Approve/reject/cancel/no-show/complete/reschedule now write with a status precondition (`updateMany` where-filter / in-transaction check). A concurrent actor changing the row first answers **409 STATUS_CHANGED** instead of silently overwriting the other outcome (resurrecting cancelled appointments, or turning NO_SHOW into a money-qualifying visit). |
+| **Idempotency hardening** | P2002 on `idempotencyKey` (two racing same-key submits) now replays the winner instead of 500-looping; the replay intent comparison compares slot **instants** (not raw timestamp strings) and includes patient identity + consultation type. |
+| **EXPIRED lifecycle (was specced, never built)** | Lazy sweep (`expireStalePendingAppointments`) on slot reads moves stale PENDING_APPROVAL rows to EXPIRED and releases their slots; approving a past-slot request is rejected (400 SLOT_PAST). |
+| **Preview/booking identity parity** | Price preview now classifies with the same patient key as booking (session id OR phone). Previously a returning patient booking under a different phone got preview=NEW but booking=RETURNING → an unrecoverable PRICE_CHANGED loop. The 409 itself now carries the fresh `priceBreakdown` so the client recovers in one round-trip. |
+| **Reschedule chamber scoping** | The new slot is validated within the appointment's own chamber; the client slot picker for reschedule is chamber-filtered too. |
+| **Residency gate completion** | `requireModule("appointmentBooking")` added to approve/reject/cancel/reschedule (they previously wrote appointment data through the Firestore store — exactly what correction #5 forbids). |
+
+### 6.2 Client UX recovery paths
+
+- Booking wizard: stable idempotency key per submission (useRef — retries
+  replay instead of double-booking), SLOT_TAKEN/SLOT_UNAVAILABLE bounce back
+  to the slot picker with a refresh, PRICE_CHANGED updates the fee display
+  from the 409 payload (no refetch loop), STATUS_CHANGED resets the flow.
+- Module flags ship with `/api/v1/bootstrap` (`modules` field) and the
+  booking CTA is gated up front with the disabled reason (portal + app
+  profiles) — never a 503 three steps into a flow.
+- Doctors search screen recovers from transient failures (the sticky `failed`
+  flag is reset on success); session expiry (401) resets the session once
+  via a shell-level event instead of every screen failing forever; a
+  route-level error boundary keeps one bad DTO from unmounting the SPA.
+
+### 6.3 Security fixes
+
+- Phone-match ownership (guest bookings, VVS records) now requires
+  `phoneVerified`; changing your phone resets `phoneVerified` until an OTP
+  re-proves it (previously an attacker could claim a victim's phone and read
+  their bookings/visit receipts).
+- Duplicate phones rejected at registration; phone-based lookups prefer
+  ACTIVE + phone-verified accounts deterministically.
+- Password change/reset revokes all existing sessions (new
+  `deleteSessionsByUser` store method).
+- Push-token DELETE is owner-scoped; analytics counter map is cardinality-
+  capped; 500 responses no longer leak internal error text.
+
+### 6.4 v2 API split-brain guard
+
+v2 routes query Prisma/SQLite directly while session resolution uses the
+active store. On the Firestore path that produced two databases disagreeing
+within one request (auth from Firestore, data from the Vercel demo SQLite).
+Like VVS, those routes now answer **503 MODULE_DISABLED** on the Firestore
+path (`requirePrismaBackedStore`); catch-all GET/POST handlers validate the
+requested resource instead of falling through to the wrong handler; unknown
+support-ticket ids answer 404 instead of a leaked P2025 500.
+
+### 6.5 Schema migration note
+
+`Appointment.slotKey` is a nullable column added via `prisma db push`
+(non-destructive; existing rows backfilled `slotKey = slotStart` for
+blocking statuses). The bundled demo database (`prisma/seed.db`) and the
+seed script carry the same change.

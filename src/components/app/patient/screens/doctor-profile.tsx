@@ -21,6 +21,7 @@ import {
   Video,
 } from "lucide-react";
 import { useAppStore } from "@/lib/app-state";
+import { getPreloadedBoot } from "@/lib/boot-data";
 import { apiGet } from "@/lib/api-client";
 import type { DoctorDetail, ReviewItem } from "@/lib/types";
 import {
@@ -49,6 +50,16 @@ export default function DoctorProfileScreen({ slug }: { slug: string }) {
   const [reloadKey, setReloadKey] = useState(0);
   const [reviews, setReviews] = useState<ReviewItem[] | null>(null);
   const [telehealthOn, setTelehealthOn] = useState(false);
+
+  // Module flags from the bootstrap payload (this screen renders for signed-
+  // in patients and portal guests alike — the gate applies to everyone):
+  // when the appointmentBooking module is disabled, mute the CTA up front
+  // with its disabled reason instead of letting users walk three steps into
+  // a 503. A cache miss (null) keeps the button enabled — the server still
+  // answers 503 with a clear message in that case.
+  const bookingModule =
+    getPreloadedBoot()?.modules?.appointmentBooking ?? null;
+  const bookingDisabled = bookingModule?.enabled === false;
 
   useEffect(() => {
     let active = true;
@@ -412,6 +423,12 @@ export default function DoctorProfileScreen({ slug }: { slug: string }) {
           <Button
             className="h-12 w-full text-base"
             size="lg"
+            disabled={bookingDisabled}
+            title={
+              bookingDisabled
+                ? (bookingModule?.disabledReason ?? undefined)
+                : undefined
+            }
             onClick={() => pushPatient({ name: "booking", slug: detail.slug })}
           >
             <CalendarClock className="h-5 w-5" aria-hidden="true" />
@@ -428,6 +445,11 @@ export default function DoctorProfileScreen({ slug }: { slug: string }) {
               </span>
             )}
           </Button>
+          {bookingDisabled && bookingModule?.disabledReason ? (
+            <p className="mt-2 text-center text-xs leading-relaxed text-muted-foreground">
+              {bookingModule.disabledReason}
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

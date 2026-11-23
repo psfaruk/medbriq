@@ -18,6 +18,12 @@ import type {
   SpecialtyInfo,
 } from "@/lib/types";
 
+/** Module flag registry snapshot (mirrors src/lib/modules.ts server-side). */
+export type ModuleFlags = Record<
+  string,
+  { enabled: boolean; disabledReason: string | null }
+>;
+
 export type BootPayload = {
   /** Session user the payload was captured for (null = guest). Used to
    *  decide whether user-scoped parts (appointments) are still fresh. */
@@ -27,6 +33,9 @@ export type BootPayload = {
   homeDoctors: DoctorCard[] | null;
   /** Only trustworthy while capturedForUserId matches the current user. */
   appointments: AppointmentDto[] | null;
+  /** Module flags (appointmentBooking/telehealth/payments/…) for up-front
+   *  UI gating with the disabled reason — never a 503 three steps deep. */
+  modules: ModuleFlags | null;
 };
 
 let preloaded: { payload: BootPayload; at: number } | null = null;
