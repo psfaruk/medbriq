@@ -1,0 +1,35 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Dependency updates. The app handles phone numbers, OTP codes and
+# medical-adjacent records, so known-vulnerable transitive packages must not
+# linger. Grouped by ecosystem to keep the PR count sane.
+#
+# Source of truth: docs/workflows/dependabot.yml (edit there, re-copy here).
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: 2
+update-timeout: 15
+
+- package-ecosystem: npm
+  directory: "/"
+  schedule:
+    interval: weekly
+    day: monday
+    time: "06:00"
+    timezone: Asia/Dhaka
+  groups:
+    production-deps:
+      applies-to: version-updates
+      dependency-type: production
+    dev-deps:
+      applies-to: version-updates
+      dependency-type: development
+  open-pull-requests-limit: 5
+
+- package-ecosystem: github-actions
+  directory: "/"
+  schedule:
+    interval: weekly
+    day: monday
+    time: "06:00"
+    timezone: Asia/Dhaka
+  open-pull-requests-limit: 3
