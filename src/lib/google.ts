@@ -110,9 +110,9 @@ export function getGoogleClientId(): string | null {
   return clientId && clientId.length > 0 ? clientId : null;
 }
 
-/** Google sign-in works when EITHER the service account (Firebase Auth) or an explicit GIS client id is configured. */
+/** Google sign-in works when the Firebase project is known (service account OR public web config) or an explicit GIS client id is configured. */
 export function isGoogleAuthConfigured(): boolean {
-  return parseServiceAccountEnv() !== null || getGoogleClientId() !== null;
+  return serviceAccountProjectId() !== null || getGoogleClientId() !== null;
 }
 
 /** Verified Google identity — provider-agnostic shape used by the auth route. */
@@ -122,10 +122,18 @@ export interface GoogleIdentity {
   picture: string | null;
 }
 
-/** The Firebase project id the service account belongs to (token audience). */
+/**
+ * The Firebase project id that Google-issued ID tokens must be bound to
+ * (issuer + audience). Prefer the service account's project_id; but in
+ * Prisma/PostgreSQL deployments FIREBASE_SERVICE_ACCOUNT must stay unset
+ * (setting it flips the data store to Firestore mode), so fall back to the
+ * public web config's project id — same value, same audience check.
+ */
 function serviceAccountProjectId(): string | null {
   const sa = parseServiceAccountEnv() as { project_id?: string } | null;
-  return sa?.project_id ?? null;
+  if (sa?.project_id) return sa.project_id;
+  const webPid = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim();
+  return webPid ? webPid : null;
 }
 
 /**
