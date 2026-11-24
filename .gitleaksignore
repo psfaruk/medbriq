@@ -1,0 +1,5 @@
+# Firebase *web* API key in the FCM service worker. Firebase web config is a
+# public client identifier by design (service workers cannot read env vars, so
+# it must be inlined). Access is controlled by Firebase security rules and by
+# API-key restrictions in Google Cloud, not by hiding this value.
+591c37827805a3ad24a6144e70bf0b7ed321e627:public/firebase-messaging-sw.js:gcp-api-key:18
