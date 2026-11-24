@@ -44,6 +44,7 @@ import type {
   UserProfilePatch,
 } from "./types";
 import { ReferenceCodeCollisionError, SlotConflictError, StatusTransitionError, isSlotBlockingStatus } from "./types";
+import { ensureSqliteFile } from "@/lib/ensure-db";
 
 /**
  * Find Medi Doctor local data store — Prisma + SQLite (development default).
@@ -53,7 +54,12 @@ import { ReferenceCodeCollisionError, SlotConflictError, StatusTransitionError, 
  * PrismaClient is constructed lazily on first use (replicating the caching
  * behaviour of src/lib/db.ts, which this module intentionally does not import
  * so that Firestore deployments never instantiate a Prisma client).
+ *
+ * Serverless bootstrap: ensure the bundled EMPTY schema SQLite exists at the
+ * writable DATABASE_URL target before the lazily-constructed client runs its
+ * first query (see src/lib/ensure-db.ts).
  */
+ensureSqliteFile();
 
 const globalForPrisma = globalThis as unknown as {
   __fmdPrismaStoreClient: PrismaClient | undefined;

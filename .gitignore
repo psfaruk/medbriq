@@ -80,3 +80,6 @@ prisma/db/
 # dev server logs (no longer tee'd, kept for local runs)
 dev.log
 server.log
+
+# bundled EMPTY schema database (bootstrap source for serverless/local)
+!prisma/schema-only.db
