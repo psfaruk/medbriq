@@ -404,8 +404,9 @@ support-ticket ids answer 404 instead of a leaked P2025 500.
 
 `Appointment.slotKey` is a nullable column added via `prisma db push`
 (non-destructive; existing rows backfilled `slotKey = slotStart` for
-blocking statuses). The bundled demo database (`prisma/seed.db`) and the
-seed script carry the same change.
+blocking statuses). The seed script carries the same change. (The bundled
+demo database `prisma/seed.db` was removed with the demo-mode cleanup —
+there is no auto-bootstrapped demo database any more.)
 
 ## 7. Hardening round 3 — audit dispositions (Devil's Advocate session #3)
 

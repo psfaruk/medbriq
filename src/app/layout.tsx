@@ -1,19 +1,30 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Noto_Sans_Bengali } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
 // Find Medi Doctor typography (master prompt §2): Inter for Latin, Noto Sans
 // Bengali for বাংলা — one stack covers both scripts seamlessly.
-const inter = Inter({
+//
+// SELF-HOSTED (next/font/local): fetching Google Fonts at dev/build time made
+// every compile depend on fonts.googleapis.com being reachable — in offline
+// and proxied environments (e.g. cloud sandboxes) that turned into a hard
+// 500 on "/" ("next/font/google queries have exactly one entry"). The woff2
+// files in ./fonts are the same Google Fonts builds (latin / bengali subsets,
+// variable weight axis), served from the app itself: zero network dependency,
+// same rendering, still statically optimized.
+const inter = localFont({
+  src: "./fonts/Inter-Variable.woff2",
   variable: "--font-inter",
-  subsets: ["latin"],
+  weight: "100 900",
+  display: "swap",
 });
 
-const notoBengali = Noto_Sans_Bengali({
+const notoBengali = localFont({
+  src: "./fonts/NotoSansBengali-Variable.woff2",
   variable: "--font-bengali",
-  subsets: ["bengali"],
-  weight: ["400", "500", "600", "700"],
+  weight: "100 900",
+  display: "swap",
 });
 
 const baseUrl = process.env.APP_BASE_URL ?? "http://localhost:3000";
