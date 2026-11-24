@@ -90,7 +90,7 @@ export async function sendOtpSms(
 ): Promise<{ delivered: boolean; reason?: string }> {
   const provider = process.env.SMS_PROVIDER?.trim().toLowerCase();
 
-  if (isDevOtpMode()) {
+  if (!provider || isDevOtpMode()) {
     // Dev provider: the code is visible in the server log (and, clearly
     // labeled, in the API response) — good enough for local end-to-end tests.
     console.log("fmd-sms] OTP for", phone, ":", code);
