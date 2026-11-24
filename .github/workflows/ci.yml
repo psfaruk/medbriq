@@ -1,3 +1,20 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# CI quality gate.
+#
+# INSTALL (the GitHub integration token used here cannot write to .github/):
+#   mkdir -p .github/workflows
+#   cp docs/workflows/ci.yml docs/workflows/firebase-deploy.yml .github/workflows/
+#   git add .github/workflows && git commit -m "ci: production quality gate"
+#
+# What changed vs. the previous version:
+#   - typecheck (`bun run typecheck`) is now a gate. It used to be skipped,
+#     and `next.config.ts` had ignoreBuildErrors: true, so type errors could
+#     reach production unnoticed.
+#   - a real `next build` runs on every PR, so a broken build never lands.
+#   - concurrency cancels superseded runs on the same branch.
+#   - NEW: opt-in `production-preflight` job (see its comment block below).
+# ─────────────────────────────────────────────────────────────────────────────
+
 name: CI
 
 on:
@@ -6,9 +23,16 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
-  lint:
-    name: Lint
+  quality:
+    name: Lint & Typecheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,3 +47,102 @@ jobs:
 
       - name: Lint
         run: bun run lint
+
+      # Compensating control removed: next.config.ts now fails the build on
+      # type errors too. This step surfaces them earlier, with better context.
+      - name: Typecheck
+        run: bun run typecheck
+
+  build:
+    name: Production build
+    runs-on: ubuntu-latest
+    needs: quality
+    env:
+      # Prisma only needs a syntactically valid URL at build time; Firestore
+      # is what production actually uses at runtime.
+      DATABASE_URL: "file:./ci-placeholder.db"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Production preflight — the gate that stops a demo configuration from
+  # ever being deployed (docs/PRODUCTION-RUNBOOK.md §5, automated).
+  #
+  # OPT-IN: it stays skipped (CI green) until BOTH are true:
+  #   1. the required repository secrets exist (Settings → Secrets → Actions)
+  #   2. repository variable PROD_PREFLIGHT is set to "enabled"
+  #      (Settings → Secrets and variables → Actions → Variables tab)
+  #
+  # It runs `bun run check:prod` (src/lib/prod-config.ts), which validates:
+  #   - FIREBASE_SERVICE_ACCOUNT is a real service-account JSON (data store)
+  #   - NEXT_PUBLIC_DEMO_MODE is not "true" (no demo labels on a live site)
+  #   - SMS provider is real (phone OTP disabled otherwise — honest, but
+  #     the operator must know)
+  #   - Firebase web config, GOOGLE_CLIENT_ID, VVS_SIGNING_SECRET ≥32 chars,
+  #     APP_BASE_URL https
+  # It NEVER prints a secret value — only presence/verdict.
+  # ──────────────────────────────────────────────────────────────────────
+  production-preflight:
+    name: Production preflight (opt-in)
+    runs-on: ubuntu-latest
+    if: ${{ vars.PROD_PREFLIGHT == 'enabled' }}
+    needs: build
+    env:
+      ALLOW_PRODUCTION_CHECKS: "1"
+      DATABASE_URL: "file:./ci-placeholder.db"
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      FIREBASE_DATABASE_ID: ${{ secrets.FIREBASE_DATABASE_ID }}
+      SMS_PROVIDER: ${{ secrets.SMS_PROVIDER }}
+      SMS_SENDER_ID: ${{ secrets.SMS_SENDER_ID }}
+      SSLWIRELESS_API_TOKEN: ${{ secrets.SSLWIRELESS_API_TOKEN }}
+      SSLWIRELESS_SID: ${{ secrets.SSLWIRELESS_SID }}
+      TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+      TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+      NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+      NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+      NEXT_PUBLIC_DEMO_MODE: ${{ secrets.NEXT_PUBLIC_DEMO_MODE }}
+      VVS_SIGNING_SECRET: ${{ secrets.VVS_SIGNING_SECRET }}
+      APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run production preflight
+        run: bun run check:prod
