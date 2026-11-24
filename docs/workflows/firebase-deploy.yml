@@ -3,13 +3,12 @@
 # The app itself is deployed by Vercel's Git integration — never from here.
 #
 # INSTALL (the GitHub integration token used here cannot write to .github/):
-#   mkdir -p .github/workflows
-#   cp docs/workflows/firebase-deploy.yml .github/workflows/
+#   Via web UI: Add file → Create new file → name it
+#   .github/workflows/firebase-deploy.yml → paste this file's content → Commit.
 #
-# The credential is a service-account JSON stored base64-encoded in the
-# repository secret FIREBASE_SERVICE_ACCOUNT_B64. Create it with a FRESH key:
-#   base64 -w0 service-account.json \
-#     | gh secret set FIREBASE_SERVICE_ACCOUNT_B64 -R psfaruk/medbriq
+# The credential is the service-account JSON pasted AS-IS (no base64 needed)
+# into the repository secret FIREBASE_SERVICE_ACCOUNT — the same secret the
+# CI production preflight uses. Use a FRESH key (rotate the exposed one first).
 #
 # Never paste a private key into a chat, an issue or a commit.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -53,13 +52,13 @@ jobs:
 
       - name: Materialize service account
         env:
-          FIREBASE_SERVICE_ACCOUNT_B64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_B64 }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
-          if [ -z "$FIREBASE_SERVICE_ACCOUNT_B64" ]; then
-            echo "::error::FIREBASE_SERVICE_ACCOUNT_B64 secret is not set."
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT secret is not set."
             exit 1
           fi
-          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_B64" | base64 --decode > "$RUNNER_TEMP/sa.json"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
           # Never echo the key material back into the log.
           echo "service account materialized ($(wc -c < "$RUNNER_TEMP/sa.json") bytes)"
