@@ -178,7 +178,10 @@ Instead:
    `appointments`, `users` and `audit_logs`, or request a
    `scripts/firestore-seed-reference.ts` that writes only `specialties`.
 2. Create the first admin through a controlled path and change its password
-   immediately.
+   immediately. For the local/regional (Prisma-backed) store:
+   `bun scripts/create-admin.ts admin@yourdomain.com '<strong-password>'`.
+   On Firestore-only production, create the user document directly in the
+   console (`role: "ADMIN"`, `status: "ACTIVE"`, scrypt `passwordHash`).
 3. Let real doctors register through the UI — they land in the admin
    verification queue as `PENDING`, exactly as designed. Verification is never
    automatic.

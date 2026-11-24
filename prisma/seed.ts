@@ -45,6 +45,62 @@ function dhakaDateDaysAgo(daysAgo: number): string {
 async function main() {
   console.log("🌱 Seeding Medbriq demo data ...");
 
+  // ── Fail-fast cross-reference validation ────────────────────────────
+  // A HALF-SEEDED database is worse than no seed at all: an earlier version
+  // of this script crashed midway (renamed patient emails → undefined userId)
+  // and left users/doctors behind WITHOUT feature flags, platform settings,
+  // support tickets or payments — which quietly disabled the payments module
+  // and emptied admin console sections. Every lookup below must resolve
+  // BEFORE the destructive wipe runs; nothing is written on a broken spec.
+  const patientEmails = new Set(SEED_PATIENTS.map((p) => p.email));
+  const referencedPatients = [
+    ...buildDemoAppointments().flatMap((s) => (s.patientEmail ? [s.patientEmail] : [])),
+    ...buildCompletedVisits().flatMap((s) => (s.patientEmail ? [s.patientEmail] : [])),
+    ...SEED_REVIEWS.map((r) => r.patientEmail),
+  ];
+  const missingPatients = referencedPatients.filter((e) => !patientEmails.has(e));
+  if (missingPatients.length > 0) {
+    throw new Error(
+      `Seed spec references unknown patient emails (not in SEED_PATIENTS): ${missingPatients.join(", ")}`
+    );
+  }
+
+  const doctorSlugs = new Set(SEED_DOCTORS.map((d) => d.slug));
+  const referencedDoctors = [
+    ...SEED_FEE_SETTINGS.map((s) => s.doctorSlug),
+    ...buildDemoAppointments().map((s) => s.doctorSlug),
+    ...buildCompletedVisits().map((s) => s.doctorSlug),
+    ...SEED_REVIEWS.map((r) => r.doctorSlug),
+    ...["dr-ayesha-rahman", "dr-mahmudul-hasan", "dr-farhana-akter", "dr-tanvir-ahmed", "dr-nusrat-jahan", "dr-rafiul-islam", "dr-sadia-karim"],
+  ];
+  const missingDoctors = referencedDoctors.filter((s) => !doctorSlugs.has(s));
+  if (missingDoctors.length > 0) {
+    throw new Error(
+      `Seed spec references unknown doctor slugs (not in SEED_DOCTORS): ${missingDoctors.join(", ")}`
+    );
+  }
+
+  const hospitalSlugs = new Set(SEED_HOSPITALS.map((h) => h.slug));
+  const referencedHospitals = [
+    ...SEED_DOCTORS.flatMap((d) => (d.hospitalSlug ? [d.hospitalSlug] : [])),
+    ...["greenview-general-hospital", "lakeview-medical-center", "padma-city-hospital", "uttara-central-clinic"],
+  ];
+  const missingHospitals = referencedHospitals.filter((s) => !hospitalSlugs.has(s));
+  if (missingHospitals.length > 0) {
+    throw new Error(
+      `Seed spec references unknown hospital slugs (not in SEED_HOSPITALS): ${missingHospitals.join(", ")}`
+    );
+  }
+
+  const missingSpecialties = SEED_DOCTORS
+    .map((d) => d.specialtySlug)
+    .filter((s) => !SEED_SPECIALTIES.some((sp) => sp.slug === s));
+  if (missingSpecialties.length > 0) {
+    throw new Error(
+      `Seed spec references unknown specialty slugs: ${missingSpecialties.join(", ")}`
+    );
+  }
+
   // Wipe existing data (demo database only).
   await db.payment.deleteMany();
   await db.supportTicket.deleteMany();
@@ -503,7 +559,10 @@ async function main() {
   }
 
   // Family member profiles for the demo patient (master prompt §3.36)
-  const rahimId = patientIdByEmail.get("patient@medbriq.dev")!;
+  // NOTE: look up by the SEED_PATIENTS entries, never by a hardcoded email —
+  // a hardcoded "patient@medbriq.dev" once diverged from the actual seeded
+  // address and produced `userId: undefined` (the half-seed crash).
+  const rahimId = patientIdByEmail.get(SEED_PATIENTS[0].email)!;
   await db.familyMember.createMany({
     data: [
       { userId: rahimId, name: "Rehana Uddin", relation: "SPOUSE", age: 34, gender: "FEMALE", phone: "+880 1712-345678" },
@@ -539,7 +598,7 @@ async function main() {
     data: [
       {
         userId: rahimId,
-        email: "patient@medbriq.dev",
+        email: SEED_PATIENTS[0].email,
         subject: "Reschedule help needed",
         message: "I need to move my appointment with Dr. Ayesha to next week. Can the doctor approve a new time?",
         category: "BOOKING",
@@ -556,8 +615,8 @@ async function main() {
         priority: "HIGH",
       },
       {
-        userId: patientIdByEmail.get("patient2@medbriq.dev")!,
-        email: "patient2@medbriq.dev",
+        userId: patientIdByEmail.get(SEED_PATIENTS[1].email)!,
+        email: SEED_PATIENTS[1].email,
         subject: "Refund not received",
         message: "My cancelled booking refund has not arrived after 5 working days.",
         category: "PAYMENT",
@@ -611,13 +670,24 @@ async function main() {
     featureFlags: await db.featureFlag.count(),
   };
   console.log("✅ Seed complete:", counts);
+  // Printed straight from the shared data definitions so the table can never
+  // drift from what was actually written (it did before — the emails below
+  // once claimed @medbriq.dev while the seeder wrote @findmedidoctor.dev).
   console.log("   Demo logins (DEV ONLY — see README):");
-  console.log("   admin@medbriq.dev / Admin@Medbriq123");
-  console.log("   doctor@medbriq.dev / Doctor@123   (Dr. Ayesha Rahman, VERIFIED)");
+  console.log(`   ${SEED_ADMIN.email} / ${SEED_ADMIN.password}`);
+  console.log(
+    `   ${SEED_DOCTORS[0].email} / ${SEED_DOCTORS[0].password} (${SEED_DOCTORS[0].name}, ${SEED_DOCTORS[0].verificationStatus})`
+  );
   console.log("   hospital@medbriq.dev / Hospital@123 (Greenview General Hospital, VERIFIED)");
-  console.log("   patient@medbriq.dev / Patient@123 (Rahim Uddin — RETURNING with Dr. Ayesha)");
-  console.log("   patient2@medbriq.dev / Patient@123 (Salma Khatun — FOLLOW_UP with Dr. Farhana)");
-  console.log("   patient3@medbriq.dev / Patient@123 (Abdul Karim — expired validity → NEW)");
+  console.log(
+    `   ${SEED_PATIENTS[0].email} / ${SEED_PATIENTS[0].password} (Rahim Uddin — RETURNING with Dr. Ayesha)`
+  );
+  console.log(
+    `   ${SEED_PATIENTS[1].email} / ${SEED_PATIENTS[1].password} (Salma Khatun — FOLLOW_UP with Dr. Farhana)`
+  );
+  console.log(
+    `   ${SEED_PATIENTS[2].email} / ${SEED_PATIENTS[2].password} (Abdul Karim — expired validity → NEW)`
+  );
 }
 
 main()

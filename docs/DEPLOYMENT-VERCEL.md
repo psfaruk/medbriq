@@ -9,7 +9,7 @@ repository right now, and the two supported paths to get a working live URL.
 
 | # | Blocker | Detail |
 |---|---------|--------|
-| 1 | **No `DATABASE_URL` for production** | Locally the app uses SQLite (`db/custom.db` via Prisma). Vercel's serverless filesystem is read-only (except `/tmp`), so SQLite cannot persist writes. On first write (register, login, OTP, booking) the API returns 500 and auth "does not work". |
+| 1 | **No `DATABASE_URL` for production** | Locally the app uses SQLite via Prisma (default `prisma/db/custom.db`). Vercel's serverless filesystem is read-only (except `/tmp`), so SQLite cannot persist writes. On first write (register, login, OTP, booking) the API returns 500 and auth "does not work". |
 | 2 | **Database is never created on Vercel** | The tables are created locally by `bun run db:push` + `bun prisma/seed.ts`. Vercel never runs these, so even read-only pages show empty data (0 doctors, 0 specialties). |
 | 3 | **`GOOGLE_CLIENT_ID` not set** | Google Sign-In is implemented (GIS button + server-side token verification) but is hidden behind the `googleEnabled` config. Without the env var, the button shows the "Enable Google sign-in" helper dialog instead of logging in. |
 | 4 | **OTP has no SMS provider** | In dev, OTP codes are printed to the server log **and returned in the API response** (`devOtpMode: true`). On a public deployment this is fine for demos but must be replaced with a real SMS gateway (e.g. an SSL Wireless / Twilio / Meta Business API provider) before real patients use it. |

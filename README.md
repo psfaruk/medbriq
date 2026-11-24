@@ -4,13 +4,14 @@
 
 - **Initial market:** Bangladesh (Asia/Dhaka, UTC+6, BDT, national emergency number **999**)
 - **Architecture:** country-extensible by design (see [docs/architecture.md](docs/architecture.md))
-- **Status:** Demo MVP — see the honest phase report in [docs/phases/phase-1-report.md](docs/phases/phase-1-report.md)
+- **Status:** MVP — production runs on **Vercel + Firestore** (see [docs/DEPLOYMENT-VERCEL.md](docs/DEPLOYMENT-VERCEL.md)); local dev uses SQLite. **Demo data is opt-in** (see [Quick Start](#quick-start-local-development))
 
-> **Live demo:** a **Vercel deployment with Firestore** is being set up. Until the link is
-> published here, the current environment is a local/dev demo with **fictional seed data**
-> (12 demo doctors, 4 demo hospitals, 10 specialties). The UI is clearly labeled
-> **“Demo MVP”** — no real doctors, patients, licenses, or medical claims are represented.
-> Run it locally with the Quick Start below, or see [Deployment (Vercel + Firestore)](#deployment-vercel--firestore).
+> **No demo mode by default:** the app no longer bootstraps a bundled demo
+> database and ships no demo accounts. A fresh install starts **empty** —
+> create the first admin with `bun run admin:create`, then let real doctors
+> and patients register through the UI. If you explicitly want the fictional
+> demo dataset (17 doctors, 8 hospitals, 10 specialties) to exercise the
+> workflows end-to-end, run the seeder: `bun prisma/seed.ts` (DEV ONLY).
 
 ---
 
@@ -75,45 +76,61 @@ bun install
 
 # 2. Configure environment
 cp .env.example .env
-# (defaults point DATABASE_URL at a local SQLite file — fine for development)
+# (DATABASE_URL defaults to a SQLite file next to prisma/schema.prisma)
 
 # 3. Create the database schema
 bun run db:push
 
-# 4. Seed fictional demo data (12 doctors, 4 hospitals, 10 specialties)
-bun prisma/seed.ts
+# 4a. REAL data mode — create the first admin (no demo accounts):
+bun run admin:create admin@yourdomain.com 'Choose-4-Strong-Pass!'
+
+#    …or 4b. DEMO data mode — fictional doctors/hospitals (DEV ONLY):
+#    bun prisma/seed.ts
 
 # 5. Start the dev server → http://localhost:3000
 bun run dev
 ```
 
+> **z.ai / GLM sandbox note:** Bun auto-loads `/home/z/my-project/.env`
+> (provided by the sandbox) which **overrides** this project's `.env`
+> `DATABASE_URL`. All tools then consistently use that root-level SQLite file.
+> To pin your own location, launch explicitly:
+> `DATABASE_URL=file:/abs/path.db bun run dev`.
+
 Other useful commands:
 
 | Command | Purpose |
 | --- | --- |
-| `bun run dev` | Dev server on port 3000 (logs also tee'd to `dev.log`) |
+| `bun run dev` | Dev server on port 3000 (Next.js + Turbopack) |
+| `bun run admin:create` | Create/update the first ADMIN account (real-data bootstrap) |
 | `bun run lint` | ESLint (Next.js core-web-vitals + TypeScript rules) |
+| `bun run typecheck` | TypeScript strict check (CI gate) |
 | `bun run db:push` | Push Prisma schema to the database (dev shortcut) |
 | `bun run db:generate` | (Re)generate the Prisma client |
 | `bun run db:migrate` | Create/apply a dev migration |
 | `bun run db:reset` | Reset database and re-apply migrations |
-| `bun prisma/seed.ts` | Wipe & reseed demo data (destructive — demo DB only) |
+| `bun run check:prod` | Production preflight (data store, demo mode, SMS, secrets) |
+| `bun prisma/seed.ts` | Wipe & reseed the fictional demo dataset (destructive — dev/demo DB only) |
 
-## Demo Credentials
+## Demo Credentials (only after `bun prisma/seed.ts`)
 
-> ⚠️ **DEV ONLY — DO NOT DEPLOY ANYWHERE PUBLIC.** These accounts are seeded by
-> `prisma/seed.ts` for the local demo environment. All names, hospitals, licenses, and
-> reviews are **fictional**.
+> ⚠️ **DEV ONLY — DO NOT DEPLOY ANYWHERE PUBLIC.** These accounts are created
+> ONLY by the optional demo seeder. All names, hospitals, licenses, and
+> reviews are **fictional**. Without the seeder the database contains no
+> accounts at all — bootstrap a real admin with `bun run admin:create`.
 
 | Role | Email | Password | Identity |
 | --- | --- | --- | --- |
 | Admin | `admin@findmedidoctor.dev` | `Admin@Find Medi Doctor123` | Platform Admin |
 | Doctor | `doctor@findmedidoctor.dev` | `Doctor@123` | Dr. Ayesha Rahman (verified) |
+| Hospital | `hospital@medbriq.dev` | `Hospital@123` | Greenview General Hospital (verified) |
 | Patient | `patient@findmedidoctor.dev` | `Patient@123` | Rahim Uddin |
+| Patient | `patient2@findmedidoctor.dev` | `Patient@123` | Salma Khatun |
+| Patient | `patient3@findmedidoctor.dev` | `Patient@123` | Abdul Karim |
+| Patient | `google.demo@medbriq.dev` | `Google@Demo123` | Rifat Hasan (demo Google fallback) |
 
-Additional seeded (fictional) doctors share the password `Doctor@123`; extra demo patients
-(`patient2@`, `patient3@`…) share `Patient@123`. All seeded doctor registration numbers are
-marked `(demo)`.
+Additional seeded (fictional) doctors share the password `Doctor@123`.
+All seeded doctor registration numbers are marked `(demo)`.
 
 ---
 
@@ -140,8 +157,10 @@ Deploying to Vercel:
    | `FIREBASE_DATABASE_ID` | `default` (or your Firestore database id) |
    | `DATABASE_URL` | any dummy file path, e.g. `file:./dev.db` — Prisma is only used locally, but `prisma generate` in the build still expects it |
 
-3. Seed the demo data into Firestore (idempotent — skips when already seeded;
-   `--force` wipes and re-seeds):
+3. Optional — seed the demo data into Firestore (idempotent — skips when
+   already seeded; `--force` wipes and re-seeds). Skip this for a real
+   deployment: seed reference data (specialties) and create the admin
+   instead (see [docs/PRODUCTION-RUNBOOK.md](docs/PRODUCTION-RUNBOOK.md) §4).
 
    ```bash
    FIREBASE_SERVICE_ACCOUNT="$(jq -c . service-account.json)" bun scripts/firestore-seed.ts
@@ -188,9 +207,10 @@ find-medi-doctor/
 │   └── phases/phase-1-report.md  # Phase report & acceptance-criteria checklist
 ├── prisma/
 │   ├── schema.prisma             # Data model (SQLite now, Postgres-portable)
-│   └── seed.ts                   # Fictional demo data seeder (local SQLite)
+│   └── seed.ts                   # OPT-IN fictional demo data seeder (local SQLite)
 ├── scripts/
-│   └── firestore-seed.ts         # Fictional demo data seeder (production Firestore)
+│   ├── create-admin.ts           # Real-data bootstrap: first ADMIN account
+│   └── firestore-seed.ts         # OPT-IN fictional demo data seeder (Firestore)
 ├── src/
 │   ├── app/
 │   │   ├── api/v1/               # REST route handlers (versioned under /api/v1)

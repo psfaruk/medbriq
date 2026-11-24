@@ -68,3 +68,15 @@ server.log
 /examples/
 /tests/
 /agent-ctx/
+
+# local SQLite databases (DATABASE_URL target) + WAL sidecars
+db/
+prisma/db/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# dev server logs (no longer tee'd, kept for local runs)
+dev.log
+server.log
