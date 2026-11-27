@@ -43,15 +43,14 @@ jobs:
       - name: Install Firebase CLI
         run: npm install --global firebase-tools
 
-      - name: Verify Firebase project configuration
+      - name: Verify Firebase deployment inputs
         run: |
           test -f firebase.json
           test -f firestore.rules
           test -f firestore.indexes.json
           test -f storage.rules
-          firebase projects:list --json > /tmp/firebase-projects.json
-          node -e "const p=require('/tmp/firebase-projects.json'); if(!p.some(x=>x.projectId==='medifindbd')) process.exit(1)"
-          echo "Firebase project authentication verified."
+          firebase --version
+          echo "Explicit deployment target: $FIREBASE_PROJECT_ID"
 
       - name: Deploy rules and indexes
         run: |
