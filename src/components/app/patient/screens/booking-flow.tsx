@@ -135,50 +135,67 @@ const STEP_KEYS = [
 
 function StepChips({ step }: { step: number }) {
   const { t } = useT();
+  const progress = (step / STEP_KEYS.length) * 100;
   return (
-    <ol
-      className="app-scroll flex items-center gap-1 overflow-x-auto pb-1"
+    <section
+      className="rounded-2xl border border-border bg-card px-3.5 py-3 shadow-soft sm:px-4"
       aria-label={t("booking.progress")}
     >
-      {STEP_KEYS.map((key, i) => {
-        const idx = i + 1;
-        const done = step > idx;
-        const active = step === idx;
-        return (
-          <li key={key} className="flex items-center gap-1">
-            <span
-              className={cn(
-                "flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                active && "border-primary bg-primary text-primary-foreground",
-                done && "border-primary/40 bg-primary-soft text-primary",
-                !active && !done && "border-border bg-card text-muted-foreground"
-              )}
-              aria-current={active ? "step" : undefined}
-            >
-              {done ? (
-                <Check className="h-3.5 w-3.5" aria-hidden="true" />
-              ) : (
-                <span
-                  className={cn(
-                    "flex h-4 w-4 items-center justify-center rounded-full border text-[9px] font-bold",
-                    active ? "border-white/70" : "border-border"
-                  )}
-                >
-                  {idx}
-                </span>
-              )}
-              {t(key)}
-            </span>
-            {i < STEP_KEYS.length - 1 ? (
-              <ArrowRight
-                className="h-3 w-3 shrink-0 text-muted-foreground/60"
-                aria-hidden="true"
-              />
-            ) : null}
-          </li>
-        );
-      })}
-    </ol>
+      <div className="mb-2.5 flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold text-foreground">
+          {t(STEP_KEYS[step - 1] ?? STEP_KEYS[0])}
+        </p>
+        <span className="shrink-0 text-xs font-semibold tabular-nums text-primary">
+          {step} / {STEP_KEYS.length}
+        </span>
+      </div>
+      <div
+        className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted"
+        role="progressbar"
+        aria-valuemin={1}
+        aria-valuemax={STEP_KEYS.length}
+        aria-valuenow={step}
+        aria-label={t("booking.progress")}
+      >
+        <div
+          className="h-full rounded-full bg-primary transition-[width] duration-300"
+          style={{ width: String(progress) + "%" }}
+        />
+      </div>
+      <ol className="app-scroll flex items-center gap-1.5 overflow-x-auto pb-0.5">
+        {STEP_KEYS.map((key, i) => {
+          const idx = i + 1;
+          const done = step > idx;
+          const active = step === idx;
+          return (
+            <li key={key} className="flex shrink-0 items-center gap-1.5">
+              <span
+                className={cn(
+                  "flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1.5 text-[11px] font-semibold transition-colors sm:text-xs",
+                  active && "bg-primary text-primary-foreground",
+                  done && "bg-primary-soft text-primary",
+                  !active && !done && "bg-muted/70 text-muted-foreground"
+                )}
+                aria-current={active ? "step" : undefined}
+              >
+                {done ? (
+                  <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                ) : (
+                  <span className="tabular-nums">{idx}</span>
+                )}
+                {t(key)}
+              </span>
+              {i < STEP_KEYS.length - 1 ? (
+                <ArrowRight
+                  className="h-3 w-3 text-muted-foreground/50"
+                  aria-hidden="true"
+                />
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 }
 
@@ -291,7 +308,7 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
       active = false;
     };
   }, []);
-  const paymentsDisabled = paymentsModule?.enabled === false;
+  const paymentsDisabled = paymentsModule?.enabled !== true;
 
   const [payOnline, setPayOnline] = useState(false);
   const [payMethod, setPayMethod] = useState<PayMethod>("BKASH");
@@ -410,8 +427,11 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
   );
 
   // ── step guards ───────────────────────────────────────────────
+  const ageValue = age.trim();
+  const ageValid =
+    ageValue === "" || (/^\d{1,3}$/.test(ageValue) && Number(ageValue) <= 120);
   const detailsValid =
-    name.trim().length >= 2 && isValidBdPhone(phone.trim());
+    name.trim().length >= 2 && isValidBdPhone(phone.trim()) && ageValid;
   // Step 3 deliberately keeps Continue ENABLED with invalid fields: next()
   // runs the same checks and surfaces the validation message (role=alert),
   // so the user sees WHY they cannot proceed (e.g. a family member saved
@@ -481,7 +501,9 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
         setValidation(
           !isValidBdPhone(phone.trim())
             ? t("booking.validPhone")
-            : t("booking.validName")
+            : name.trim().length < 2
+              ? t("booking.validName")
+              : t("booking.validAge")
         );
         return;
       }
@@ -512,11 +534,11 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
       // submission (e.g. after a network timeout) reuse it so the server's
       // replay guard recognizes them as the same booking.
       if (!idempotencyKeyRef.current) {
-        idempotencyKeyRef.current =
-          typeof crypto !== "undefined" &&
-          typeof crypto.randomUUID === "function"
-            ? crypto.randomUUID()
-            : `bk-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        idempotencyKeyRef.current = crypto.randomUUID
+          ? crypto.randomUUID()
+          : Array.from(crypto.getRandomValues(new Uint8Array(16)), (v) =>
+              v.toString(16).padStart(2, "0")
+            ).join("");
       }
       const body: Record<string, unknown> = {
         doctorSlug: slug,
@@ -1052,9 +1074,9 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
                 </span>
               </button>
             </div>
-            {paymentsDisabled && paymentsModule?.disabledReason ? (
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                {paymentsModule.disabledReason}
+            {paymentsDisabled ? (
+              <p className="mt-2 rounded-xl bg-muted/70 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
+                {paymentsModule?.disabledReason ?? t("booking.paymentsUnavailable")}
               </p>
             ) : null}
             {payOnline ? (

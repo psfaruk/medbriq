@@ -1,7 +1,9 @@
 "use client";
 
 /**
- * Public portal homepage (spec §2, 18 sections in order).
+ * Public portal homepage — focused discovery journey.
+ * Dedicated education, provider and information pages remain available from
+ * the navigation; the homepage prioritizes finding care and booking it.
  */
 
 import { PortalHero } from "./hero";
@@ -9,15 +11,7 @@ import {
   ServiceCategories,
   FeaturedDoctors,
   HospitalsPreview,
-  CareNetworkBanner,
-  Specializations,
-  HealthArticles,
-  SymptomsSlider,
-  EquipmentGallery,
   HowBookingWorks,
-  OnlineConsultation,
-  ForDoctorsBand,
-  ForHospitalsBand,
   PatientBenefits,
   TrustSection,
   HomeFaq,
@@ -26,40 +20,22 @@ import {
 export default function HomeView() {
   return (
     <main id="main">
-      {/* 1. Header lives in the portal shell */}
-      {/* 2 + 3. Hero with global search */}
+      {/* 1. Clear intent: search for a doctor, specialty or hospital. */}
       <PortalHero />
-      {/* 4. Service categories */}
+      {/* 2. Quick entry points to clinical specialties and health education. */}
       <ServiceCategories />
-      {/* 5. Featured verified doctors */}
+      {/* 3. Trust-led doctor discovery. */}
       <FeaturedDoctors />
-      {/* 6. Hospital directory */}
+      {/* 4. Local hospital and clinic discovery. */}
       <HospitalsPreview />
-      {/* 6.5 Care network 3D banner */}
-      <CareNetworkBanner />
-      {/* 7. Medical specializations */}
-      <Specializations />
-      {/* 8. Health articles + awareness days */}
-      <HealthArticles />
-      {/* 9. Symptoms education slider */}
-      <SymptomsSlider />
-      {/* 10. Equipment education gallery */}
-      <EquipmentGallery />
-      {/* 11. How booking works */}
+      {/* 5. Explain the booking sequence before the user commits. */}
       <HowBookingWorks />
-      {/* 12. Online consultation (honest) */}
-      <OnlineConsultation />
-      {/* 13. For doctors */}
-      <ForDoctorsBand />
-      {/* 14. For hospitals */}
-      <ForHospitalsBand />
-      {/* 15. Patient benefits */}
+      {/* 6. Patient value proposition and practical next steps. */}
       <PatientBenefits />
-      {/* 16. Trust & verification */}
+      {/* 7. Verification and platform trust. */}
       <TrustSection />
-      {/* 17. FAQ */}
+      {/* 8. Resolve common questions; emergency guidance remains in the footer/nav. */}
       <HomeFaq />
-      {/* 18. Footer lives in the portal shell */}
     </main>
   );
 }

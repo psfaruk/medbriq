@@ -133,9 +133,15 @@ export default function DoctorsScreen() {
           className="h-11 rounded-xl px-3"
           onClick={() => setShowFilters((v) => !v)}
           aria-pressed={showFilters}
+          aria-expanded={showFilters}
+          aria-controls="doctor-search-filters"
           aria-label={t("search.filters")}
         >
           <SlidersHorizontal className="h-4 w-4" />
+        </Button>
+        <Button type="submit" className="h-11 shrink-0 rounded-xl px-3 sm:px-4">
+          <Search className="h-4 w-4 sm:mr-2" aria-hidden="true" />
+          <span className="hidden sm:inline">{t("common.search")}</span>
         </Button>
       </form>
 
@@ -169,13 +175,13 @@ export default function DoctorsScreen() {
 
       {/* Advanced filters */}
       {showFilters ? (
-        <div className="grid grid-cols-1 gap-3 rounded-2xl border border-border bg-card p-4 shadow-soft sm:grid-cols-3">
+        <div id="doctor-search-filters" className="grid grid-cols-1 gap-3 rounded-2xl border border-border bg-card p-4 shadow-soft sm:grid-cols-3">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
+            <label htmlFor="doctor-filter-specialty" className="text-xs font-semibold text-foreground">
               {t("search.specialty")}
             </label>
             <Select value={specialty} onValueChange={setSpecialty}>
-              <SelectTrigger className="h-10 rounded-xl">
+              <SelectTrigger id="doctor-filter-specialty" className="h-10 rounded-xl">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -189,11 +195,11 @@ export default function DoctorsScreen() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
+            <label htmlFor="doctor-filter-city" className="text-xs font-semibold text-foreground">
               {t("search.city")}
             </label>
             <Select value={city} onValueChange={setCity}>
-              <SelectTrigger className="h-10 rounded-xl">
+              <SelectTrigger id="doctor-filter-city" className="h-10 rounded-xl">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -207,11 +213,11 @@ export default function DoctorsScreen() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
+            <label htmlFor="doctor-filter-fee" className="text-xs font-semibold text-foreground">
               {t("search.maxFee")}
             </label>
             <Select value={maxFee} onValueChange={setMaxFee}>
-              <SelectTrigger className="h-10 rounded-xl">
+              <SelectTrigger id="doctor-filter-fee" className="h-10 rounded-xl">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

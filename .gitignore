@@ -36,7 +36,10 @@ yarn-error.log*
 # vercel
 .vercel
 
-# service-account keys — NEVER commit (rotate + store in GitHub/Vercel secrets)
+# generated short-lived credentials and service-account keys — NEVER commit
+# google-github-actions/auth may create this temporary ADC file
+gha-creds-*.json
+# Service-account key files are forbidden in the repository
 *service-account*.json
 *serviceAccount*.json
 *service_account*.json

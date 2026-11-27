@@ -52,30 +52,32 @@ export default function AdminDashboard() {
   const setAdminSection = useAppStore((s) => s.setAdminSection);
   const { t } = useT();
 
-  const [badges, setBadges] = useState<{ doctors: number; tickets: number }>({
-    doctors: 0,
-    tickets: 0,
+  const [badges, setBadges] = useState<{ doctors: number | null; tickets: number | null }>({
+    doctors: null,
+    tickets: null,
   });
   const [badgeNonce, setBadgeNonce] = useState(0);
 
   useEffect(() => {
     let alive = true;
-    Promise.all([
+    Promise.allSettled([
       apiGet<{ items: VerificationItem[] }>(
         "/api/v1/admin/verifications?status=PENDING"
       ),
       apiGet<{ items: SupportTicketItem[] }>("/api/v2/support/list"),
-    ])
-      .then(([queue, tickets]) => {
-        if (!alive) return;
-        setBadges({
-          doctors: queue.items.length,
-          tickets: tickets.items.filter((x) => x.status === "OPEN").length,
-        });
-      })
-      .catch(() => {
-        /* badges are cosmetic — keep previous values on failure */
-      });
+    ]).then(([queueResult, ticketResult]) => {
+      if (!alive) return;
+      setBadges((current) => ({
+        doctors:
+          queueResult.status === "fulfilled"
+            ? queueResult.value.items.length
+            : current.doctors,
+        tickets:
+          ticketResult.status === "fulfilled"
+            ? ticketResult.value.items.filter((x) => x.status === "OPEN").length
+            : current.tickets,
+      }));
+    });
     return () => {
       alive = false;
     };
@@ -84,35 +86,21 @@ export default function AdminDashboard() {
   const refreshBadges = useCallback(() => setBadgeNonce((n) => n + 1), []);
 
   const navItems: NavItem[] = [
-    { key: "overview", label: t("adminNav.overview"), icon: LayoutDashboard },
-    { key: "patients", label: t("adminNav.patients"), icon: Users },
-    {
-      key: "doctors",
-      label: t("adminNav.doctors"),
-      icon: Stethoscope,
-      badge: badges.doctors,
-    },
-    { key: "hospitals", label: t("adminNav.hospitals"), icon: Building2 },
-    {
-      key: "appointments",
-      label: t("adminNav.appointments"),
-      icon: CalendarCheck,
-    },
-    { key: "payments", label: t("adminNav.payments"), icon: CreditCard },
-    { key: "platform", label: t("adminNav.platform"), icon: SlidersHorizontal },
-    { key: "vvs", label: t("adminNav.vvs"), icon: ScanLine },
-    { key: "content", label: "Content (CMS)", icon: FileText },
-    { key: "analytics", label: "Analytics", icon: BarChart3 },
-    { key: "reviews", label: t("adminNav.reviews"), icon: Star },
-    {
-      key: "tickets",
-      label: t("adminNav.tickets"),
-      icon: LifeBuoy,
-      badge: badges.tickets,
-    },
-    { key: "audit", label: t("adminNav.audit"), icon: ScrollText },
-    { key: "security", label: t("adminNav.security"), icon: ShieldCheck },
-    { key: "system", label: t("adminNav.system"), icon: Activity },
+    { key: "overview", group: "Overview", label: t("adminNav.overview"), icon: LayoutDashboard },
+    { key: "patients", group: "People & organizations", label: t("adminNav.patients"), icon: Users },
+    { key: "doctors", group: "People & organizations", label: t("adminNav.doctors"), icon: Stethoscope, badge: badges.doctors ?? undefined },
+    { key: "hospitals", group: "People & organizations", label: t("adminNav.hospitals"), icon: Building2 },
+    { key: "appointments", group: "Operations", label: t("adminNav.appointments"), icon: CalendarCheck },
+    { key: "vvs", group: "Operations", label: t("adminNav.vvs"), icon: ScanLine },
+    { key: "content", group: "Operations", label: t("adminNav.content"), icon: FileText },
+    { key: "reviews", group: "Operations", label: t("adminNav.reviews"), icon: Star },
+    { key: "tickets", group: "Operations", label: t("adminNav.tickets"), icon: LifeBuoy, badge: badges.tickets ?? undefined },
+    { key: "payments", group: "Finance & platform", label: t("adminNav.payments"), icon: CreditCard },
+    { key: "platform", group: "Finance & platform", label: t("adminNav.platform"), icon: SlidersHorizontal },
+    { key: "analytics", group: "Finance & platform", label: t("adminNav.analytics"), icon: BarChart3 },
+    { key: "audit", group: "Governance", label: t("adminNav.audit"), icon: ScrollText },
+    { key: "security", group: "Governance", label: t("adminNav.security"), icon: ShieldCheck },
+    { key: "system", group: "Governance", label: t("adminNav.system"), icon: Activity },
   ];
 
   return (

@@ -74,25 +74,36 @@ export default function OverviewSection({
   const { t } = useT();
   const [overview, setOverview] = useState<HospitalOverview | null>(null);
   const [profile, setProfile] = useState<HospitalProfile | null>(null);
+  const [profileUnavailable, setProfileUnavailable] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
+    Promise.allSettled([
       apiGet<HospitalOverview>("/api/v2/hospital/overview"),
       apiGet<{ profile: HospitalProfile }>("/api/v2/hospital/profile"),
-    ])
-      .then(([ov, pf]) => {
-        if (cancelled) return;
-        setOverview(ov);
-        setProfile(pf.profile);
-        setError(null);
-      })
-      .catch((err) => {
-        if (cancelled) return;
+    ]).then(([overviewResult, profileResult]) => {
+      if (cancelled) return;
+
+      if (overviewResult.status === "rejected") {
+        const err = overviewResult.reason;
         setError(err instanceof ApiCallError ? err.message : ERROR_FALLBACK);
-      });
+        return;
+      }
+
+      setOverview(overviewResult.value);
+      setError(null);
+
+      if (profileResult.status === "fulfilled") {
+        setProfile(profileResult.value.profile);
+        setProfileUnavailable(false);
+      } else {
+        // Keep the operational summary available when profile metadata fails.
+        setProfile(null);
+        setProfileUnavailable(true);
+      }
+    });
     return () => {
       cancelled = true;
     };
@@ -115,6 +126,15 @@ export default function OverviewSection({
         subtitle={`${hospital.city} · /hospitals/${hospital.slug}`}
         action={<VerificationBadge status={verification} />}
       />
+
+      {profileUnavailable ? (
+        <div
+          role="status"
+          className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+        >
+          Hospital profile details could not be refreshed. Operational counts below are still available; retry from Profile when the service recovers.
+        </div>
+      ) : null}
 
       {verification !== "VERIFIED" ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">

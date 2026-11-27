@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +40,7 @@ export type NavItem = {
   label: string;
   icon: LucideIcon;
   badge?: number;
+  group?: string;
 };
 
 function NavList({
@@ -53,22 +54,44 @@ function NavList({
   onSectionChange: (key: string) => void;
   onNavigate?: () => void;
 }) {
+  const { t } = useT();
+  const groupLabels: Record<string, string> = {
+    Today: "dashboard.group.today",
+    Practice: "dashboard.group.practice",
+    Growth: "dashboard.group.growth",
+    "Account & trust": "dashboard.group.accountTrust",
+    Overview: "dashboard.group.overview",
+    Operations: "dashboard.group.operations",
+    Finance: "dashboard.group.finance",
+    Account: "dashboard.group.account",
+    "People & organizations": "dashboard.group.peopleOrganizations",
+    "Finance & platform": "dashboard.group.financePlatform",
+    Governance: "dashboard.group.governance",
+  };
+
   return (
     <nav className="flex flex-col gap-1" aria-label="Dashboard">
-      {items.map((item) => {
+      {items.map((item, index) => {
         const active = item.key === activeSection;
+        const showGroup = Boolean(item.group && item.group !== items[index - 1]?.group);
         return (
-          <button
-            key={item.key}
+          <div key={item.key}>
+            {showGroup ? (
+              <p className={cn("px-3.5 pb-1 pt-4 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/65", index === 0 && "pt-1")}>
+                {groupLabels[item.group ?? ""] ? t(groupLabels[item.group ?? ""]) : item.group}
+              </p>
+            ) : null}
+            <button
+            type="button"
             onClick={() => {
               onSectionChange(item.key);
               onNavigate?.();
             }}
             className={cn(
-              "flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-all",
+              "group relative flex min-h-11 items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
               active
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-primary-soft hover:text-primary"
+                ? "bg-primary-soft text-primary shadow-[inset_3px_0_0_0_var(--primary)]"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
             aria-current={active ? "page" : undefined}
           >
@@ -79,14 +102,15 @@ function NavList({
                 className={cn(
                   "ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold",
                   active
-                    ? "bg-white/20 text-white"
+                    ? "bg-primary text-white"
                     : "bg-destructive/10 text-destructive"
                 )}
               >
                 {item.badge}
               </span>
             ) : null}
-          </button>
+            </button>
+          </div>
         );
       })}
     </nav>
@@ -108,14 +132,15 @@ export default function DashboardShell({
 }) {
   const { t, lang } = useT();
   const { user, setLang, logout } = useAppStore();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const activeItem = navItems.find((n) => n.key === activeSection);
 
   return (
     <div className="min-h-screen bg-background">
       {/* ── Desktop sidebar ─────────────────────────────────────── */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-border bg-sidebar lg:flex">
-        <div className="flex h-16 items-center border-b border-border/70 px-5">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[272px] flex-col border-r border-border/80 bg-sidebar lg:flex">
+        <div className="flex h-[76px] items-center border-b border-border/70 px-6">
           <BrandLockup size="sm" tagline={false} />
         </div>
         <div className="flex-1 overflow-y-auto app-scroll px-3 py-4">
@@ -145,6 +170,7 @@ export default function DashboardShell({
             </div>
           </div>
           <button
+            type="button"
             onClick={logout}
             className="mt-1 flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/5 hover:text-destructive"
           >
@@ -155,12 +181,12 @@ export default function DashboardShell({
       </aside>
 
       {/* ── Main column ─────────────────────────────────────────── */}
-      <div className="flex min-h-screen flex-col lg:pl-64">
+      <div className="flex min-h-screen flex-col lg:pl-[272px]">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-border bg-card/90 px-4 backdrop-blur-lg sm:gap-3 sm:px-6 md:h-16">
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-border/80 bg-card/90 px-4 shadow-[0_2px_14px_rgba(23,43,77,0.035)] backdrop-blur-xl sm:gap-3 sm:px-6 md:h-[76px]">
           {/* Mobile: hamburger + brand */}
           <div className="flex min-w-0 items-center gap-2 lg:hidden">
-            <Sheet>
+            <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
               <SheetTrigger asChild>
                 <Button
                   variant="outline"
@@ -179,7 +205,7 @@ export default function DashboardShell({
                 <div className="flex h-16 items-center border-b border-border px-5">
                   <BrandLockup size="sm" tagline={false} />
                 </div>
-                <div className="px-3 py-4">
+                <div className="h-[calc(100dvh-4rem)] overflow-y-auto app-scroll px-3 py-4">
                   <p className="mb-2 px-3.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
                     {roleLabel}
                   </p>
@@ -187,8 +213,10 @@ export default function DashboardShell({
                     items={navItems}
                     activeSection={activeSection}
                     onSectionChange={onSectionChange}
+                    onNavigate={() => setMobileNavOpen(false)}
                   />
                   <button
+                    type="button"
                     onClick={logout}
                     className="mt-4 flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/5 hover:text-destructive"
                   >
@@ -204,7 +232,7 @@ export default function DashboardShell({
           </div>
 
           {/* Desktop: section title */}
-          <h1 className="hidden lg:block text-lg font-bold tracking-tight text-foreground">
+          <h1 className="hidden text-xl font-bold tracking-tight text-foreground lg:block">
             {activeItem?.label ?? roleLabel}
           </h1>
 
@@ -246,7 +274,13 @@ export default function DashboardShell({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <NotificationBell onNavigate={() => onSectionChange(activeSection)} />
+            <NotificationBell
+              onNavigate={() => {
+                if (navItems.some((item) => item.key === "appointments")) {
+                  onSectionChange("appointments");
+                }
+              }}
+            />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -288,10 +322,10 @@ export default function DashboardShell({
 
         {/* Content */}
         <main className="flex-1 animate-rise-in">
-          <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-[1480px] px-4 py-6 sm:px-6 lg:px-9 lg:py-8">
             {/* Mobile section title — matches the desktop size so the
                 dashboard reads proportionate on phones (app-like, not billboard). */}
-            <h1 className="mb-4 text-lg font-bold tracking-tight lg:hidden">
+            <h1 className="mb-5 text-xl font-bold tracking-tight text-foreground lg:hidden">
               {activeItem?.label ?? roleLabel}
             </h1>
             {children}

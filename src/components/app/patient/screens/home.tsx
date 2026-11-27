@@ -39,22 +39,32 @@ export default function HomeScreen() {
   const [appointments, setAppointments] = useState<AppointmentDto[] | null>(
     null
   );
-  const [failed, setFailed] = useState(false);
+  const [specialtiesFailed, setSpecialtiesFailed] = useState(false);
+  const [doctorsFailed, setDoctorsFailed] = useState(false);
+  const [appointmentsFailed, setAppointmentsFailed] = useState(false);
   const [query, setQuery] = useState("");
 
   const reload = () => {
-    setFailed(false);
     apiGet<{ items: SpecialtyInfo[] }>("/api/v1/specialties")
-      .then((d) => setSpecialties(d.items))
-      .catch(() => setFailed(true));
+      .then((d) => {
+        setSpecialties(d.items);
+        setSpecialtiesFailed(false);
+      })
+      .catch(() => setSpecialtiesFailed(true));
     apiGet<{ items: DoctorCard[] }>(
       "/api/v1/doctors?sort=rating&pageSize=6&verified=true"
     )
-      .then((d) => setDoctors(d.items))
-      .catch(() => setFailed(true));
+      .then((d) => {
+        setDoctors(d.items);
+        setDoctorsFailed(false);
+      })
+      .catch(() => setDoctorsFailed(true));
     apiGet<{ items: AppointmentDto[] }>("/api/v1/appointments")
-      .then((d) => setAppointments(d.items))
-      .catch(() => setFailed(true));
+      .then((d) => {
+        setAppointments(d.items);
+        setAppointmentsFailed(false);
+      })
+      .catch(() => setAppointmentsFailed(true));
   };
 
   useEffect(() => {
@@ -87,8 +97,6 @@ export default function HomeScreen() {
     )
     .sort((a, b) => a.slotStart.localeCompare(b.slotStart))
     .slice(0, 2);
-
-  if (failed) return <ErrorState onRetry={reload} />;
 
   return (
     <div className="space-y-5">
@@ -134,11 +142,8 @@ export default function HomeScreen() {
         </div>
       </div>
 
-      {/* Professional applications (patient-first onboarding, §3.1) */}
-      <ProfessionalApplySection />
-
       {/* Quick actions */}
-      <div className="grid grid-cols-4 gap-2.5">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
         {[
           {
             icon: Search,
@@ -166,8 +171,9 @@ export default function HomeScreen() {
         ].map((a) => (
           <button
             key={a.label}
+            type="button"
             onClick={a.onClick}
-            className="card-lift flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-3 text-center shadow-soft"
+            className="card-lift flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-card p-3 text-center shadow-soft"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
               <a.icon className="h-5 w-5" />
@@ -192,7 +198,9 @@ export default function HomeScreen() {
             {t("common.viewAll")}
           </button>
         </div>
-        {specialties === null ? (
+        {specialtiesFailed ? (
+          <ErrorState onRetry={reload} />
+        ) : specialties === null ? (
           <div className="flex gap-2 overflow-hidden">
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-16 w-28 shrink-0 rounded-xl" />
@@ -239,7 +247,9 @@ export default function HomeScreen() {
             {t("common.viewAll")}
           </button>
         </div>
-        {appointments === null ? (
+        {appointmentsFailed ? (
+          <ErrorState onRetry={reload} />
+        ) : appointments === null ? (
           <LoadingCard rows={1} />
         ) : upcoming.length === 0 ? (
           <EmptyState
@@ -300,7 +310,9 @@ export default function HomeScreen() {
             {t("common.viewAll")}
           </button>
         </div>
-        {doctors === null ? (
+        {doctorsFailed ? (
+          <ErrorState onRetry={reload} />
+        ) : doctors === null ? (
           <LoadingCard rows={2} />
         ) : doctors.length === 0 ? (
           <EmptyState title={t("search.noResults")} />
@@ -341,6 +353,9 @@ export default function HomeScreen() {
           </div>
         )}
       </section>
+
+      {/* Secondary path for clinicians and facility managers. */}
+      <ProfessionalApplySection />
 
       <SectionCard>
         <p className="text-xs leading-relaxed text-muted-foreground">

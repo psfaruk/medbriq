@@ -37,7 +37,8 @@ export default function HospitalDashboard() {
   const { t } = useT();
   const hospitalSection = useAppStore((s) => s.hospitalSection);
   const setHospitalSection = useAppStore((s) => s.setHospitalSection);
-  const [pendingApprovals, setPendingApprovals] = useState(0);
+  const [pendingApprovals, setPendingApprovals] = useState<number | null>(null);
+  const [summaryUnavailable, setSummaryUnavailable] = useState(false);
 
   // Nav badge: pending appointment approvals (hospital managers monitor
   // these but approvals happen in the doctor dashboard).
@@ -45,10 +46,16 @@ export default function HospitalDashboard() {
     let cancelled = false;
     apiGet<{ stats: { pendingApprovals: number } }>("/api/v2/hospital/overview")
       .then((d) => {
-        if (!cancelled) setPendingApprovals(d.stats.pendingApprovals);
+        if (!cancelled) {
+          setPendingApprovals(d.stats.pendingApprovals);
+          setSummaryUnavailable(false);
+        }
       })
       .catch(() => {
-        if (!cancelled) setPendingApprovals(0);
+        if (!cancelled) {
+          setPendingApprovals(null);
+          setSummaryUnavailable(true);
+        }
       });
     return () => {
       cancelled = true;
@@ -57,43 +64,43 @@ export default function HospitalDashboard() {
 
   const navItems: NavItem[] = [
     {
-      key: "overview",
+      key: "overview", group: "Overview",
       label: t("hospitalNav.overview"),
       icon: LayoutDashboard,
     },
     {
-      key: "branches",
+      key: "branches", group: "Operations",
       label: t("hospitalNav.branches"),
       icon: Building2,
     },
     {
-      key: "departments",
+      key: "departments", group: "Operations",
       label: t("hospitalNav.departments"),
       icon: Layers,
     },
     {
-      key: "doctors",
+      key: "doctors", group: "Operations",
       label: t("hospitalNav.doctors"),
       icon: Stethoscope,
     },
     {
-      key: "appointments",
+      key: "appointments", group: "Operations",
       label: t("hospitalNav.appointments"),
       icon: CalendarDays,
-      badge: pendingApprovals,
+      badge: pendingApprovals ?? undefined,
     },
     {
-      key: "revenue",
+      key: "revenue", group: "Finance",
       label: t("hospitalNav.revenue"),
       icon: Wallet,
     },
     {
-      key: "profile",
+      key: "profile", group: "Account",
       label: t("hospitalNav.profile"),
       icon: HospitalIcon,
     },
     {
-      key: "settings",
+      key: "settings", group: "Account",
       label: t("hospitalNav.settings"),
       icon: Settings,
     },
@@ -106,6 +113,11 @@ export default function HospitalDashboard() {
       activeSection={hospitalSection}
       onSectionChange={setHospitalSection}
     >
+      {summaryUnavailable ? (
+        <div role="status" className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+          Hospital operations summary is unavailable with the current data-store configuration. Missing counts do not mean there are zero pending appointments.
+        </div>
+      ) : null}
       {hospitalSection === "overview" ? (
         <OverviewSection onNavigate={setHospitalSection} />
       ) : hospitalSection === "branches" ? (

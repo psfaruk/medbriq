@@ -202,6 +202,7 @@ const en: Record<string, string> = {
   "booking.consultationFee": "Consultation fee",
   "booking.payAtChamber": "Pay at the chamber",
   "booking.payOnline": "Pay online (pilot)",
+  "booking.paymentsUnavailable": "Online payment is currently unavailable or its status could not be verified. Please choose pay at the chamber.",
   "booking.confirmBooking": "Confirm booking",
   "booking.bookingConfirmed": "Booking confirmed!",
   "booking.pendingApproval": "Request sent — waiting for doctor approval",
@@ -225,6 +226,7 @@ const en: Record<string, string> = {
   "booking.notesPlaceholder": "Symptoms, questions, previous reports…",
   "booking.validPhone": "Enter a valid Bangladeshi mobile number (e.g. 01XXXXXXXXX).",
   "booking.validName": "Patient name must be at least 2 characters.",
+  "booking.validAge": "Enter an age from 0 to 120, or leave the field blank.",
   "booking.cashOnVisit": "Cash on visit",
   "booking.payMethodsHint": "bKash / Nagad / Card",
   "booking.sandboxTitle": "Online payments.",
@@ -382,6 +384,18 @@ const en: Record<string, string> = {
   "hospitals.noDoctorsHint": "Doctors practising here have not published bookable profiles.",
   "hospitals.about": "About",
 
+  // ── Shared dashboard navigation groups ──────────────────────────
+  "dashboard.group.today": "Today",
+  "dashboard.group.practice": "Practice",
+  "dashboard.group.growth": "Growth",
+  "dashboard.group.accountTrust": "Account & trust",
+  "dashboard.group.overview": "Overview",
+  "dashboard.group.operations": "Operations",
+  "dashboard.group.finance": "Finance",
+  "dashboard.group.account": "Account",
+  "dashboard.group.peopleOrganizations": "People & organizations",
+  "dashboard.group.financePlatform": "Finance & platform",
+  "dashboard.group.governance": "Governance",
   // ── Doctor dashboard ────────────────────────────────────────────
   "doctorNav.overview": "Overview",
   "doctorNav.queue": "Today's queue",
@@ -418,6 +432,8 @@ const en: Record<string, string> = {
   "adminNav.audit": "Audit logs",
   "adminNav.security": "Security & RBAC",
   "adminNav.system": "System health",
+  "adminNav.content": "Content (CMS)",
+  "adminNav.analytics": "Analytics",
 
   // ── Public portal ───────────────────────────────────────────────
   "portal.nav.findDoctors": "Find Doctors",
@@ -899,6 +915,7 @@ const bn: Record<string, string> = {
   "booking.consultationFee": "পরামর্শ ফি",
   "booking.payAtChamber": "চেম্বারে বুকিং মূল্য পরিশোধ করুন",
   "booking.payOnline": "অনলাইনে পরিশোধ (স্যান্ডবক্স)",
+  "booking.paymentsUnavailable": "অনলাইন পেমেন্ট বর্তমানে চালু নেই অথবা এর অবস্থা যাচাই করা যায়নি। অনুগ্রহ করে চেম্বারে পেমেন্ট নির্বাচন করুন।",
   "booking.confirmBooking": "বুকিং নিশ্চিত করুন",
   "booking.bookingConfirmed": "বুকিং নিশ্চিত হয়েছে!",
   "booking.pendingApproval": "অনুরোধ পাঠানো হয়েছে — ডাক্তারের অনুমোদনের অপেক্ষায়",
@@ -922,6 +939,7 @@ const bn: Record<string, string> = {
   "booking.notesPlaceholder": "লক্ষণ, প্রশ্ন, আগের রিপোর্ট…",
   "booking.validPhone": "সঠিক বাংলাদেশি মোবাইল নম্বর দিন (যেমন 01XXXXXXXXX)।",
   "booking.validName": "রোগীর নাম অন্তত ২ অক্ষরের হতে হবে।",
+  "booking.validAge": "বয়স ০ থেকে ১২০-এর মধ্যে লিখুন, অথবা ঘরটি ফাঁকা রাখুন।",
   "booking.cashOnVisit": "ভিজিটের সময় নগদ পরিশোধ",
   "booking.payMethodsHint": "বিকাশ / নগদ / কার্ড",
   "booking.sandboxTitle": "অনলাইন পেমেন্ট।",
@@ -1079,6 +1097,18 @@ const bn: Record<string, string> = {
   "hospitals.noDoctorsHint": "এখানে অনুশীলনরত ডাক্তাররা এখনো বুকযোগ্য প্রোফাইল প্রকাশ করেননি।",
   "hospitals.about": "পরিচিতি",
 
+  // ── Shared dashboard navigation groups ──────────────────────────
+  "dashboard.group.today": "আজ",
+  "dashboard.group.practice": "চিকিৎসা কার্যক্রম",
+  "dashboard.group.growth": "উন্নয়ন",
+  "dashboard.group.accountTrust": "অ্যাকাউন্ট ও যাচাই",
+  "dashboard.group.overview": "সারসংক্ষেপ",
+  "dashboard.group.operations": "কার্যক্রম",
+  "dashboard.group.finance": "অর্থ",
+  "dashboard.group.account": "অ্যাকাউন্ট",
+  "dashboard.group.peopleOrganizations": "ব্যবহারকারী ও প্রতিষ্ঠান",
+  "dashboard.group.financePlatform": "অর্থ ও প্ল্যাটফর্ম",
+  "dashboard.group.governance": "নিয়ন্ত্রণ ও নিরাপত্তা",
   // ── Doctor dashboard ────────────────────────────────────────────
   "doctorNav.overview": "ওভারভিউ",
   "doctorNav.queue": "আজকের কিউ",
@@ -1115,6 +1145,8 @@ const bn: Record<string, string> = {
   "adminNav.audit": "অডিট লগ",
   "adminNav.security": "সিকিউরিটি ও পারমিশন",
   "adminNav.system": "সিস্টেম স্ট্যাটাস",
+  "adminNav.content": "কনটেন্ট (CMS)",
+  "adminNav.analytics": "অ্যানালিটিক্স",
 
   // ── Public portal ───────────────────────────────────────────────
   "portal.nav.findDoctors": "ডাক্তার খুঁজুন",
