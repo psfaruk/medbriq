@@ -1069,9 +1069,9 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
                 </span>
               </button>
             </div>
-            {paymentsDisabled && paymentsModule?.disabledReason ? (
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                {paymentsModule.disabledReason}
+            {paymentsDisabled ? (
+              <p className="mt-2 rounded-xl bg-muted/70 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
+                {paymentsModule?.disabledReason ?? t("booking.paymentsUnavailable")}
               </p>
             ) : null}
             {payOnline ? (
