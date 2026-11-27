@@ -92,8 +92,8 @@ function DoctorDashboardInner({
 
   const navItems: NavItem[] = [
     { key: "overview", group: "Today", label: t("doctorNav.overview"), icon: LayoutDashboard },
-    { key: "queue", group: "Today", label: t("doctorNav.queue"), icon: ClipboardList, badge: pending },
-    { key: "appointments", group: "Practice", label: t("doctorNav.appointments"), icon: CalendarDays },
+    { key: "queue", group: "Today", label: t("doctorNav.queue"), icon: ClipboardList },
+    { key: "appointments", group: "Practice", label: t("doctorNav.appointments"), icon: CalendarDays, badge: pending },
     { key: "patients", group: "Practice", label: t("doctorNav.patients"), icon: Users },
     { key: "fees", group: "Practice", label: t("doctorNav.fees"), icon: CircleDollarSign },
     { key: "schedule", group: "Practice", label: t("doctorNav.schedule"), icon: CalendarClock },
