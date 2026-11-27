@@ -40,6 +40,7 @@ export type NavItem = {
   label: string;
   icon: LucideIcon;
   badge?: number;
+  group?: string;
 };
 
 function NavList({
@@ -55,9 +56,16 @@ function NavList({
 }) {
   return (
     <nav className="flex flex-col gap-1" aria-label="Dashboard">
-      {items.map((item) => {
+      {items.map((item, index) => {
         const active = item.key === activeSection;
+        const showGroup = Boolean(item.group && item.group !== items[index - 1]?.group);
         return (
+          <div key={item.key}>
+            {showGroup ? (
+              <p className={cn("px-3.5 pb-1 pt-4 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/65", index === 0 && "pt-1")}>
+                {item.group}
+              </p>
+            ) : null}
           <button
             key={item.key}
             onClick={() => {
@@ -87,6 +95,7 @@ function NavList({
               </span>
             ) : null}
           </button>
+          </div>
         );
       })}
     </nav>
