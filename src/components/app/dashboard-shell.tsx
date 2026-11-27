@@ -65,10 +65,10 @@ function NavList({
               onNavigate?.();
             }}
             className={cn(
-              "flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-all",
+              "group relative flex min-h-11 items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
               active
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-primary-soft hover:text-primary"
+                ? "bg-primary-soft text-primary shadow-[inset_3px_0_0_0_var(--primary)]"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
             aria-current={active ? "page" : undefined}
           >
@@ -114,8 +114,8 @@ export default function DashboardShell({
   return (
     <div className="min-h-screen bg-background">
       {/* ── Desktop sidebar ─────────────────────────────────────── */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-border bg-sidebar lg:flex">
-        <div className="flex h-16 items-center border-b border-border/70 px-5">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[272px] flex-col border-r border-border/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] lg:flex">
+        <div className="flex h-[76px] items-center border-b border-border/70 px-6">
           <BrandLockup size="sm" tagline={false} />
         </div>
         <div className="flex-1 overflow-y-auto app-scroll px-3 py-4">
@@ -155,9 +155,9 @@ export default function DashboardShell({
       </aside>
 
       {/* ── Main column ─────────────────────────────────────────── */}
-      <div className="flex min-h-screen flex-col lg:pl-64">
+      <div className="flex min-h-screen flex-col lg:pl-[272px]">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-border bg-card/90 px-4 backdrop-blur-lg sm:gap-3 sm:px-6 md:h-16">
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-border/80 bg-white/90 px-4 shadow-[0_2px_14px_rgba(23,43,77,0.035)] backdrop-blur-xl sm:gap-3 sm:px-6 md:h-[76px]">
           {/* Mobile: hamburger + brand */}
           <div className="flex min-w-0 items-center gap-2 lg:hidden">
             <Sheet>
@@ -204,7 +204,7 @@ export default function DashboardShell({
           </div>
 
           {/* Desktop: section title */}
-          <h1 className="hidden lg:block text-lg font-bold tracking-tight text-foreground">
+          <h1 className="hidden text-xl font-bold tracking-tight text-foreground lg:block">
             {activeItem?.label ?? roleLabel}
           </h1>
 
@@ -288,10 +288,10 @@ export default function DashboardShell({
 
         {/* Content */}
         <main className="flex-1 animate-rise-in">
-          <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-[1480px] px-4 py-6 sm:px-6 lg:px-9 lg:py-8">
             {/* Mobile section title — matches the desktop size so the
                 dashboard reads proportionate on phones (app-like, not billboard). */}
-            <h1 className="mb-4 text-lg font-bold tracking-tight lg:hidden">
+            <h1 className="mb-5 text-xl font-bold tracking-tight text-foreground lg:hidden">
               {activeItem?.label ?? roleLabel}
             </h1>
             {children}
