@@ -45,23 +45,25 @@ export default function HomeScreen() {
   const [query, setQuery] = useState("");
 
   const reload = () => {
-    setSpecialties(null);
-    setDoctors(null);
-    setAppointments(null);
-    setSpecialtiesFailed(false);
-    setDoctorsFailed(false);
-    setAppointmentsFailed(false);
-
     apiGet<{ items: SpecialtyInfo[] }>("/api/v1/specialties")
-      .then((d) => setSpecialties(d.items))
+      .then((d) => {
+        setSpecialties(d.items);
+        setSpecialtiesFailed(false);
+      })
       .catch(() => setSpecialtiesFailed(true));
     apiGet<{ items: DoctorCard[] }>(
       "/api/v1/doctors?sort=rating&pageSize=6&verified=true"
     )
-      .then((d) => setDoctors(d.items))
+      .then((d) => {
+        setDoctors(d.items);
+        setDoctorsFailed(false);
+      })
       .catch(() => setDoctorsFailed(true));
     apiGet<{ items: AppointmentDto[] }>("/api/v1/appointments")
-      .then((d) => setAppointments(d.items))
+      .then((d) => {
+        setAppointments(d.items);
+        setAppointmentsFailed(false);
+      })
       .catch(() => setAppointmentsFailed(true));
   };
 
