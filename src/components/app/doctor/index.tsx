@@ -88,7 +88,7 @@ function DoctorDashboardInner({
 }) {
   const { t } = useT();
   const { data } = useDoctorDashboard();
-  const pending = data?.stats.pendingRequests ?? 0;
+  const pending = data ? data.stats.pendingRequests : undefined;
 
   const navItems: NavItem[] = [
     { key: "overview", group: "Today", label: t("doctorNav.overview"), icon: LayoutDashboard },
