@@ -159,7 +159,7 @@ function StepChips({ step }: { step: number }) {
       >
         <div
           className="h-full rounded-full bg-primary transition-[width] duration-300"
-          style={{ width: \`\${progress}%\` }}
+          style={{ width: String(progress) + "%" }}
         />
       </div>
       <ol className="app-scroll flex items-center gap-1.5 overflow-x-auto pb-0.5">
