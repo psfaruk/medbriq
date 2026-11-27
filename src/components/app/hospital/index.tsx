@@ -57,43 +57,43 @@ export default function HospitalDashboard() {
 
   const navItems: NavItem[] = [
     {
-      key: "overview",
+      key: "overview", group: "Overview",
       label: t("hospitalNav.overview"),
       icon: LayoutDashboard,
     },
     {
-      key: "branches",
+      key: "branches", group: "Operations",
       label: t("hospitalNav.branches"),
       icon: Building2,
     },
     {
-      key: "departments",
+      key: "departments", group: "Operations",
       label: t("hospitalNav.departments"),
       icon: Layers,
     },
     {
-      key: "doctors",
+      key: "doctors", group: "Operations",
       label: t("hospitalNav.doctors"),
       icon: Stethoscope,
     },
     {
-      key: "appointments",
+      key: "appointments", group: "Operations",
       label: t("hospitalNav.appointments"),
       icon: CalendarDays,
       badge: pendingApprovals,
     },
     {
-      key: "revenue",
+      key: "revenue", group: "Finance",
       label: t("hospitalNav.revenue"),
       icon: Wallet,
     },
     {
-      key: "profile",
+      key: "profile", group: "Account",
       label: t("hospitalNav.profile"),
       icon: HospitalIcon,
     },
     {
-      key: "settings",
+      key: "settings", group: "Account",
       label: t("hospitalNav.settings"),
       icon: Settings,
     },
