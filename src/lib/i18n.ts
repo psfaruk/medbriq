@@ -925,7 +925,7 @@ const bn: Record<string, string> = {
   "booking.notesPlaceholder": "লক্ষণ, প্রশ্ন, আগের রিপোর্ট…",
   "booking.validPhone": "সঠিক বাংলাদেশি মোবাইল নম্বর দিন (যেমন 01XXXXXXXXX)।",
   "booking.validName": "রোগীর নাম অন্তত ২ অক্ষরের হতে হবে।",
-  "booking.validAge": "বয়স ০ থেকে ১২০-এর মধ্যে লিখুন, অথবা ঘরটি ফাঁকা রাখুন।"
+  "booking.validAge": "বয়স ০ থেকে ১২০-এর মধ্যে লিখুন, অথবা ঘরটি ফাঁকা রাখুন।",
   "booking.cashOnVisit": "ভিজিটের সময় নগদ পরিশোধ",
   "booking.payMethodsHint": "বিকাশ / নগদ / কার্ড",
   "booking.sandboxTitle": "অনলাইন পেমেন্ট।",
