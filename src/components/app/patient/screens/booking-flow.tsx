@@ -427,9 +427,9 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
   );
 
   // ── step guards ───────────────────────────────────────────────
+  const ageValue = age.trim();
   const ageValid =
-    age.trim() === "" ||
-    (Number.isInteger(Number(age)) && Number(age) >= 0 && Number(age) <= 120);
+    ageValue === "" || (/^\d{1,3}$/.test(ageValue) && Number(ageValue) <= 120);
   const detailsValid =
     name.trim().length >= 2 && isValidBdPhone(phone.trim()) && ageValid;
   // Step 3 deliberately keeps Continue ENABLED with invalid fields: next()
