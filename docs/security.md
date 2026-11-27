@@ -77,9 +77,11 @@ Implementation: [`src/lib/auth.ts`](../src/lib/auth.ts) (server-only).
 
 ## 2. Authorization (RBAC)
 
-- Roles: `PATIENT`, `DOCTOR`, `ADMIN` (`src/lib/constants.ts`).
-- **Server-side enforcement** in every route handler via `requireUser(...roles)` — the
-  client never decides authorization. The full endpoint/role matrix is in
+- Roles: `PATIENT`, `DOCTOR`, `HOSPITAL`, `ADMIN` (`src/lib/constants.ts`). Hospital users are facility managers and must be scoped to the hospital profile linked to their own account; never trust a client-supplied hospital ID without an ownership check.
+- **Server-side enforcement** in every route handler via `requireUser(...roles)` (v1) or the
+  v2 role guards — the client never decides authorization. Hospital routes must additionally
+  verify ownership of the linked Hospital profile and every branch/department/doctor resource.
+  The full endpoint/role matrix is in
   [api.md §4](api.md#4-rbac-matrix).
 - **Ownership checks** beyond role: doctors can only manage appointments for *their own*
   profile; patients only see/cancel *their own* bookings; guests must supply both the
