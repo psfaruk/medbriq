@@ -104,3 +104,38 @@ These are compatibility risks to resolve before calling the redesign complete:
 - `docs/security.md` lists only PATIENT / DOCTOR / ADMIN, while the Prisma schema, app shell and hospital dashboard include HOSPITAL. The RBAC matrix and endpoint ownership tests must cover all four roles.
 - The CI workflow currently gates lint, typecheck, production build and secret scanning, but does not run a dedicated unit/API/browser test suite. No claim of full end-to-end verification should be made until those tests exist and run.
 - The Prisma schema still documents Float for financial amounts. A money migration must be planned separately with rounding/compatibility tests; do not silently change persisted types during a visual redesign.
+
+
+## Patient booking flow — implementation notes
+
+The current patient wizard already has a server-authoritative four-step sequence:
+1. Select a chamber (or the doctor's published location when no chamber records exist).
+2. Select a Dhaka-local date and a live slot; the API revalidates the slot at write time.
+3. Enter patient details or select a saved family member.
+4. Review the server-generated fee preview and confirm; the API recomputes price and uses an idempotency key.
+
+The redesign must preserve these protections. The current UI pass improves the progress indicator with a visible step count, accessible progress semantics and a responsive stage strip. Payment selection is fail-closed: online payment is selectable only when the bootstrap flag explicitly says it is enabled. A missing or stale module flag cannot accidentally expose an unverified payment path; the user receives a Bengali/English explanation and can choose pay-at-chamber.
+
+### Booking invariants to keep under regression coverage
+
+- No booking is created from a client-side fee calculation; `expectedFee` is only an expectation.
+- A `PRICE_CHANGED` response must show the fresh server breakdown and require another explicit confirmation.
+- A `SLOT_TAKEN`, `SLOT_UNAVAILABLE` or `SLOT_PAST` response clears the selected slot and returns the user to date/time selection.
+- A retried request reuses the same cryptographically random idempotency key; a materially new submission gets a new key.
+- Online payments remain disabled unless the payment module is explicitly enabled by the approved operator process. Do not enable bKash/Nagad/card based on UI work alone.
+- Family member and patient details must remain scoped to the authenticated patient; server-side validation and ownership checks remain authoritative.
+
+## Hospital API boundary — confirmed implementation detail
+
+The hospital dashboard is currently served by the catch-all `src/app/api/v2/hospital/[...path]/route.ts`. It calls Prisma directly for hospital, branch, department, doctor and appointment records. `requireHospitalProfile()` first invokes `requirePrismaBackedStore()`, so this surface is deliberately unavailable on Firestore-only and Hybrid store kinds. The UI should show a truthful unavailable state rather than query a different database or fabricate zero counts.
+
+Do not simply remove that guard. The current `DataStore` contract does not expose the complete hospital operations required by this route (branches, departments, hospital-scoped appointment aggregates, revenue). A safe migration requires:
+1. Define typed hospital DTOs and domain methods in `DataStore`.
+2. Implement equivalent methods in PrismaStore and FirestoreStore, and explicitly route HybridStore calls to the correct store according to the data-residency decision.
+3. Enforce hospital ownership and doctor membership inside each store method, not only in React.
+4. Add parity tests for list/create/update/delete, cross-hospital isolation, date boundaries in Asia/Dhaka, appointment counts and revenue calculations.
+5. Only then remove the Prisma-only guard for the specific endpoints that have proven parity.
+
+## Validation notes
+
+The GitHub Actions run for the earlier UI baseline completed lint, TypeScript typecheck, secret scan and production build successfully. Its opt-in production preflight correctly failed because the configured SMS provider resolves to the development `console` provider; this is a deployment-safety blocker, not a frontend compilation failure. Google sign-in and Firebase web push settings were also absent and reported as warnings. Do not weaken or skip this preflight to make CI appear green. Re-run CI against the latest commit after every subsequent UI change.
