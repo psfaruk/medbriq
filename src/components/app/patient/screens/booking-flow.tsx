@@ -427,8 +427,11 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
   );
 
   // ── step guards ───────────────────────────────────────────────
+  const ageValid =
+    age.trim() === "" ||
+    (Number.isInteger(Number(age)) && Number(age) >= 0 && Number(age) <= 120);
   const detailsValid =
-    name.trim().length >= 2 && isValidBdPhone(phone.trim());
+    name.trim().length >= 2 && isValidBdPhone(phone.trim()) && ageValid;
   // Step 3 deliberately keeps Continue ENABLED with invalid fields: next()
   // runs the same checks and surfaces the validation message (role=alert),
   // so the user sees WHY they cannot proceed (e.g. a family member saved
@@ -498,7 +501,9 @@ export default function BookingFlowScreen({ slug }: { slug: string }) {
         setValidation(
           !isValidBdPhone(phone.trim())
             ? t("booking.validPhone")
-            : t("booking.validName")
+            : name.trim().length < 2
+              ? t("booking.validName")
+              : t("booking.validAge")
         );
         return;
       }
