@@ -1,0 +1,67 @@
+name: Firebase rules and indexes (WIF)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-production-rules
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Manual only; the production GitHub environment must require approval.
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    environment: firebase-production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      FIREBASE_PROJECT_ID: medifindbd
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate with GitHub OIDC / Workload Identity Federation
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: medifindbd
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_FIREBASE_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools
+
+      - name: Verify Firebase project configuration
+        run: |
+          test -f firebase.json
+          test -f firestore.rules
+          test -f firestore.indexes.json
+          test -f storage.rules
+          firebase projects:list --json > /tmp/firebase-projects.json
+          node -e "const p=require('/tmp/firebase-projects.json'); if(!p.some(x=>x.projectId==='medifindbd')) process.exit(1)"
+          echo "Firebase project authentication verified."
+
+      - name: Deploy rules and indexes
+        run: |
+          firebase deploy \
+            --project "$FIREBASE_PROJECT_ID" \
+            --only firestore:rules,firestore:indexes,storage \
+            --non-interactive
+
+      - name: Remove generated credentials
+        if: always()
+        run: |
+          rm -f "${GOOGLE_APPLICATION_CREDENTIALS:-}"
+          rm -f "${CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE:-}"
