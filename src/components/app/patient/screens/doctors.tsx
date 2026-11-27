@@ -67,8 +67,6 @@ export default function DoctorsScreen() {
   // synchronously inside an effect), with a sequence guard against races.
   const search = () => {
     const seq = ++searchSeq.current;
-    setFailed(false);
-    setItems(null);
     apiGet<{ items: DoctorCard[]; total: number }>(buildUrl())
       .then((d) => {
         if (seq !== searchSeq.current) return;
