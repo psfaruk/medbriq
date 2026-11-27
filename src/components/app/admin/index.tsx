@@ -52,30 +52,32 @@ export default function AdminDashboard() {
   const setAdminSection = useAppStore((s) => s.setAdminSection);
   const { t } = useT();
 
-  const [badges, setBadges] = useState<{ doctors: number; tickets: number }>({
-    doctors: 0,
-    tickets: 0,
+  const [badges, setBadges] = useState<{ doctors: number | null; tickets: number | null }>({
+    doctors: null,
+    tickets: null,
   });
   const [badgeNonce, setBadgeNonce] = useState(0);
 
   useEffect(() => {
     let alive = true;
-    Promise.all([
+    Promise.allSettled([
       apiGet<{ items: VerificationItem[] }>(
         "/api/v1/admin/verifications?status=PENDING"
       ),
       apiGet<{ items: SupportTicketItem[] }>("/api/v2/support/list"),
-    ])
-      .then(([queue, tickets]) => {
-        if (!alive) return;
-        setBadges({
-          doctors: queue.items.length,
-          tickets: tickets.items.filter((x) => x.status === "OPEN").length,
-        });
-      })
-      .catch(() => {
-        /* badges are cosmetic — keep previous values on failure */
-      });
+    ]).then(([queueResult, ticketResult]) => {
+      if (!alive) return;
+      setBadges((current) => ({
+        doctors:
+          queueResult.status === "fulfilled"
+            ? queueResult.value.items.length
+            : current.doctors,
+        tickets:
+          ticketResult.status === "fulfilled"
+            ? ticketResult.value.items.filter((x) => x.status === "OPEN").length
+            : current.tickets,
+      }));
+    });
     return () => {
       alive = false;
     };
@@ -86,13 +88,13 @@ export default function AdminDashboard() {
   const navItems: NavItem[] = [
     { key: "overview", group: "Overview", label: t("adminNav.overview"), icon: LayoutDashboard },
     { key: "patients", group: "People & organizations", label: t("adminNav.patients"), icon: Users },
-    { key: "doctors", group: "People & organizations", label: t("adminNav.doctors"), icon: Stethoscope, badge: badges.doctors },
+    { key: "doctors", group: "People & organizations", label: t("adminNav.doctors"), icon: Stethoscope, badge: badges.doctors ?? undefined },
     { key: "hospitals", group: "People & organizations", label: t("adminNav.hospitals"), icon: Building2 },
     { key: "appointments", group: "Operations", label: t("adminNav.appointments"), icon: CalendarCheck },
     { key: "vvs", group: "Operations", label: t("adminNav.vvs"), icon: ScanLine },
     { key: "content", group: "Operations", label: "Content (CMS)", icon: FileText },
     { key: "reviews", group: "Operations", label: t("adminNav.reviews"), icon: Star },
-    { key: "tickets", group: "Operations", label: t("adminNav.tickets"), icon: LifeBuoy, badge: badges.tickets },
+    { key: "tickets", group: "Operations", label: t("adminNav.tickets"), icon: LifeBuoy, badge: badges.tickets ?? undefined },
     { key: "payments", group: "Finance & platform", label: t("adminNav.payments"), icon: CreditCard },
     { key: "platform", group: "Finance & platform", label: t("adminNav.platform"), icon: SlidersHorizontal },
     { key: "analytics", group: "Finance & platform", label: "Analytics", icon: BarChart3 },
