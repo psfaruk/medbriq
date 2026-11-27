@@ -69,9 +69,9 @@ export default function PatientShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* ── Top bar ─────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 border-b border-border bg-card/90 backdrop-blur-lg">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="flex h-14 items-center justify-between gap-3 md:h-16">
+      <header className="sticky top-0 z-40 border-b border-border/80 bg-white/90 shadow-[0_2px_14px_rgba(23,43,77,0.035)] backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-14 items-center justify-between gap-3 md:h-[72px]">
             <button
               onClick={() => resetPatient({ name: "home" })}
               aria-label="Find Medi Doctor home"
@@ -87,9 +87,9 @@ export default function PatientShell({ children }: { children: ReactNode }) {
                   key={tab.key}
                   onClick={() => resetPatient({ name: tab.key } as PatientScreen)}
                   className={cn(
-                    "rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                    "min-h-10 rounded-full px-4 py-2 text-sm font-semibold transition-all",
                     activeTab === tab.key
-                      ? "bg-primary-soft text-primary"
+                      ? "bg-primary-soft text-primary shadow-sm"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   )}
                   aria-current={activeTab === tab.key ? "page" : undefined}
@@ -165,7 +165,7 @@ export default function PatientShell({ children }: { children: ReactNode }) {
       {/* ── Content ─────────────────────────────────────────────── */}
       {/* pb-28: clears the fixed bottom nav incl. iOS safe-area inset */}
       <main className="flex-1 w-full pb-28 md:pb-8 animate-rise-in">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-5">{children}</div>
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8 lg:py-7">{children}</div>
       </main>
 
       {/* ── Footer (sticky bottom on short pages, pushed on long) ── */}
