@@ -190,7 +190,7 @@ export default function DashboardShell({
                 <div className="flex h-16 items-center border-b border-border px-5">
                   <BrandLockup size="sm" tagline={false} />
                 </div>
-                <div className="px-3 py-4">
+                <div className="h-[calc(100dvh-4rem)] overflow-y-auto app-scroll px-3 py-4">
                   <p className="mb-2 px-3.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
                     {roleLabel}
                   </p>
