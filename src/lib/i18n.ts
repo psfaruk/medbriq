@@ -432,6 +432,8 @@ const en: Record<string, string> = {
   "adminNav.audit": "Audit logs",
   "adminNav.security": "Security & RBAC",
   "adminNav.system": "System health",
+  "adminNav.content": "Content (CMS)",
+  "adminNav.analytics": "Analytics",
 
   // ── Public portal ───────────────────────────────────────────────
   "portal.nav.findDoctors": "Find Doctors",
@@ -1143,6 +1145,8 @@ const bn: Record<string, string> = {
   "adminNav.audit": "অডিট লগ",
   "adminNav.security": "সিকিউরিটি ও পারমিশন",
   "adminNav.system": "সিস্টেম স্ট্যাটাস",
+  "adminNav.content": "কনটেন্ট (CMS)",
+  "adminNav.analytics": "অ্যানালিটিক্স",
 
   // ── Public portal ───────────────────────────────────────────────
   "portal.nav.findDoctors": "ডাক্তার খুঁজুন",
