@@ -11,6 +11,14 @@
 # GitHub reported a configuration error on every check, so dependency update
 # PRs have never been created for this repo. Entries are now nested under
 # `updates:` per schema; the bogus key is gone.
+#
+# NOTE (verified empirically after the fix): the npm entry cannot create
+# version-update PRs while the repo is bun-only (bun.lock) — Dependabot's
+# npm ecosystem needs package-lock.json / yarn.lock. The entry is kept so
+# updates start automatically if Dependabot gains bun.lock support, and
+# because Dependabot ALERTS (security advisories) work off package.json
+# regardless. Expect the weekly npm_and_yarn internal update run to fail
+# until then; github-actions updates work today.
 # ─────────────────────────────────────────────────────────────────────────────
 
 version: 2

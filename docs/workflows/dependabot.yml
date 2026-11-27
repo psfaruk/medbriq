@@ -11,6 +11,14 @@
 # entries sat at the top level next to `version: 2` (invalid YAML) and
 # `update-timeout: 15` is not a Dependabot key, so GitHub reported a
 # configuration error and dependency update PRs were never created.
+#
+# NOTE (verified empirically after the fix): the npm entry cannot create
+# version-update PRs while the repo is bun-only (bun.lock) — Dependabot's
+# npm ecosystem needs package-lock.json / yarn.lock. The entry is kept so
+# updates start automatically if Dependabot gains bun.lock support, and
+# because Dependabot ALERTS (security advisories) work off package.json
+# regardless. Expect the weekly npm_and_yarn internal update run to fail
+# until then; github-actions updates work today.
 # ─────────────────────────────────────────────────────────────────────────────
 
 version: 2
