@@ -202,6 +202,7 @@ const en: Record<string, string> = {
   "booking.consultationFee": "Consultation fee",
   "booking.payAtChamber": "Pay at the chamber",
   "booking.payOnline": "Pay online (pilot)",
+  "booking.paymentsUnavailable": "Online payment is currently unavailable or its status could not be verified. Please choose pay at the chamber.",
   "booking.confirmBooking": "Confirm booking",
   "booking.bookingConfirmed": "Booking confirmed!",
   "booking.pendingApproval": "Request sent — waiting for doctor approval",
@@ -899,6 +900,7 @@ const bn: Record<string, string> = {
   "booking.consultationFee": "পরামর্শ ফি",
   "booking.payAtChamber": "চেম্বারে বুকিং মূল্য পরিশোধ করুন",
   "booking.payOnline": "অনলাইনে পরিশোধ (স্যান্ডবক্স)",
+  "booking.paymentsUnavailable": "অনলাইন পেমেন্ট বর্তমানে চালু নেই অথবা এর অবস্থা যাচাই করা যায়নি। অনুগ্রহ করে চেম্বারে পেমেন্ট নির্বাচন করুন।"
   "booking.confirmBooking": "বুকিং নিশ্চিত করুন",
   "booking.bookingConfirmed": "বুকিং নিশ্চিত হয়েছে!",
   "booking.pendingApproval": "অনুরোধ পাঠানো হয়েছে — ডাক্তারের অনুমোদনের অপেক্ষায়",
