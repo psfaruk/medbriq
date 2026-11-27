@@ -84,35 +84,35 @@ export default function AdminDashboard() {
   const refreshBadges = useCallback(() => setBadgeNonce((n) => n + 1), []);
 
   const navItems: NavItem[] = [
-    { key: "overview", label: t("adminNav.overview"), icon: LayoutDashboard },
-    { key: "patients", label: t("adminNav.patients"), icon: Users },
+    { key: "overview", group: "Overview", label: t("adminNav.overview"), icon: LayoutDashboard },
+    { key: "patients", group: "People & organizations", label: t("adminNav.patients"), icon: Users },
     {
-      key: "doctors",
+      key: "doctors", group: "People & organizations",
       label: t("adminNav.doctors"),
       icon: Stethoscope,
       badge: badges.doctors,
     },
-    { key: "hospitals", label: t("adminNav.hospitals"), icon: Building2 },
+    { key: "hospitals", group: "People & organizations", label: t("adminNav.hospitals"), icon: Building2 },
     {
-      key: "appointments",
+      key: "appointments", group: "Operations",
       label: t("adminNav.appointments"),
       icon: CalendarCheck,
     },
-    { key: "payments", label: t("adminNav.payments"), icon: CreditCard },
-    { key: "platform", label: t("adminNav.platform"), icon: SlidersHorizontal },
-    { key: "vvs", label: t("adminNav.vvs"), icon: ScanLine },
-    { key: "content", label: "Content (CMS)", icon: FileText },
-    { key: "analytics", label: "Analytics", icon: BarChart3 },
-    { key: "reviews", label: t("adminNav.reviews"), icon: Star },
+    { key: "payments", group: "Finance & platform", label: t("adminNav.payments"), icon: CreditCard },
+    { key: "platform", group: "Finance & platform", label: t("adminNav.platform"), icon: SlidersHorizontal },
+    { key: "vvs", group: "Operations", label: t("adminNav.vvs"), icon: ScanLine },
+    { key: "content", group: "Operations", label: "Content (CMS)", icon: FileText },
+    { key: "analytics", group: "Finance & platform", label: "Analytics", icon: BarChart3 },
+    { key: "reviews", group: "Operations", label: t("adminNav.reviews"), icon: Star },
     {
-      key: "tickets",
+      key: "tickets", group: "Operations",
       label: t("adminNav.tickets"),
       icon: LifeBuoy,
       badge: badges.tickets,
     },
-    { key: "audit", label: t("adminNav.audit"), icon: ScrollText },
-    { key: "security", label: t("adminNav.security"), icon: ShieldCheck },
-    { key: "system", label: t("adminNav.system"), icon: Activity },
+    { key: "audit", group: "Governance", label: t("adminNav.audit"), icon: ScrollText },
+    { key: "security", group: "Governance", label: t("adminNav.security"), icon: ShieldCheck },
+    { key: "system", group: "Governance", label: t("adminNav.system"), icon: Activity },
   ];
 
   return (
