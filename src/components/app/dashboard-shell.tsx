@@ -122,7 +122,7 @@ export default function DashboardShell({
   return (
     <div className="min-h-screen bg-background">
       {/* ── Desktop sidebar ─────────────────────────────────────── */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[272px] flex-col border-r border-border/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[272px] flex-col border-r border-border/80 bg-sidebar lg:flex">
         <div className="flex h-[76px] items-center border-b border-border/70 px-6">
           <BrandLockup size="sm" tagline={false} />
         </div>
@@ -165,7 +165,7 @@ export default function DashboardShell({
       {/* ── Main column ─────────────────────────────────────────── */}
       <div className="flex min-h-screen flex-col lg:pl-[272px]">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-border/80 bg-white/90 px-4 shadow-[0_2px_14px_rgba(23,43,77,0.035)] backdrop-blur-xl sm:gap-3 sm:px-6 md:h-[76px]">
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-border/80 bg-card/90 px-4 shadow-[0_2px_14px_rgba(23,43,77,0.035)] backdrop-blur-xl sm:gap-3 sm:px-6 md:h-[76px]">
           {/* Mobile: hamburger + brand */}
           <div className="flex min-w-0 items-center gap-2 lg:hidden">
             <Sheet>
