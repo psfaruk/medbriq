@@ -127,12 +127,14 @@ export function productionConfigReport(): ConfigCheck[] {
     id: "sms",
     label: "SMS provider",
     ok: smsOk,
-    level: "error",
+    // SMS is intentionally optional for the first production release.
+    // The runtime fails closed: phone OTP stays unavailable until a real
+    // provider is configured; email/password and Google sign-in are separate.
+    level: "warn",
     detail: smsOk
       ? `Real provider configured (${provider}).`
-      : `SMS_PROVIDER=${provider} — phone OTP login is DISABLED in production ` +
-        "(the dev provider echoes codes and would allow account takeover). " +
-        "Email + password and Google sign-in still work.",
+      : `SMS_PROVIDER=${provider} — phone OTP login remains DISABLED in production. ` +
+        "No OTP is sent or echoed. Email + password and Google sign-in remain available.",
   });
 
   // ── 4. Google sign-in ────────────────────────────────────────────────
