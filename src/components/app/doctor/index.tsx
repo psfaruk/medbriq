@@ -91,23 +91,23 @@ function DoctorDashboardInner({
   const pending = data?.stats.pendingRequests ?? 0;
 
   const navItems: NavItem[] = [
-    { key: "overview", label: t("doctorNav.overview"), icon: LayoutDashboard },
-    { key: "queue", label: t("doctorNav.queue"), icon: ClipboardList },
-    { key: "vvs", label: t("doctorNav.vvs"), icon: ShieldCheck },
+    { key: "overview", group: "Today", label: t("doctorNav.overview"), icon: LayoutDashboard },
+    { key: "queue", group: "Today", label: t("doctorNav.queue"), icon: ClipboardList },
+    { key: "vvs", group: "Account & trust", label: t("doctorNav.vvs"), icon: ShieldCheck },
     {
-      key: "appointments",
+      key: "appointments", group: "Practice",
       label: t("doctorNav.appointments"),
       icon: CalendarDays,
       badge: pending,
     },
-    { key: "patients", label: t("doctorNav.patients"), icon: Users },
-    { key: "fees", label: t("doctorNav.fees"), icon: CircleDollarSign },
-    { key: "schedule", label: t("doctorNav.schedule"), icon: CalendarClock },
-    { key: "chambers", label: t("doctorNav.chambers"), icon: Building2 },
-    { key: "earnings", label: t("doctorNav.earnings"), icon: Wallet },
-    { key: "reviews", label: t("doctorNav.reviews"), icon: MessageSquareQuote },
-    { key: "profile", label: t("doctorNav.profile"), icon: UserRound },
-    { key: "settings", label: t("doctorNav.settings"), icon: Settings },
+    { key: "patients", group: "Practice", label: t("doctorNav.patients"), icon: Users },
+    { key: "fees", group: "Practice", label: t("doctorNav.fees"), icon: CircleDollarSign },
+    { key: "schedule", group: "Practice", label: t("doctorNav.schedule"), icon: CalendarClock },
+    { key: "chambers", group: "Practice", label: t("doctorNav.chambers"), icon: Building2 },
+    { key: "earnings", group: "Growth", label: t("doctorNav.earnings"), icon: Wallet },
+    { key: "reviews", group: "Growth", label: t("doctorNav.reviews"), icon: MessageSquareQuote },
+    { key: "profile", group: "Account & trust", label: t("doctorNav.profile"), icon: UserRound },
+    { key: "settings", group: "Account & trust", label: t("doctorNav.settings"), icon: Settings },
   ];
 
   return (
