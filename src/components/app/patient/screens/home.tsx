@@ -140,9 +140,6 @@ export default function HomeScreen() {
         </div>
       </div>
 
-      {/* Professional applications (patient-first onboarding, §3.1) */}
-      <ProfessionalApplySection />
-
       {/* Quick actions */}
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
         {[
@@ -354,6 +351,9 @@ export default function HomeScreen() {
           </div>
         )}
       </section>
+
+      {/* Secondary path for clinicians and facility managers. */}
+      <ProfessionalApplySection />
 
       <SectionCard>
         <p className="text-xs leading-relaxed text-muted-foreground">
