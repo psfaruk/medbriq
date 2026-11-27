@@ -226,6 +226,7 @@ const en: Record<string, string> = {
   "booking.notesPlaceholder": "Symptoms, questions, previous reports…",
   "booking.validPhone": "Enter a valid Bangladeshi mobile number (e.g. 01XXXXXXXXX).",
   "booking.validName": "Patient name must be at least 2 characters.",
+  "booking.validAge": "Enter an age from 0 to 120, or leave the field blank.",
   "booking.cashOnVisit": "Cash on visit",
   "booking.payMethodsHint": "bKash / Nagad / Card",
   "booking.sandboxTitle": "Online payments.",
@@ -924,6 +925,7 @@ const bn: Record<string, string> = {
   "booking.notesPlaceholder": "লক্ষণ, প্রশ্ন, আগের রিপোর্ট…",
   "booking.validPhone": "সঠিক বাংলাদেশি মোবাইল নম্বর দিন (যেমন 01XXXXXXXXX)।",
   "booking.validName": "রোগীর নাম অন্তত ২ অক্ষরের হতে হবে।",
+  "booking.validAge": "বয়স ০ থেকে ১২০-এর মধ্যে লিখুন, অথবা ঘরটি ফাঁকা রাখুন।"
   "booking.cashOnVisit": "ভিজিটের সময় নগদ পরিশোধ",
   "booking.payMethodsHint": "বিকাশ / নগদ / কার্ড",
   "booking.sandboxTitle": "অনলাইন পেমেন্ট।",
