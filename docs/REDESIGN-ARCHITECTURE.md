@@ -92,3 +92,15 @@ Before a production claim:
 ## Non-goals for this redesign
 
 No live payment integration, telemedicine call provider, SMS vendor, medical diagnosis/recommendation engine, production migration, or service decomposition is to be fabricated as part of UI work. Keep current real capabilities and module flags truthful.
+
+
+## Baseline findings confirmed during implementation
+
+These are compatibility risks to resolve before calling the redesign complete:
+
+- The v1 API uses the `DataStore` abstraction, but `src/app/api/v2/_lib/guards.ts` explicitly rejects non-Prisma stores for v2 surfaces. The hospital dashboard currently calls `/api/v2/hospital/overview`; therefore the UI must handle the honest disabled/error state and the backend needs a DataStore-backed implementation before those operations can be claimed as Firestore/Hybrid-ready.
+- `src/lib/modules.ts` currently enables appointment booking on all store kinds, while the v2 guard still disables Prisma-direct surfaces on Firestore/Hybrid. This is not necessarily a booking-engine contradiction (v1 booking is DataStore-backed), but module flags must be scoped to the actual API surface and must not imply every dashboard module is enabled.
+- Some comments in `src/lib/data/types.ts` and `docs/architecture.md` describe the old Firestore fee/booking freeze or local-only deployment state. The current `src/lib/data/index.ts` and `src/lib/modules.ts` describe a later owner override. Documentation must be reconciled against the deployed configuration and actual store implementation, not updated by assumption.
+- `docs/security.md` lists only PATIENT / DOCTOR / ADMIN, while the Prisma schema, app shell and hospital dashboard include HOSPITAL. The RBAC matrix and endpoint ownership tests must cover all four roles.
+- The CI workflow currently gates lint, typecheck, production build and secret scanning, but does not run a dedicated unit/API/browser test suite. No claim of full end-to-end verification should be made until those tests exist and run.
+- The Prisma schema still documents Float for financial amounts. A money migration must be planned separately with rounding/compatibility tests; do not silently change persisted types during a visual redesign.
