@@ -69,7 +69,7 @@ export default function PatientShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* ── Top bar ─────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 border-b border-border/80 bg-white/90 shadow-[0_2px_14px_rgba(23,43,77,0.035)] backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-border/80 bg-card/90 shadow-[0_2px_14px_rgba(23,43,77,0.035)] backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-14 items-center justify-between gap-3 md:h-[72px]">
             <button
@@ -197,14 +197,14 @@ export default function PatientShell({ children }: { children: ReactNode }) {
                   resetPatient({ name: tab.key } as PatientScreen)
                 }
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors",
+                  "flex min-h-14 flex-col items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors",
                   active ? "text-primary" : "text-muted-foreground"
                 )}
                 aria-current={active ? "page" : undefined}
               >
                 <span
                   className={cn(
-                    "flex h-7 w-12 items-center justify-center rounded-full transition-colors",
+                    "flex h-8 w-12 items-center justify-center rounded-full transition-colors",
                     active ? "bg-primary-soft" : ""
                   )}
                 >
