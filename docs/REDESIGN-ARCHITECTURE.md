@@ -139,3 +139,38 @@ Do not simply remove that guard. The current `DataStore` contract does not expos
 ## Validation notes
 
 The GitHub Actions run for the earlier UI baseline completed lint, TypeScript typecheck, secret scan and production build successfully. Its opt-in production preflight correctly failed because the configured SMS provider resolves to the development `console` provider; this is a deployment-safety blocker, not a frontend compilation failure. Google sign-in and Firebase web push settings were also absent and reported as warnings. Do not weaken or skip this preflight to make CI appear green. Re-run CI against the latest commit after every subsequent UI change.
+
+## Hospital API migration — concrete DataStore parity backlog
+
+The current hospital catch-all route is not yet store-agnostic. `requireHospitalProfile()` calls `requirePrismaBackedStore()` and the handler directly uses Prisma models. Keep that guard until every operation below has equivalent behavior in all enabled stores.
+
+| Current operation | Required domain method | Required invariants before enabling Firestore/Hybrid |
+|---|---|---|
+| Hospital profile lookup | `getHospitalByUserId` (extend its return type only if needed) | Resolve strictly by authenticated user ID; never accept a client-supplied hospital ID |
+| Overview counts + recent appointments | `getHospitalOverview(userId, dhakaDateRange)` | Counts and appointment rows must be scoped through doctors owned by the hospital; preserve Dhaka day boundaries |
+| Branch list/create/update/delete | `listHospitalBranches`, `createHospitalBranch`, `updateHospitalBranch`, `deleteHospitalBranch` | Every mutation must verify branch ownership atomically; preserve main-branch rules and stable ordering |
+| Department list/create/update/delete | `listHospitalDepartments`, `createHospitalDepartment`, `updateHospitalDepartment`, `deleteHospitalDepartment` | Every mutation must verify hospital ownership; define duplicate-name behavior consistently |
+| Hospital doctors | `listHospitalDoctors` | Include only doctors affiliated with the authenticated hospital; return the same public/admin-safe DTO fields |
+| Hospital appointments | `listHospitalAppointments` | Filter through hospital-owned doctor IDs; validate status filters; never expose consultation notes or unrelated patient records |
+| Revenue summary | `getHospitalRevenue` | Use completed visits only; define currency/rounding and commission snapshot semantics; never call a calculated figure withdrawable balance |
+| Hospital profile update | `updateHospitalProfile` | Validate allowed fields and ownership in the same transaction; slug and verification state remain server-controlled |
+
+Implementation sequence:
+1. Define serializable record/input/output types and error contracts in `src/lib/data/types.ts`.
+2. Implement each method in PrismaStore first and add focused unit/integration tests for ownership, state transitions, rounding and date boundaries.
+3. Implement the same method in FirestoreStore using server-only credentials and explicit document paths/rules.
+4. Implement HybridStore routing according to the approved data-residency decision; do not replicate patient visit/appointment details into an unapproved region.
+5. Add contract tests that run the same fixtures against every store adapter; include cross-hospital access denial and mutation races.
+6. Move the v2 route to typed domain methods; remove only the corresponding Prisma-only guard after parity tests pass.
+7. Update module flags to reflect the actual store capability, then verify dashboard states for enabled, disabled and temporarily unavailable modules.
+
+The existing `DataStore` currently covers public hospital directory/profile lookup but does not define the branch, department, hospital-scoped doctor, appointment, overview or revenue operations above. This is an intentional implementation gap, not a reason to read/write a second database from production.
+
+## Dashboard operational truth rules
+
+- A badge is absent while its count is unknown; it must not display `0` until the relevant request succeeds.
+- Independent badge/data requests should fail independently. One endpoint failure must not erase another endpoint's valid result.
+- A fallback directory is not a substitute for an admin verification queue. Label its source and mark verification state unknown.
+- Keep stale successful data visible during refresh, but label refresh errors and provide a retry action.
+- Do not present missing values as zero, online payment as enabled without a confirmed module/provider state, or calculated revenue as a payable balance.
+- Dashboard notification links must navigate to the relevant section; mobile navigation must close after a successful selection and remain scrollable on small screens.
