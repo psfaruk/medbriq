@@ -66,8 +66,7 @@ function NavList({
                 {item.group}
               </p>
             ) : null}
-          <button
-            key={item.key}
+            <button
             onClick={() => {
               onSectionChange(item.key);
               onNavigate?.();
@@ -87,14 +86,14 @@ function NavList({
                 className={cn(
                   "ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold",
                   active
-                    ? "bg-white/20 text-white"
+                    ? "bg-primary text-white"
                     : "bg-destructive/10 text-destructive"
                 )}
               >
                 {item.badge}
               </span>
             ) : null}
-          </button>
+            </button>
           </div>
         );
       })}
