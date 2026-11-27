@@ -54,6 +54,21 @@ function NavList({
   onSectionChange: (key: string) => void;
   onNavigate?: () => void;
 }) {
+  const { t } = useT();
+  const groupLabels: Record<string, string> = {
+    Today: "dashboard.group.today",
+    Practice: "dashboard.group.practice",
+    Growth: "dashboard.group.growth",
+    "Account & trust": "dashboard.group.accountTrust",
+    Overview: "dashboard.group.overview",
+    Operations: "dashboard.group.operations",
+    Finance: "dashboard.group.finance",
+    Account: "dashboard.group.account",
+    "People & organizations": "dashboard.group.peopleOrganizations",
+    "Finance & platform": "dashboard.group.financePlatform",
+    Governance: "dashboard.group.governance",
+  };
+
   return (
     <nav className="flex flex-col gap-1" aria-label="Dashboard">
       {items.map((item, index) => {
@@ -63,7 +78,7 @@ function NavList({
           <div key={item.key}>
             {showGroup ? (
               <p className={cn("px-3.5 pb-1 pt-4 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/65", index === 0 && "pt-1")}>
-                {item.group}
+                {groupLabels[item.group ?? ""] ? t(groupLabels[item.group ?? ""]) : item.group}
               </p>
             ) : null}
             <button
