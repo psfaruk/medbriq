@@ -4,32 +4,39 @@
 # linger. Grouped by ecosystem to keep the PR count sane.
 #
 # Source of truth: docs/workflows/dependabot.yml (edit there, re-copy here).
+#
+# FIX (audit 2026-11-27): this file never parsed. The update entries sat at
+# the top level next to `version: 2` (invalid YAML — a mapping cannot be
+# followed by a sequence) and `update-timeout: 15` is not a Dependabot key.
+# GitHub reported a configuration error on every check, so dependency update
+# PRs have never been created for this repo. Entries are now nested under
+# `updates:` per schema; the bogus key is gone.
 # ─────────────────────────────────────────────────────────────────────────────
 
 version: 2
-update-timeout: 15
 
-- package-ecosystem: npm
-  directory: "/"
-  schedule:
-    interval: weekly
-    day: monday
-    time: "06:00"
-    timezone: Asia/Dhaka
-  groups:
-    production-deps:
-      applies-to: version-updates
-      dependency-type: production
-    dev-deps:
-      applies-to: version-updates
-      dependency-type: development
-  open-pull-requests-limit: 5
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Dhaka
+    groups:
+      production-deps:
+        applies-to: version-updates
+        dependency-type: production
+      dev-deps:
+        applies-to: version-updates
+        dependency-type: development
+    open-pull-requests-limit: 5
 
-- package-ecosystem: github-actions
-  directory: "/"
-  schedule:
-    interval: weekly
-    day: monday
-    time: "06:00"
-    timezone: Asia/Dhaka
-  open-pull-requests-limit: 3
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Dhaka
+    open-pull-requests-limit: 3
