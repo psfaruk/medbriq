@@ -384,6 +384,18 @@ const en: Record<string, string> = {
   "hospitals.noDoctorsHint": "Doctors practising here have not published bookable profiles.",
   "hospitals.about": "About",
 
+  // ── Shared dashboard navigation groups ──────────────────────────
+  "dashboard.group.today": "Today",
+  "dashboard.group.practice": "Practice",
+  "dashboard.group.growth": "Growth",
+  "dashboard.group.accountTrust": "Account & trust",
+  "dashboard.group.overview": "Overview",
+  "dashboard.group.operations": "Operations",
+  "dashboard.group.finance": "Finance",
+  "dashboard.group.account": "Account",
+  "dashboard.group.peopleOrganizations": "People & organizations",
+  "dashboard.group.financePlatform": "Finance & platform",
+  "dashboard.group.governance": "Governance",
   // ── Doctor dashboard ────────────────────────────────────────────
   "doctorNav.overview": "Overview",
   "doctorNav.queue": "Today's queue",
@@ -1083,6 +1095,18 @@ const bn: Record<string, string> = {
   "hospitals.noDoctorsHint": "এখানে অনুশীলনরত ডাক্তাররা এখনো বুকযোগ্য প্রোফাইল প্রকাশ করেননি।",
   "hospitals.about": "পরিচিতি",
 
+  // ── Shared dashboard navigation groups ──────────────────────────
+  "dashboard.group.today": "আজ",
+  "dashboard.group.practice": "চিকিৎসা কার্যক্রম",
+  "dashboard.group.growth": "উন্নয়ন",
+  "dashboard.group.accountTrust": "অ্যাকাউন্ট ও যাচাই",
+  "dashboard.group.overview": "সারসংক্ষেপ",
+  "dashboard.group.operations": "কার্যক্রম",
+  "dashboard.group.finance": "অর্থ",
+  "dashboard.group.account": "অ্যাকাউন্ট",
+  "dashboard.group.peopleOrganizations": "ব্যবহারকারী ও প্রতিষ্ঠান",
+  "dashboard.group.financePlatform": "অর্থ ও প্ল্যাটফর্ম",
+  "dashboard.group.governance": "নিয়ন্ত্রণ ও নিরাপত্তা",
   // ── Doctor dashboard ────────────────────────────────────────────
   "doctorNav.overview": "ওভারভিউ",
   "doctorNav.queue": "আজকের কিউ",
