@@ -69,42 +69,42 @@
   --card-foreground: #172b4d;
   --popover: #ffffff;
   --popover-foreground: #172b4d;
-  /* #0F8F87 — trustworthy medical teal */
-  --primary: #0f8f87;
+  /* Sky blue — clear primary navigation and action color */
+  --primary: #1677d2;
   --primary-foreground: #ffffff;
   /* soft teal tint for chips / hover surfaces */
-  --primary-soft: #e6f5f4;
+  --primary-soft: #eaf4ff;
   /* #13A89E — teal partner accent */
-  --secondary: #13a89e;
+  --secondary: #119b91;
   --secondary-foreground: #ffffff;
-  --brand-teal: #13a89e;
+  --brand-teal: #119b91;
   --muted: #eef2f7;
   --muted-foreground: #718096;
   /* soft teal tint for hover accents */
-  --accent: #e6f5f4;
-  --accent-foreground: #0e6b65;
+  --accent: #fff6df;
+  --accent-foreground: #8a5a00;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
   --border: #e3eaf3;
   --input: #dbe4ef;
-  --ring: #0f8f87;
+  --ring: #1677d2;
   --success: #16a34a;
   --success-foreground: #ffffff;
   --warning: #d97706;
   --warning-foreground: #ffffff;
-  --chart-1: #0f8f87;
+  --chart-1: #1677d2;
   --chart-2: #13a89e;
   --chart-3: #7ec8c2;
   --chart-4: #d97706;
   --chart-5: #dc2626;
   --sidebar: #ffffff;
   --sidebar-foreground: #172b4d;
-  --sidebar-primary: #0f8f87;
+  --sidebar-primary: #1677d2;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e6f5f4;
-  --sidebar-accent-foreground: #0f8f87;
+  --sidebar-accent: #eaf4ff;
+  --sidebar-accent-foreground: #125fa8;
   --sidebar-border: #e3eaf3;
-  --sidebar-ring: #0f8f87;
+  --sidebar-ring: #1677d2;
 }
 
 .dark {
@@ -163,9 +163,9 @@
 
 /* ── Find Medi Doctor signature utilities ──────────────────────────────────── */
 
-/* Teal gradient for hero bands and primary surfaces */
+/* Sky-blue gradient for hero bands and primary surfaces */
 .bg-brand-gradient {
-  background: linear-gradient(135deg, #0f8f87 0%, #12a49b 55%, #13a89e 130%);
+  background: linear-gradient(135deg, #1268bd 0%, #1677d2 55%, #3994e8 130%);
 }
 
 .bg-brand-gradient-soft {
@@ -202,7 +202,7 @@
 .card-lift:hover {
   transform: translateY(-3px);
   box-shadow:
-    0 10px 24px -10px rgba(15, 143, 135, 0.20),
+    0 10px 24px -10px rgba(22, 119, 210, 0.18),
     0 3px 10px -4px rgba(23, 43, 77, 0.08);
 }
 
