@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,6 +67,7 @@ function NavList({
               </p>
             ) : null}
             <button
+            type="button"
             onClick={() => {
               onSectionChange(item.key);
               onNavigate?.();
@@ -116,6 +117,7 @@ export default function DashboardShell({
 }) {
   const { t, lang } = useT();
   const { user, setLang, logout } = useAppStore();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const activeItem = navItems.find((n) => n.key === activeSection);
 
@@ -153,6 +155,7 @@ export default function DashboardShell({
             </div>
           </div>
           <button
+            type="button"
             onClick={logout}
             className="mt-1 flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/5 hover:text-destructive"
           >
@@ -168,7 +171,7 @@ export default function DashboardShell({
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-border/80 bg-card/90 px-4 shadow-[0_2px_14px_rgba(23,43,77,0.035)] backdrop-blur-xl sm:gap-3 sm:px-6 md:h-[76px]">
           {/* Mobile: hamburger + brand */}
           <div className="flex min-w-0 items-center gap-2 lg:hidden">
-            <Sheet>
+            <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
               <SheetTrigger asChild>
                 <Button
                   variant="outline"
@@ -195,8 +198,10 @@ export default function DashboardShell({
                     items={navItems}
                     activeSection={activeSection}
                     onSectionChange={onSectionChange}
+                    onNavigate={() => setMobileNavOpen(false)}
                   />
                   <button
+                    type="button"
                     onClick={logout}
                     className="mt-4 flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/5 hover:text-destructive"
                   >
@@ -254,7 +259,13 @@ export default function DashboardShell({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <NotificationBell onNavigate={() => onSectionChange(activeSection)} />
+            <NotificationBell
+              onNavigate={() => {
+                if (navItems.some((item) => item.key === "appointments")) {
+                  onSectionChange("appointments");
+                }
+              }}
+            />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
