@@ -80,11 +80,17 @@ pair** → the public key becomes `NEXT_PUBLIC_FIREBASE_PUSH_VAPID_KEY`.
 
 ---
 
-## 2. SMS (phone OTP)
+## 2. SMS (phone OTP) — deferred for initial release
 
-Phone OTP is a first-class login path. In production `SMS_PROVIDER=console`
-**refuses** to work (the code is not echoed back), so without a real provider
-phone login is simply unavailable — not broken, hidden.
+The first production release may proceed without a paid SMS provider.
+Keep `SMS_PROVIDER=console` (or leave it unset): production phone OTP remains
+**disabled fail-closed**; the development provider does not echo or deliver OTPs.
+This is a non-blocking preflight warning, not a claim that SMS is operational.
+Email/password authentication remains the primary login path; Google sign-in is
+separately optional. Do not advertise phone OTP until a real provider is
+configured and a live delivery smoke test passes.
+
+When SMS is ready, configure one provider:
 
 **Option A — SSL Wireless (Bangladesh-local, usually cheapest for BD numbers)**
 ```
